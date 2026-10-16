@@ -1,6 +1,7 @@
 /target
 /lean/.lake
 /lean/lake-packages
+__pycache__/
 
 # private working context, symlinked from the notes repo (bootstrap.sh)
 /CLAUDE.local.md

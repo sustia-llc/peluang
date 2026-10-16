@@ -1,0 +1,34 @@
+name: rust
+on:
+  push:
+    branches: [main]
+  pull_request:
+concurrency:
+  group: rust-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.0"
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - run: cargo metadata --locked --format-version 1 > /dev/null
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo clippy --all-targets --features f64-prob -- -D warnings
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
+      - name: docstring code-block guard
+        run: |
+          matches=$(rg -n '^\s*(///|//!).*`{3}' src/ || true)
+          if [ -n "$matches" ]; then
+            echo "::error::code block in a docstring:"
+            echo "$matches"
+            exit 1
+          fi
+      - run: cargo nextest run
+      - run: cargo nextest run --features f64-prob
