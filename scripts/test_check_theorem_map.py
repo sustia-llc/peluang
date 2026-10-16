@@ -85,6 +85,11 @@ class CheckTheoremMap(unittest.TestCase):
         row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
         self.assertEqual(self.run_case(lean=lean, row=row, test=TEST_FILE), [])
 
+    def test_named_section_end_pops_section_only(self) -> None:
+        lean = "namespace A\nsection S\nend S\nend A\n\nnamespace Peluang.Conditional\ntheorem unique_as : True := trivial\nend Peluang.Conditional\n"
+        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
+        self.assertEqual(self.run_case(lean=lean, row=row, test=TEST_FILE), [])
+
     def test_multiline_theorem_header_detected(self) -> None:
         lean = "namespace Peluang.Conditional\n\n@[simp]\ntheorem\n  unique_as : True := trivial\n\nend Peluang.Conditional\n"
         failures = self.run_case(lean=lean, row=None, test=None)

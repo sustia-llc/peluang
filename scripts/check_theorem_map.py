@@ -22,9 +22,8 @@ DECL_KEYWORD_ONLY_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:private\s+|protect
 NAME_RE = re.compile(r"^\s*([A-Za-z_][\w'.]*)")
 ATTR_LINE_RE = re.compile(r"^\s*@\[[^\]]*\]\s*$")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([\w.]+)")
-SECTION_RE = re.compile(r"^\s*(?:noncomputable\s+)?section(?:\s+[\w.]+)?\s*$")
+SECTION_RE = re.compile(r"^\s*(?:noncomputable\s+)?section(?:\s+([\w.]+))?\s*$")
 END_RE = re.compile(r"^\s*end(?:\s+([\w.]+))?\s*$")
-SECTION_MARK = ""
 OPT_OUT_RE = re.compile(r"^\s*--\s*WITNESS:\s*none\s*\(.+\)\s*$")
 ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<anchor>[^|]*?)\s*\|\s*$")
 TEST_REF_RE = re.compile(r"^tests/formalization_lean/(?P<file>[\w/]+\.rs)::(?P<fn>\w+)$")
@@ -43,18 +42,19 @@ class Decl:
 def lean_decls(lean_root: Path) -> list[Decl]:
     decls: list[Decl] = []
     for path in sorted(lean_root.rglob("*.lean")):
-        stack: list[str] = []
+        stack: list[tuple[str, str]] = []  # (kind, name); kind is "namespace" or "section"
         lines = path.read_text(encoding="utf-8").splitlines()
         for i, line in enumerate(lines):
             m = NAMESPACE_RE.match(line)
             if m:
-                stack.append(m.group(1))
+                stack.append(("namespace", m.group(1)))
                 continue
-            if SECTION_RE.match(line):
-                stack.append(SECTION_MARK)
+            m = SECTION_RE.match(line)
+            if m:
+                stack.append(("section", m.group(1) or ""))
                 continue
             m = END_RE.match(line)
-            if m and stack and (m.group(1) is None or m.group(1) == stack[-1]):
+            if m and stack and (m.group(1) is None or m.group(1) == stack[-1][1]):
                 stack.pop()
                 continue
             name = None
@@ -69,7 +69,7 @@ def lean_decls(lean_root: Path) -> list[Decl]:
                         break
             if name is None:
                 continue
-            namespaces = [s for s in stack if s != SECTION_MARK]
+            namespaces = [name for (kind, name) in stack if kind == "namespace"]
             qualified = ".".join([*namespaces, name]) if namespaces else name
             j = i - 1
             while j >= 0 and ATTR_LINE_RE.match(lines[j]):
