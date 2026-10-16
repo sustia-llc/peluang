@@ -1,0 +1,12 @@
+/target
+/lean/.lake
+/lean/lake-packages
+
+# private working context, symlinked from the notes repo (bootstrap.sh)
+/CLAUDE.local.md
+/.claude/docs
+/.claude/plans
+/.claude/stack
+/.claude/commands
+/.claude/settings.local.json
+TODO.md
