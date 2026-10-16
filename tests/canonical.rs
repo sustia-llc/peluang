@@ -7,7 +7,7 @@ mod rejection {
 
     /// Exact weights whose `add` is left projection: associative, with `zero`
     /// as right identity, non-commutative.
-    #[derive(Clone, Debug, PartialEq, PartialOrd)]
+    #[derive(Clone, Debug, PartialEq)]
     struct LeftProj(Exact);
 
     impl Prob for LeftProj {
@@ -116,6 +116,22 @@ mod exact {
             "expected [7/10, 3/10, 1/10] not normalized (sum 11/10), got {got}"
         );
     }
+
+    #[test]
+    fn is_normalized_false_on_empty() {
+        let got = Exact::is_normalized(Vec::<Exact>::new());
+        assert!(!got, "expected [] not normalized (sum 0), got {got}");
+    }
+
+    #[test]
+    fn is_nonneg_sign() {
+        let pos = r(3, 5).is_nonneg();
+        let zero = Exact::zero().is_nonneg();
+        let neg = r(-1, 5).is_nonneg();
+        assert!(pos, "expected 3/5 nonneg, got {pos}");
+        assert!(zero, "expected 0 nonneg, got {zero}");
+        assert!(!neg, "expected -1/5 not nonneg, got {neg}");
+    }
 }
 
 #[cfg(feature = "f64-prob")]
@@ -172,5 +188,21 @@ mod float {
             !got,
             "expected [0.7, 0.3, 0.1] not normalized (sum 1.1), got {got}"
         );
+    }
+
+    #[test]
+    fn is_normalized_false_on_empty() {
+        let got = f64::is_normalized(Vec::<f64>::new());
+        assert!(!got, "expected [] not normalized (sum 0.0), got {got}");
+    }
+
+    #[test]
+    fn is_nonneg_sign() {
+        let pos = 0.6_f64.is_nonneg();
+        let zero = 0.0_f64.is_nonneg();
+        let neg = (-0.2_f64).is_nonneg();
+        assert!(pos, "expected 0.6 nonneg, got {pos}");
+        assert!(zero, "expected 0.0 nonneg, got {zero}");
+        assert!(!neg, "expected -0.2 not nonneg, got {neg}");
     }
 }

@@ -80,6 +80,30 @@ class CheckTheoremMap(unittest.TestCase):
         row = "| mathlib:CategoryTheory.MarkovCategory.eq_discard | — | — |\n"
         self.assertEqual(self.run_case(lean=None, row=row, test=None), [])
 
+    def test_section_end_keeps_namespace(self) -> None:
+        lean = "namespace Peluang.Conditional\n\nsection\nvariable (n : Nat)\nend\n\ntheorem unique_as : True := trivial\n\nend Peluang.Conditional\n"
+        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
+        self.assertEqual(self.run_case(lean=lean, row=row, test=TEST_FILE), [])
+
+    def test_multiline_theorem_header_detected(self) -> None:
+        lean = "namespace Peluang.Conditional\n\n@[simp]\ntheorem\n  unique_as : True := trivial\n\nend Peluang.Conditional\n"
+        failures = self.run_case(lean=lean, row=None, test=None)
+        self.assertEqual(len(failures), 1, failures)
+        self.assertIn("Peluang.Conditional.unique_as", failures[0])
+
+    def test_opt_out_above_attribute_passes(self) -> None:
+        lean = LEAN_FILE.replace("theorem unique_as", "-- WITNESS: none (helper)\n@[simp]\ntheorem unique_as")
+        self.assertEqual(self.run_case(lean=lean, row=None, test=None), [])
+
+    def test_duplicate_row_fails(self) -> None:
+        row = (
+            "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
+            "| Peluang.Conditional.unique_as | tests/formalization_lean/other.rs::unique_as | — |\n"
+        )
+        failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)
+        self.assertEqual(len(failures), 1, failures)
+        self.assertIn("duplicate row", failures[0])
+
     def test_bad_test_column_fails(self) -> None:
         row = "| Peluang.Conditional.unique_as | conditional_tests.rs::unique_as | — |\n"
         failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)

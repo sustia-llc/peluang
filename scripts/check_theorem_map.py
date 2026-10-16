@@ -18,8 +18,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DECL_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:private\s+|protected\s+)?(?:theorem|lemma)\s+([A-Za-z_][\w'.]*)")
+DECL_KEYWORD_ONLY_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:private\s+|protected\s+)?(?:theorem|lemma)\s*$")
+NAME_RE = re.compile(r"^\s*([A-Za-z_][\w'.]*)")
+ATTR_LINE_RE = re.compile(r"^\s*@\[[^\]]*\]\s*$")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([\w.]+)")
+SECTION_RE = re.compile(r"^\s*(?:noncomputable\s+)?section(?:\s+[\w.]+)?\s*$")
 END_RE = re.compile(r"^\s*end(?:\s+([\w.]+))?\s*$")
+SECTION_MARK = ""
 OPT_OUT_RE = re.compile(r"^\s*--\s*WITNESS:\s*none\s*\(.+\)\s*$")
 ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<anchor>[^|]*?)\s*\|\s*$")
 TEST_REF_RE = re.compile(r"^tests/formalization_lean/(?P<file>[\w/]+\.rs)::(?P<fn>\w+)$")
@@ -45,21 +50,38 @@ def lean_decls(lean_root: Path) -> list[Decl]:
             if m:
                 stack.append(m.group(1))
                 continue
+            if SECTION_RE.match(line):
+                stack.append(SECTION_MARK)
+                continue
             m = END_RE.match(line)
             if m and stack and (m.group(1) is None or m.group(1) == stack[-1]):
                 stack.pop()
                 continue
+            name = None
             m = DECL_RE.match(line)
             if m:
                 name = m.group(1)
-                qualified = ".".join([*stack, name]) if stack else name
-                opted = i > 0 and OPT_OUT_RE.match(lines[i - 1]) is not None
-                decls.append(Decl(qualified, path, i + 1, opted))
+            elif DECL_KEYWORD_ONLY_RE.match(line):
+                for follow in lines[i + 1 : i + 3]:
+                    fm = NAME_RE.match(follow)
+                    if fm:
+                        name = fm.group(1)
+                        break
+            if name is None:
+                continue
+            namespaces = [s for s in stack if s != SECTION_MARK]
+            qualified = ".".join([*namespaces, name]) if namespaces else name
+            j = i - 1
+            while j >= 0 and ATTR_LINE_RE.match(lines[j]):
+                j -= 1
+            opted = j >= 0 and OPT_OUT_RE.match(lines[j]) is not None
+            decls.append(Decl(qualified, path, i + 1, opted))
     return decls
 
 
-def map_rows(map_path: Path) -> dict[str, tuple[str, int]]:
+def map_rows(map_path: Path) -> tuple[dict[str, tuple[str, int]], list[str]]:
     rows: dict[str, tuple[str, int]] = {}
+    duplicates: list[str] = []
     in_table = False
     for i, line in enumerate(map_path.read_text(encoding="utf-8").splitlines()):
         if line.startswith("| Lean id"):
@@ -71,8 +93,14 @@ def map_rows(map_path: Path) -> dict[str, tuple[str, int]]:
             continue
         m = ROW_RE.match(line)
         if m:
-            rows[m.group("id")] = (m.group("test"), i + 1)
-    return rows
+            lean_id = m.group("id")
+            if lean_id in rows:
+                duplicates.append(
+                    f"THEOREM_MAP.md:{i + 1}: duplicate row for `{lean_id}` (first at line {rows[lean_id][1]})"
+                )
+                continue
+            rows[lean_id] = (m.group("test"), i + 1)
+    return rows, duplicates
 
 
 def tagged_tests(tests_root: Path) -> dict[str, list[tuple[Path, str]]]:
@@ -100,7 +128,8 @@ def check(root: Path) -> list[str]:
     map_path = root / "THEOREM_MAP.md"
     if not map_path.is_file():
         return [f"{map_path}: missing"]
-    rows = map_rows(map_path)
+    rows, duplicates = map_rows(map_path)
+    failures.extend(duplicates)
     tests_root = root / "tests" / "formalization_lean"
     tags = tagged_tests(tests_root)
 

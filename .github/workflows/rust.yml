@@ -22,7 +22,6 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo clippy --all-targets --features f64-prob -- -D warnings
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
-      # Private repo: no code blocks in docstrings; compile-checked usage lives in examples/ and tests/.
       - name: docstring code-block guard
         run: |
           matches=$(rg -n '^\s*(///|//!).*`{3}' src/ || true)

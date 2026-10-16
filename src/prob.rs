@@ -10,7 +10,7 @@ pub const F64_TOLERANCE: f64 = 1e-12;
 
 /// A commutative semiring of probability weights with checked division and
 /// an equality relation used by every law check and normalization test.
-pub trait Prob: Clone + PartialEq + PartialOrd + core::fmt::Debug {
+pub trait Prob: Clone + PartialEq + core::fmt::Debug {
     /// Additive identity.
     fn zero() -> Self;
 
