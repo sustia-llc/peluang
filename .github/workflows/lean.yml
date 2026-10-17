@@ -27,15 +27,18 @@ jobs:
         with:
           python-version: "3.12"
       - name: Cache the elan toolchain
+        id: elan-cache
         uses: actions/cache@v4
         with:
           path: ~/.elan
-          key: elan-${{ hashFiles('lean/lean-toolchain') }}
+          key: elan-0e36a07b-${{ hashFiles('lean/lean-toolchain') }}
       - name: Install elan (pinned elan-init, leanprover/elan@0e36a07b)
-        run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/0e36a07b9bbcc5381fa6250df109f9a4f94d7bac/elan-init.sh | sh -s -- -y --default-toolchain none
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        if: steps.elan-cache.outputs.cache-hit != 'true'
+        run: curl -sSf https://raw.githubusercontent.com/leanprover/elan/0e36a07b9bbcc5381fa6250df109f9a4f94d7bac/elan-init.sh | sh -s -- -y --default-toolchain none
+      - name: Put elan on PATH
+        run: echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Install pinned toolchain
+        if: steps.elan-cache.outputs.cache-hit != 'true'
         run: elan toolchain install "$(cat lean/lean-toolchain)"
       - name: Cache lean/.lake (dependencies and Mathlib oleans)
         uses: actions/cache@v4
@@ -59,7 +62,5 @@ jobs:
             exit 1
           fi
         shell: bash
-      - name: sorry and axiom scan (comments and strings excluded)
-        run: python3 -I scripts/check_lean_source.py
       - name: "#print axioms probe"
         run: python3 -I scripts/print_axioms.py

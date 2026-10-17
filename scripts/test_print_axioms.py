@@ -11,100 +11,79 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import print_axioms as pa  # noqa: E402
 
-NAMES = ["Peluang.a", "Peluang.b"]
+OUTPUT = (
+    "MODULE\tPeluang\n"
+    "MODULE\tPeluang.X\n"
+    "AXIOMS\tPeluang.a\tpropext,Classical.choice,Quot.sound\n"
+    "AXIOMS\t_private.Peluang.X.0.Peluang.b\t\n"
+    "AXIOMS\tPeluang.instFoo\tsorryAx\n"
+)
 
 
 class ParseOutput(unittest.TestCase):
-    def test_allowed_axioms_pass(self) -> None:
-        out = (
-            "'Peluang.a' depends on axioms: [propext, Classical.choice, Quot.sound]\n"
-            "'Peluang.b' does not depend on any axioms\n"
-        )
-        self.assertEqual(pa.parse_output(NAMES, out), [])
+    def test_modules_and_axioms(self) -> None:
+        r = pa.parse_output(OUTPUT)
+        self.assertEqual(r.modules, {"Peluang", "Peluang.X"})
+        self.assertEqual(r.axioms["Peluang.a"], ["propext", "Classical.choice", "Quot.sound"])
+        self.assertEqual(r.axioms["_private.Peluang.X.0.Peluang.b"], [])
+        self.assertEqual(r.axioms["Peluang.instFoo"], ["sorryAx"])
 
-    def test_sorry_fails(self) -> None:
-        out = (
-            "'Peluang.a' depends on axioms: [propext, sorryAx]\n"
-            "'Peluang.b' does not depend on any axioms\n"
-        )
-        failures = pa.parse_output(NAMES, out)
-        self.assertEqual(len(failures), 1, failures)
-        self.assertIn("Peluang.a", failures[0])
-        self.assertIn("sorryAx", failures[0])
-
-    def test_native_decide_axiom_fails(self) -> None:
-        out = (
-            "'Peluang.a' depends on axioms: [Lean.ofReduceBool]\n"
-            "'Peluang.b' does not depend on any axioms\n"
-        )
-        failures = pa.parse_output(NAMES, out)
-        self.assertEqual(len(failures), 1, failures)
-        self.assertIn("Lean.ofReduceBool", failures[0])
-
-    def test_wrapped_axiom_list_passes(self) -> None:
-        out = (
-            "'Peluang.a' depends on axioms: [propext,\n Classical.choice,\n Quot.sound]\n"
-            "'Peluang.b' does not depend on any axioms\n"
-        )
-        self.assertEqual(pa.parse_output(NAMES, out), [])
-
-    def test_wrapped_axiom_list_with_sorry_fails(self) -> None:
-        out = (
-            "'Peluang.a' depends on axioms: [propext,\n Classical.choice,\n sorryAx]\n"
-            "'Peluang.b' does not depend on any axioms\n"
-        )
-        failures = pa.parse_output(NAMES, out)
-        self.assertEqual(len(failures), 1, failures)
-        self.assertIn("sorryAx", failures[0])
-
-    def test_primed_name_parses(self) -> None:
-        out = "'Peluang.a'' depends on axioms: [sorryAx]\n"
-        failures = pa.parse_output(["Peluang.a'"], out)
-        self.assertEqual(len(failures), 1, failures)
-        self.assertIn("sorryAx", failures[0])
-
-    def test_private_name_is_unmangled(self) -> None:
-        out = "'_private.Peluang.X.0.Peluang.a' depends on axioms: [sorryAx]\n"
-        failures = pa.parse_output(["Peluang.a"], out)
-        self.assertEqual(len(failures), 1, failures)
-        self.assertIn("sorryAx", failures[0])
-
-    def test_missing_result_fails(self) -> None:
-        out = "'Peluang.a' does not depend on any axioms\n"
-        failures = pa.parse_output(NAMES, out)
-        self.assertEqual(failures, ["`Peluang.b`: no `#print axioms` result"])
-
-    def test_empty_name_list_passes(self) -> None:
-        self.assertEqual(pa.parse_output([], ""), [])
+    def test_unrelated_lines_ignored(self) -> None:
+        r = pa.parse_output("warning: something\nAXIOMS\tonly-two-fields\n")
+        self.assertEqual((r.modules, r.axioms), (set(), {}))
 
 
 class Evaluate(unittest.TestCase):
-    def test_nonzero_exit_reports_only_lean_error(self) -> None:
-        failures = pa.evaluate(NAMES, 1, "Probe.lean:3:0: error: unknown module\n")
+    def test_disallowed_axiom_fails_with_display_name(self) -> None:
+        failures = pa.evaluate(pa.parse_output(OUTPUT), ["Peluang.X"], [])
         self.assertEqual(len(failures), 1, failures)
-        self.assertIn("lean exited 1", failures[0])
-        self.assertIn("unknown module", failures[0])
+        self.assertIn("`Peluang.instFoo`: depends on sorryAx", failures[0])
+
+    def test_private_sorry_reported_unmangled(self) -> None:
+        out = "MODULE\tPeluang.X\nAXIOMS\t_private.Peluang.X.0.Peluang.h\tsorryAx\n"
+        failures = pa.evaluate(pa.parse_output(out), ["Peluang.X"], [])
+        self.assertEqual(failures, ["`Peluang.h`: depends on sorryAx (allowed: Classical.choice, Quot.sound, propext)"])
+
+    def test_native_decide_axiom_fails(self) -> None:
+        out = "MODULE\tPeluang.X\nAXIOMS\tPeluang.d\tLean.ofReduceBool\n"
+        failures = pa.evaluate(pa.parse_output(out), ["Peluang.X"], [])
+        self.assertEqual(len(failures), 1, failures)
+        self.assertIn("Lean.ofReduceBool", failures[0])
+
+    def test_orphan_module_fails(self) -> None:
+        out = "MODULE\tPeluang\nAXIOMS\tPeluang.a\t\n"
+        failures = pa.evaluate(pa.parse_output(out), ["Peluang.Orphan"], [])
+        self.assertEqual(len(failures), 1, failures)
+        self.assertIn("`Peluang.Orphan`: file under lean/Peluang/ is not imported", failures[0])
+
+    def test_scanned_name_missing_from_environment_fails(self) -> None:
+        out = "MODULE\tPeluang.X\nAXIOMS\tPeluang.a\t\n"
+        failures = pa.evaluate(pa.parse_output(out), ["Peluang.X"], ["Peluang.a", "Peluang.ghost"])
+        self.assertEqual(len(failures), 1, failures)
+        self.assertIn("`Peluang.ghost`: scanned as a theorem", failures[0])
+
+    def test_scanned_private_name_matches(self) -> None:
+        out = "MODULE\tPeluang.X\nAXIOMS\t_private.Peluang.X.0.Peluang.p\t\n"
+        self.assertEqual(pa.evaluate(pa.parse_output(out), ["Peluang.X"], ["Peluang.p"]), [])
+
+    def test_clean_probe_passes(self) -> None:
+        out = "MODULE\tPeluang\nMODULE\tPeluang.X\nAXIOMS\tPeluang.a\tpropext\n"
+        self.assertEqual(pa.evaluate(pa.parse_output(out), ["Peluang.X"], ["Peluang.a"]), [])
 
 
-class ProbeSource(unittest.TestCase):
-    def test_module_with_import_all_and_one_print_per_name(self) -> None:
-        src = pa.probe_source(["Peluang", "Peluang.X"], NAMES)
-        self.assertTrue(src.startswith("module\n"))
-        self.assertIn("import all Peluang\n", src)
-        self.assertIn("import all Peluang.X\n", src)
-        self.assertEqual(src.count("#print axioms "), len(NAMES))
-
+class ModuleNames(unittest.TestCase):
     def test_module_names_from_tree(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             lean = Path(tmp)
             (lean / "Peluang" / "Markov").mkdir(parents=True)
             (lean / "Peluang" / "Markov" / "Derived.lean").write_text("", encoding="utf-8")
             (lean / "Peluang" / "AlmostSure.lean").write_text("", encoding="utf-8")
-            self.assertEqual(pa.module_names(lean), ["Peluang", "Peluang.AlmostSure", "Peluang.Markov.Derived"])
+            self.assertEqual(pa.module_names(lean), ["Peluang.AlmostSure", "Peluang.Markov.Derived"])
 
-    def test_module_names_without_library_dir(self) -> None:
+    def test_no_library_dir_skips_probe(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(pa.module_names(Path(tmp)), ["Peluang"])
+            (Path(tmp) / "lean").mkdir()
+            self.assertEqual(pa.check(Path(tmp)), (0, []))
 
 
 if __name__ == "__main__":

@@ -129,6 +129,41 @@ class CheckTheoremMap(unittest.TestCase):
             names = [x.qualified for x in ctm.lean_decls(d)]
         self.assertEqual(names, ["Peluang.a", "Peluang.b", "Peluang.c"], f"got {names}")
 
+    def names_in(self, lean: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / "Peluang"
+            d.mkdir()
+            (d / "X.lean").write_text(lean, encoding="utf-8")
+            return [x.qualified for x in ctm.lean_decls(d)]
+
+    def test_comment_text_is_not_scanned(self) -> None:
+        lean = "/-!\ntheorem fake : False\nnamespace Bogus\n-/\nnamespace Peluang\n-- theorem alsoFake : False\ntheorem real : True := trivial\nend Peluang\n"
+        names = self.names_in(lean)
+        self.assertEqual(names, ["Peluang.real"], f"got {names}")
+
+    def test_mutual_end_keeps_namespace(self) -> None:
+        lean = "namespace Peluang\nmutual\ntheorem a : True := trivial\ntheorem b : True := trivial\nend\ntheorem c : True := trivial\nend Peluang\n"
+        names = self.names_in(lean)
+        self.assertEqual(names, ["Peluang.a", "Peluang.b", "Peluang.c"], f"got {names}")
+
+    def test_root_prefix_drops_namespace(self) -> None:
+        names = self.names_in("namespace Peluang\ntheorem _root_.Foo.bar : True := trivial\nend Peluang\n")
+        self.assertEqual(names, ["Foo.bar"], f"got {names}")
+
+    def test_nonrec_and_partial_modifiers_detected(self) -> None:
+        lean = "namespace Peluang\nnonrec theorem a : True := trivial\n@[simp] private nonrec theorem b : True := trivial\nend Peluang\n"
+        names = self.names_in(lean)
+        self.assertEqual(names, ["Peluang.a", "Peluang.b"], f"got {names}")
+
+    def test_opt_out_still_read_from_raw_comment(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (helper)\ntheorem h : True := trivial\nend Peluang\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / "Peluang"
+            d.mkdir()
+            (d / "X.lean").write_text(lean, encoding="utf-8")
+            decls = ctm.lean_decls(d)
+        self.assertEqual([(x.qualified, x.opted_out) for x in decls], [("Peluang.h", True)])
+
     def test_bad_test_column_fails(self) -> None:
         row = "| Peluang.Conditional.unique_as | conditional_tests.rs::unique_as | — |\n"
         failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)

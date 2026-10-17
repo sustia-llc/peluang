@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Find `sorry` terms and `axiom` declarations in the Lean sources under lean/.
+"""Find `sorry`/`admit` terms and `axiom` declarations in the Lean sources under lean/.
 
 Scans every `*.lean` file under lean/ outside lean/.lake, after blanking line
 comments (`--`), nested block comments and docstrings (`/- … -/`), string
-literals (`"…"`, raw `r"…"` / `r#"…"#`) and char literals. Exit 0 when neither occurs; exit 1 otherwise, printing
-`path:line: <kind>` per hit.
+literals (`"…"`, raw `r"…"` / `r#"…"#`) and char literals. Exit 0 when none
+occurs; exit 1 otherwise, printing `path:line: <kind>` per hit.
 
 Usage: check_lean_source.py [REPO_ROOT]
 """
@@ -15,10 +15,11 @@ import re
 import sys
 from pathlib import Path
 
-SORRY_RE = re.compile(r"(?<![\w.'])sorry(?![\w'])")
+MODIFIERS = r"(?:(?:private|protected|public|noncomputable|unsafe|partial|nonrec)\s+)*"
+SORRY_RE = re.compile(r"(?<![\w.'])(sorry|admit)(?![\w'])")
 CHAR_RE = re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.)|[^\\'\n])'")
 RAW_RE = re.compile(r'r(#*)"')
-AXIOM_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:private|protected|public|noncomputable|unsafe)\s+)*axiom\b")
+AXIOM_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}axiom\b")
 
 
 def strip_code(src: str) -> str:
@@ -83,8 +84,8 @@ def strip_code(src: str) -> str:
 def scan(text: str) -> list[tuple[int, str]]:
     hits: list[tuple[int, str]] = []
     for lineno, line in enumerate(strip_code(text).splitlines(), start=1):
-        if SORRY_RE.search(line):
-            hits.append((lineno, "sorry"))
+        for m in SORRY_RE.finditer(line):
+            hits.append((lineno, m.group(1)))
         if AXIOM_RE.match(line):
             hits.append((lineno, "axiom declaration"))
     return hits

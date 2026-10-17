@@ -19,10 +19,10 @@ arXiv:1908.07021; cited by definition and theorem number.
 - `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`.
 - `THEOREM_MAP.md` — Lean theorem → Rust test → anchor.
 - `scripts/check_theorem_map.py` — the coverage check CI runs.
-- `scripts/print_axioms.py` — `#print axioms` over every theorem under
-  `lean/Peluang/`, allowlist `{propext, Classical.choice, Quot.sound}`.
-- `scripts/check_lean_source.py` — `sorry` terms and `axiom` declarations
-  in `lean/` sources, outside comments and literals.
+- `scripts/print_axioms.py` — the axioms of every constant defined in the
+  `Peluang` library, allowlist `{propext, Classical.choice, Quot.sound}`.
+- `scripts/check_lean_source.py` — `sorry`/`admit` terms and `axiom`
+  declarations in `lean/` sources, outside comments and literals.
 
 ## Requirements
 

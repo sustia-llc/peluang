@@ -17,10 +17,11 @@ git tag is the authoritative pin.
   `v4.35.0`; root `Peluang.lean` imports
   `Mathlib.CategoryTheory.MarkovCategory.Basic` and
   `Mathlib.Probability.Kernel.Category.Stoch`.
-- `scripts/print_axioms.py` (`#print axioms` probe, allowlist `propext`,
-  `Classical.choice`, `Quot.sound`) with `scripts/test_print_axioms.py`.
-- `scripts/check_lean_source.py` (`sorry`/`axiom` scan outside comments and
-  literals) with `scripts/test_check_lean_source.py`.
-- CI: `lean.yml` (pinned elan, fail-closed cache fetch, cached `lean/.lake`,
-  warning-free build, source scan, axioms probe); `theorem-map.yml` runs the
+- `scripts/print_axioms.py` (axioms of every constant in `Peluang.*`
+  modules, allowlist `propext`, `Classical.choice`, `Quot.sound`; orphan
+  files; scanned theorem names) with `scripts/test_print_axioms.py`.
+- `scripts/check_lean_source.py` (`sorry`/`admit`/`axiom` scan outside
+  comments and literals) with `scripts/test_check_lean_source.py`.
+- CI: `lean.yml` (pinned elan, fail-closed cache fetch, cached `~/.elan` and
+  `lean/.lake`, warning-free build, axioms probe); `theorem-map.yml` runs the
   source scan and all script tests.

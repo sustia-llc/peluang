@@ -17,13 +17,16 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-MODIFIERS = r"(?:(?:private|protected|public)\s+)*"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_lean_source import MODIFIERS, strip_code  # noqa: E402
+
 DECL_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}(?:theorem|lemma)\s+([A-Za-z_][\w'.]*)")
 DECL_KEYWORD_ONLY_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}(?:theorem|lemma)\s*$")
 NAME_RE = re.compile(r"^\s*([A-Za-z_][\w'.]*)")
 ATTR_LINE_RE = re.compile(r"^\s*@\[[^\]]*\]\s*$")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([\w.]+)")
 SECTION_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:public|noncomputable)\s+)*section(?:\s+([\w.]+))?\s*$")
+MUTUAL_RE = re.compile(r"^\s*mutual\s*$")
 END_RE = re.compile(r"^\s*end(?:\s+([\w.]+))?\s*$")
 OPT_OUT_RE = re.compile(r"^\s*--\s*WITNESS:\s*none\s*\(.+\)\s*$")
 ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<anchor>[^|]*?)\s*\|\s*$")
@@ -43,8 +46,10 @@ class Decl:
 def lean_decls(lean_root: Path) -> list[Decl]:
     decls: list[Decl] = []
     for path in sorted(lean_root.rglob("*.lean")):
-        stack: list[tuple[str, str]] = []  # (kind, name); kind is "namespace" or "section"
-        lines = path.read_text(encoding="utf-8").splitlines()
+        stack: list[tuple[str, str]] = []  # (kind, name); kind is "namespace", "section" or "mutual"
+        source = path.read_text(encoding="utf-8")
+        raw = source.splitlines()
+        lines = strip_code(source).splitlines()
         for i, line in enumerate(lines):
             m = NAMESPACE_RE.match(line)
             if m:
@@ -53,6 +58,9 @@ def lean_decls(lean_root: Path) -> list[Decl]:
             m = SECTION_RE.match(line)
             if m:
                 stack.append(("section", m.group(1) or ""))
+                continue
+            if MUTUAL_RE.match(line):
+                stack.append(("mutual", ""))
                 continue
             m = END_RE.match(line)
             if m and stack and (m.group(1) is None or m.group(1) == stack[-1][1]):
@@ -71,11 +79,14 @@ def lean_decls(lean_root: Path) -> list[Decl]:
             if name is None:
                 continue
             namespaces = [name for (kind, name) in stack if kind == "namespace"]
-            qualified = ".".join([*namespaces, name]) if namespaces else name
+            if name.startswith("_root_."):
+                qualified = name.removeprefix("_root_.")
+            else:
+                qualified = ".".join([*namespaces, name]) if namespaces else name
             j = i - 1
-            while j >= 0 and ATTR_LINE_RE.match(lines[j]):
+            while j >= 0 and ATTR_LINE_RE.match(raw[j]):
                 j -= 1
-            opted = j >= 0 and OPT_OUT_RE.match(lines[j]) is not None
+            opted = j >= 0 and OPT_OUT_RE.match(raw[j]) is not None
             decls.append(Decl(qualified, path, i + 1, opted))
     return decls
 

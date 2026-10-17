@@ -19,6 +19,12 @@ class Scan(unittest.TestCase):
     def test_sorry_tactic_hits(self) -> None:
         self.assertEqual(cls.scan("theorem t : False := by\n  sorry\n"), [(2, "sorry")])
 
+    def test_admit_tactic_hits(self) -> None:
+        self.assertEqual(cls.scan("theorem t : False := by\n  admit\n"), [(2, "admit")])
+
+    def test_admit_in_comment_ignored(self) -> None:
+        self.assertEqual(cls.scan("-- never admit defeat\ntheorem t : True := trivial\n"), [])
+
     def test_axiom_declaration_hits(self) -> None:
         src = "axiom a : False\n  private axiom b : False\n@[simp] axiom c : False\n"
         self.assertEqual(cls.scan(src), [(1, "axiom declaration"), (2, "axiom declaration"), (3, "axiom declaration")])

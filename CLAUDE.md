@@ -21,12 +21,14 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   1. `env -C lean lake exe cache get` (fail closed: a non-zero exit stops
      the gate; never fall through to a cold build).
   2. `env -C lean lake build` — `rg -c 'warning:' <log>` must print nothing.
-  3. `python3 -I scripts/check_lean_source.py`: no `sorry` term and no
-     `axiom` declaration under `lean/` outside `lean/.lake`, with comments,
-     docstrings, string and char literals excluded.
-  4. `python3 -I scripts/print_axioms.py` (needs step 2): every theorem
-     under `lean/Peluang/` depends only on `{propext, Classical.choice,
-     Quot.sound}`.
+  3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit` term and
+     no `axiom` declaration under `lean/` outside `lean/.lake`, with
+     comments, docstrings, string and char literals excluded.
+  4. `python3 -I scripts/print_axioms.py` (needs step 2): every constant
+     defined in a `Peluang.*` module depends only on `{propext,
+     Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is
+     imported from `lean/Peluang.lean`; every theorem name
+     `check_theorem_map.py` scans is a constant of the library.
 - Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`
   Mathlib `@ git "v4.35.0"`; `lean/lake-manifest.json` Mathlib rev
   `56a005855ea17e0b0958f73ec801ae140b0a1679`.
