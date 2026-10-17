@@ -18,8 +18,9 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   `python3 -I scripts/test_check_lean_source.py`, then
   `python3 -I scripts/check_theorem_map.py`.
 - Lean gates, in order, each to a log file:
-  1. `env -C lean lake exe cache get` (fail closed: a non-zero exit stops
-     the gate; never fall through to a cold build).
+  1. `env -C lean lake exe cache get`, then `env -C lean lake build
+     --no-build Mathlib` (fail closed: a non-zero exit from either stops the
+     gate; never fall through to a cold build).
   2. `env -C lean lake build` — `rg -c 'warning:' <log>` must print nothing.
   3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit` term and
      no `axiom` declaration under `lean/` outside `lean/.lake`, with
@@ -71,6 +72,12 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   exits 1 after downloading (`no such file or directory … lean-toolchain`).
   CI uses `working-directory: lean`; `scripts/print_axioms.py` runs `lake`
   with `cwd=lean/`.
+- `lake exe cache get` exits 0 ("No files to download") while a Mathlib
+  olean is missing; `lake build --no-build Mathlib` exits 3 on it, and
+  `lake exe cache get!` restores it.
+- `scripts/print_axioms.py` audits the oleans on disk; it refuses to run
+  when `lake build --no-build` reports the build stale (a probe on a stale
+  build audits deleted or edited sources).
 - `lean_lib Peluang` takes the default root; an `.andSubmodules` glob
   fails the build while `lean/Peluang/` does not exist. Every file under
   `lean/Peluang/` is reached through an import from `lean/Peluang.lean`.

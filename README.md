@@ -15,12 +15,19 @@ arXiv:1908.07021; cited by definition and theorem number.
 - `src/` — the crate: `prob.rs` (the `Prob` carrier trait; exact rationals by
   default, `f64` behind the `f64-prob` feature), `error.rs`, and the
   Markov-category modules as they land.
-- `lean/` — the Lake project (`Peluang`), pinned to one Lean/Mathlib pair.
-- `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`.
+- `lean/` — the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
+  `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is
+  the library root and imports every file under `lean/Peluang/`.
+- `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`
+  (none yet).
 - `THEOREM_MAP.md` — Lean theorem → Rust test → anchor.
-- `scripts/check_theorem_map.py` — the coverage check CI runs.
+- `scripts/check_theorem_map.py` — every theorem of the library has a
+  `THEOREM_MAP.md` row with an existing witness, or a `-- WITNESS: none`
+  opt-out.
 - `scripts/print_axioms.py` — the axioms of every constant defined in the
   `Peluang` library, allowlist `{propext, Classical.choice, Quot.sound}`.
+- `scripts/probe_selftest.py` — `print_axioms.py` against a planted module
+  of `sorry` and `native_decide` constants.
 - `scripts/check_lean_source.py` — `sorry`/`admit` terms and `axiom`
   declarations in `lean/` sources, outside comments and literals.
 
@@ -28,19 +35,23 @@ arXiv:1908.07021; cited by definition and theorem number.
 
 - Rust per `rust-toolchain.toml`; `cargo-nextest` recommended.
 - Lean 4 via `elan`; the toolchain is read from `lean/lean-toolchain`.
-- Python 3.12+ for the bridge check.
+- Python 3.12+ for the scripts.
 
 ## Test
 
 ```sh
+# Rust
 cargo nextest run
 cargo nextest run --features f64-prob
+# scripts and bridge (no Lean needed)
 python3 -I scripts/test_check_theorem_map.py
-python3 -I scripts/check_theorem_map.py
 python3 -I scripts/test_print_axioms.py
 python3 -I scripts/test_check_lean_source.py
 python3 -I scripts/check_lean_source.py
+python3 -I scripts/check_theorem_map.py
+# Lean (every lake command runs with lean/ as the working directory)
 env -C lean lake exe cache get
+env -C lean lake build --no-build Mathlib
 env -C lean lake build
 python3 -I scripts/print_axioms.py
 python3 -I scripts/probe_selftest.py

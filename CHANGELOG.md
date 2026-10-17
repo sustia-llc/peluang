@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-17
+
 ### Added
 
 - Crate scaffold: `error.rs` (`thiserror` enum, `Result<T>`), `prob.rs`
@@ -19,12 +21,19 @@ git tag is the authoritative pin.
   `Mathlib.Probability.Kernel.Category.Stoch`.
 - `scripts/print_axioms.py` (axioms of every constant in `Peluang.*`
   modules, allowlist `propext`, `Classical.choice`, `Quot.sound`; orphan
-  files; scanned theorem names against the environment's source theorems)
+  files; scanned theorem names against the environment's source theorems;
+  refuses a stale build)
   with `scripts/test_print_axioms.py` and the end-to-end
   `scripts/probe_selftest.py`.
 - `scripts/check_lean_source.py` (`sorry`/`admit`/`axiom` scan outside
   comments and literals) with `scripts/test_check_lean_source.py`.
-- CI: `lean.yml` (pinned elan, fail-closed cache fetch, cached `~/.elan` and
+- CI: `lean.yml` (pinned elan, fail-closed cache fetch checked with
+  `lake build --no-build Mathlib`, cached `~/.elan` and
   `lean/.lake/packages`, warning-free build, axioms probe and its
-  self-test); `theorem-map.yml` runs the
-  source scan and all script tests.
+  self-test); `theorem-map.yml` runs the source scan, the THEOREM_MAP check
+  and all script tests.
+- `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
+  (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
+
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/sustia-llc/peluang/releases/tag/v0.1.0

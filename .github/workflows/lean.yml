@@ -54,6 +54,10 @@ jobs:
             echo "::error::Mathlib cache fetch failed; refusing a cold build"
             exit 1
           fi
+          if ! lake build --no-build Mathlib; then
+            echo "::error::Mathlib cache incomplete after cache get; refusing a cold build"
+            exit 1
+          fi
       - name: Build (warning-free)
         working-directory: lean
         run: |

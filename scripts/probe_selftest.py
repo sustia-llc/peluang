@@ -3,9 +3,12 @@
 
 Writes lean/Peluang/ProbeSelfTest.lean (constants built with `sorry` and
 `native_decide`, plus a clean theorem), imports it from lean/Peluang.lean,
-runs `lake build` and print_axioms.check, then restores both files. Exit 0
-when the probe reports a disallowed-axiom failure for exactly the planted
-constants and nothing else; exit 1 otherwise. Requires the Mathlib cache.
+runs `lake build` and print_axioms.check, then restores lean/Peluang.lean,
+deletes the fixture and runs `lake build` again. Refuses to run when the
+fixture path already exists. Exit 0 when the probe reports a
+disallowed-axiom failure for exactly the planted constants and nothing else,
+and the restoring build succeeds; exit 1 otherwise. Requires the Mathlib
+cache.
 
 Usage: probe_selftest.py [REPO_ROOT]
 """
@@ -79,25 +82,38 @@ def flagged(failures: list[str]) -> set[str]:
     return names
 
 
+def build(lean_dir: Path, what: str) -> list[str]:
+    try:
+        proc = pa.run_lake(["build"], lean_dir)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return [f"lake build ({what}) could not run: {e}"]
+    if proc.returncode != 0:
+        return [f"lake build ({what}) failed ({proc.returncode}):\n{(proc.stdout + proc.stderr).rstrip()}"]
+    return []
+
+
 def run(root: Path) -> list[str]:
     lean_dir = root / "lean"
     root_file = lean_dir / "Peluang.lean"
     fixture = lean_dir / "Peluang" / "ProbeSelfTest.lean"
+    if fixture.exists():
+        return [f"{fixture} already exists; refusing to overwrite it"]
     original = root_file.read_text(encoding="utf-8")
     created_dir = not fixture.parent.exists()
     try:
         fixture.parent.mkdir(exist_ok=True)
         fixture.write_text(FIXTURE, encoding="utf-8")
         root_file.write_text(with_import(original), encoding="utf-8")
-        build = subprocess.run(["lake", "build"], cwd=lean_dir, capture_output=True, text=True, check=False)
-        if build.returncode != 0:
-            return [f"lake build of the fixture failed ({build.returncode}):\n{(build.stdout + build.stderr).rstrip()}"]
-        _, failures = pa.check(root)
+        planted_build = build(lean_dir, "with the fixture")
+        failures = [] if planted_build else pa.check(root)[1]
     finally:
         root_file.write_text(original, encoding="utf-8")
         fixture.unlink(missing_ok=True)
         if created_dir:
             fixture.parent.rmdir()
+        restored_build = build(lean_dir, "after restoring")
+    if planted_build or restored_build:
+        return planted_build + restored_build
     problems: list[str] = []
     got = flagged(failures)
     for name in sorted(PLANTED - got):

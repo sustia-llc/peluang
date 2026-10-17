@@ -114,7 +114,7 @@ class CheckTheoremMap(unittest.TestCase):
             d = Path(tmp) / "Peluang"
             d.mkdir()
             (d / "X.lean").write_text(lean, encoding="utf-8")
-            return ctm.lean_decls(d)
+            return ctm.lean_decls([d / "X.lean"])
 
     def names_in(self, lean: str) -> list[str]:
         return [x.qualified for x in self.decls_in(lean)]
@@ -144,6 +144,21 @@ class CheckTheoremMap(unittest.TestCase):
         lean = "namespace Peluang\n-- WITNESS: none (helper)\n/-- Doc. -/\n@[simp,\n  reducible]\ntheorem h : True := trivial\n\ntheorem k : True := trivial\nend Peluang\n"
         got = [(x.qualified, x.opted_out) for x in self.decls_in(lean)]
         self.assertEqual(got, [("Peluang.h", True), ("Peluang.k", False)], f"got {got}")
+
+    def test_opt_out_does_not_leak_past_code_ending_in_bracket(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (r)\ntheorem a : True ∧ True := by simp [and_self]\n\ntheorem b : True := trivial\nend Peluang\n"
+        got = [(x.qualified, x.opted_out) for x in self.decls_in(lean)]
+        self.assertEqual(got, [("Peluang.a", True), ("Peluang.b", False)], f"got {got}")
+
+    def test_opt_out_does_not_leak_past_inline_attribute_declaration(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (r)\n@[simp] theorem a : True := by simp [h]\ntheorem b : True := trivial\nend Peluang\n"
+        got = [(x.qualified, x.opted_out) for x in self.decls_in(lean)]
+        self.assertEqual(got, [("Peluang.a", True), ("Peluang.b", False)], f"got {got}")
+
+    def test_opt_out_does_not_leak_past_multiline_proof_ending_in_comma(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (r)\ntheorem a : True := by simp [foo,\n    bar]\ntheorem b : True := trivial\nend Peluang\n"
+        got = [(x.qualified, x.opted_out) for x in self.decls_in(lean)]
+        self.assertEqual(got, [("Peluang.a", True), ("Peluang.b", False)], f"got {got}")
 
     def test_library_decls_include_root_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

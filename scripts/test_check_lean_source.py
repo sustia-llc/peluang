@@ -29,6 +29,10 @@ class Scan(unittest.TestCase):
         src = "axiom a : False\n  private axiom b : False\n@[simp] axiom c : False\n"
         self.assertEqual(cls.scan(src), [(1, "axiom declaration"), (2, "axiom declaration"), (3, "axiom declaration")])
 
+    def test_axiom_after_open_or_set_option_in_hits(self) -> None:
+        src = "open Nat in axiom bad : False\nset_option autoImplicit true in\naxiom bad2 : False\n"
+        self.assertEqual(cls.scan(src), [(1, "axiom declaration"), (3, "axiom declaration")])
+
     def test_line_comment_ignored(self) -> None:
         self.assertEqual(cls.scan("-- no sorry here; axiom-free\ntheorem t : True := trivial -- sorry\n"), [])
 
@@ -92,6 +96,14 @@ class Check(unittest.TestCase):
             (root / "lean" / ".lake" / "packages" / "X.lean").write_text("example : False := sorry\n", encoding="utf-8")
             (root / "lean" / "Peluang.lean").write_text("-- root\n", encoding="utf-8")
             self.assertEqual(cls.check(root), [])
+
+    def test_lake_dir_is_not_walked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            lean = Path(tmp) / "lean"
+            (lean / ".lake" / "packages" / "x").mkdir(parents=True)
+            (lean / ".lake" / "packages" / "x" / "Y.lean").write_text("", encoding="utf-8")
+            (lean / "Peluang.lean").write_text("", encoding="utf-8")
+            self.assertEqual(cls.lean_sources(lean), [lean / "Peluang.lean"])
 
     def test_reports_path_and_line(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

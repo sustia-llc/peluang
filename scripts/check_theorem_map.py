@@ -20,15 +20,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_lean_source import MODIFIERS, strip_code  # noqa: E402
+from check_lean_source import MODIFIERS, PREFIX, strip_code  # noqa: E402
 
 COMPONENT = r"(?:[A-Za-z_][\w'!?]*|«[^»\n]*»)"
 NAME = rf"{COMPONENT}(?:\.{COMPONENT})*"
-PREFIX = r"(?:(?:open|set_option)\b[^\n]*?\bin\s+)*(?:@\[[^\]]*\]\s*)*"
 DECL_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}(?:theorem|lemma)\s+({NAME})")
 DECL_KEYWORD_ONLY_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}(?:theorem|lemma)\s*$")
 NAME_RE = re.compile(rf"^\s*({NAME})")
-HEADER_LINE_RE = re.compile(r"^\s*$|@\[|[\],]\s*$")
+ATTR_START_RE = re.compile(r"^\s*@\[")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([\w.]+)")
 SECTION_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:public|noncomputable)\s+)*section(?:\s+([\w.]+))?\s*$")
 MUTUAL_RE = re.compile(r"^\s*mutual\s*$")
@@ -58,15 +57,37 @@ def library_decls(lean_dir: Path) -> list[Decl]:
     return lean_decls(library_files(lean_dir))
 
 
-def lean_decls(paths: Path | list[Path]) -> list[Decl]:
-    if isinstance(paths, Path):
-        paths = sorted(paths.rglob("*.lean"))
+def attribute_lines(lines: list[str]) -> set[int]:
+    """Indices of lines forming an `@[…]` block alone on its lines (comments already stripped)."""
+    marked: set[int] = set()
+    i = 0
+    while i < len(lines):
+        if not ATTR_START_RE.match(lines[i]):
+            i += 1
+            continue
+        depth, j, rest = 0, i, None
+        while j < len(lines) and rest is None:
+            for k, ch in enumerate(lines[j]):
+                depth += (ch == "[") - (ch == "]")
+                if depth == 0 and ch == "]":
+                    rest = lines[j][k + 1 :]
+                    break
+            if rest is None:
+                j += 1
+        if rest is not None and not rest.strip():
+            marked.update(range(i, j + 1))
+        i = j + 1
+    return marked
+
+
+def lean_decls(paths: list[Path]) -> list[Decl]:
     decls: list[Decl] = []
     for path in paths:
         stack: list[tuple[str, str]] = []  # (kind, name); kind is "namespace", "section" or "mutual"
         source = path.read_text(encoding="utf-8")
         raw = source.splitlines()
         lines = strip_code(source).splitlines()
+        attrs = attribute_lines(lines)
         for i, line in enumerate(lines):
             m = NAMESPACE_RE.match(line)
             if m:
@@ -103,7 +124,7 @@ def lean_decls(paths: Path | list[Path]) -> list[Decl]:
             qualified = qualified.replace("«", "").replace("»", "")
             opted = False
             j = i - 1
-            while j >= 0 and HEADER_LINE_RE.search(lines[j]):
+            while j >= 0 and (not lines[j].strip() or j in attrs):
                 if OPT_OUT_RE.match(raw[j]):
                     opted = True
                     break

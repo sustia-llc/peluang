@@ -12,15 +12,17 @@ Usage: check_lean_source.py [REPO_ROOT]
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
 
 MODIFIERS = r"(?:(?:private|protected|public|noncomputable|unsafe|partial|nonrec)\s+)*"
+PREFIX = r"(?:(?:open|set_option)\b[^\n]*?\bin\s+)*(?:@\[[^\]]*\]\s*)*"
 SORRY_RE = re.compile(r"(?<![\w.'`«])(sorry|admit)(?![\w'»])")
 CHAR_RE = re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.)|[^\\'\n])'")
 RAW_RE = re.compile(r'r(#*)"')
-AXIOM_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}axiom\b")
+AXIOM_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}axiom\b")
 
 
 def strip_code(src: str) -> str:
@@ -108,12 +110,18 @@ def scan(text: str) -> list[tuple[int, str]]:
     return hits
 
 
+def lean_sources(lean: Path) -> list[Path]:
+    found: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(lean):
+        dirnames[:] = [d for d in dirnames if d != ".lake"]
+        found.extend(Path(dirpath) / f for f in filenames if f.endswith(".lean"))
+    return sorted(found)
+
+
 def check(root: Path) -> list[str]:
     lean = root / "lean"
     failures: list[str] = []
-    for path in sorted(lean.rglob("*.lean")) if lean.is_dir() else []:
-        if ".lake" in path.relative_to(lean).parts:
-            continue
+    for path in lean_sources(lean) if lean.is_dir() else []:
         for lineno, kind in scan(path.read_text(encoding="utf-8")):
             failures.append(f"{path.relative_to(root)}:{lineno}: {kind}")
     return failures
