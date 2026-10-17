@@ -109,6 +109,99 @@ class CheckTheoremMap(unittest.TestCase):
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("duplicate row", failures[0])
 
+    def decls_in(self, lean: str) -> list[ctm.Decl]:
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / "Peluang"
+            d.mkdir()
+            (d / "X.lean").write_text(lean, encoding="utf-8")
+            return ctm.lean_decls([d / "X.lean"])
+
+    def names_in(self, lean: str) -> list[str]:
+        return [x.qualified for x in self.decls_in(lean)]
+
+    def test_public_section_end_keeps_namespace(self) -> None:
+        for header in ("public section", "@[expose] public section", "public noncomputable section"):
+            with self.subTest(header=header):
+                lean = f"namespace Peluang\n{header}\ntheorem t1 : True := trivial\nend\ntheorem t2 : True := trivial\nend Peluang\n"
+                names = self.names_in(lean)
+                self.assertEqual(names, ["Peluang.t1", "Peluang.t2"], f"header {header!r} gave {names}")
+
+    def test_visibility_modifiers_detected(self) -> None:
+        lean = "namespace Peluang\npublic theorem a : True := trivial\nprivate theorem b : True := trivial\n@[simp] public theorem c : True := trivial\nend Peluang\n"
+        names = self.names_in(lean)
+        self.assertEqual(names, ["Peluang.a", "Peluang.b", "Peluang.c"], f"got {names}")
+
+    def test_open_in_and_set_option_in_prefixes_detected(self) -> None:
+        lean = "namespace Peluang\nopen Nat in theorem a : True := trivial\nset_option maxHeartbeats 0 in\ntheorem b : True := trivial\nend Peluang\n"
+        names = self.names_in(lean)
+        self.assertEqual(names, ["Peluang.a", "Peluang.b"], f"got {names}")
+
+    def test_guillemet_name_unquoted(self) -> None:
+        names = self.names_in("namespace Peluang\ntheorem «odd name» : True := trivial\nend Peluang\n")
+        self.assertEqual(names, ["Peluang.odd name"], f"got {names}")
+
+    def test_opt_out_across_docstring_and_multiline_attribute(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (helper)\n/-- Doc. -/\n@[simp,\n  reducible]\ntheorem h : True := trivial\n\ntheorem k : True := trivial\nend Peluang\n"
+        got = [(x.qualified, x.opted_out) for x in self.decls_in(lean)]
+        self.assertEqual(got, [("Peluang.h", True), ("Peluang.k", False)], f"got {got}")
+
+    def test_opt_out_does_not_leak_past_code_ending_in_bracket(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (r)\ntheorem a : True ∧ True := by simp [and_self]\n\ntheorem b : True := trivial\nend Peluang\n"
+        got = [(x.qualified, x.opted_out) for x in self.decls_in(lean)]
+        self.assertEqual(got, [("Peluang.a", True), ("Peluang.b", False)], f"got {got}")
+
+    def test_opt_out_does_not_leak_past_inline_attribute_declaration(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (r)\n@[simp] theorem a : True := by simp [h]\ntheorem b : True := trivial\nend Peluang\n"
+        got = [(x.qualified, x.opted_out) for x in self.decls_in(lean)]
+        self.assertEqual(got, [("Peluang.a", True), ("Peluang.b", False)], f"got {got}")
+
+    def test_opt_out_does_not_leak_past_multiline_proof_ending_in_comma(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (r)\ntheorem a : True := by simp [foo,\n    bar]\ntheorem b : True := trivial\nend Peluang\n"
+        got = [(x.qualified, x.opted_out) for x in self.decls_in(lean)]
+        self.assertEqual(got, [("Peluang.a", True), ("Peluang.b", False)], f"got {got}")
+
+    def test_library_decls_include_root_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            lean = Path(tmp)
+            (lean / "Peluang.lean").write_text("theorem Peluang.rootThm : True := trivial\n", encoding="utf-8")
+            (lean / "Peluang").mkdir()
+            (lean / "Peluang" / "A.lean").write_text("theorem Peluang.a : True := trivial\n", encoding="utf-8")
+            names = [x.qualified for x in ctm.library_decls(lean)]
+        self.assertEqual(names, ["Peluang.rootThm", "Peluang.a"], f"got {names}")
+
+    def test_root_file_theorem_needs_row(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "THEOREM_MAP.md").write_text(MAP_HEAD, encoding="utf-8")
+            (root / "lean").mkdir()
+            (root / "lean" / "Peluang.lean").write_text("theorem Peluang.rootThm : True := trivial\n", encoding="utf-8")
+            failures = ctm.check(root)
+        self.assertEqual(len(failures), 1, failures)
+        self.assertIn("Peluang.rootThm", failures[0])
+
+    def test_comment_text_is_not_scanned(self) -> None:
+        lean = "/-!\ntheorem fake : False\nnamespace Bogus\n-/\nnamespace Peluang\n-- theorem alsoFake : False\ntheorem real : True := trivial\nend Peluang\n"
+        names = self.names_in(lean)
+        self.assertEqual(names, ["Peluang.real"], f"got {names}")
+
+    def test_mutual_end_keeps_namespace(self) -> None:
+        lean = "namespace Peluang\nmutual\ntheorem a : True := trivial\ntheorem b : True := trivial\nend\ntheorem c : True := trivial\nend Peluang\n"
+        names = self.names_in(lean)
+        self.assertEqual(names, ["Peluang.a", "Peluang.b", "Peluang.c"], f"got {names}")
+
+    def test_root_prefix_drops_namespace(self) -> None:
+        names = self.names_in("namespace Peluang\ntheorem _root_.Foo.bar : True := trivial\nend Peluang\n")
+        self.assertEqual(names, ["Foo.bar"], f"got {names}")
+
+    def test_nonrec_and_partial_modifiers_detected(self) -> None:
+        lean = "namespace Peluang\nnonrec theorem a : True := trivial\n@[simp] private nonrec theorem b : True := trivial\nend Peluang\n"
+        names = self.names_in(lean)
+        self.assertEqual(names, ["Peluang.a", "Peluang.b"], f"got {names}")
+
+    def test_opt_out_still_read_from_raw_comment(self) -> None:
+        lean = "namespace Peluang\n-- WITNESS: none (helper)\ntheorem h : True := trivial\nend Peluang\n"
+        self.assertEqual([(x.qualified, x.opted_out) for x in self.decls_in(lean)], [("Peluang.h", True)])
+
     def test_bad_test_column_fails(self) -> None:
         row = "| Peluang.Conditional.unique_as | conditional_tests.rs::unique_as | — |\n"
         failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)

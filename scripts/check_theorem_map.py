@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Check THEOREM_MAP.md coverage between lean/Peluang/ and tests/formalization_lean/.
+"""Check THEOREM_MAP.md coverage between the Peluang library and tests/formalization_lean/.
 
-Exit 0 when every `theorem`/`lemma` under lean/Peluang/ has a THEOREM_MAP row
-whose Rust test exists, or an opt-out `-- WITNESS: none (<reason>)` on the
-preceding line; and when every non-`mathlib:` row names a test file that holds
+The library is lean/Peluang.lean plus every file under lean/Peluang/. Exit 0
+when every `theorem`/`lemma` in it has a THEOREM_MAP row whose Rust test
+exists, or an opt-out `-- WITNESS: none (<reason>)` separated from the
+declaration only by blank lines, comments, docstrings and attributes; and when
+every non-`mathlib:` row names a test file that holds
 exactly one `/// THEOREM_MAP: <id>` tag directly above a `#[test]` fn of the
 named name. Exit 1 otherwise, printing each failure on its own line.
 
@@ -17,12 +19,18 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-DECL_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:private\s+|protected\s+)?(?:theorem|lemma)\s+([A-Za-z_][\w'.]*)")
-DECL_KEYWORD_ONLY_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:private\s+|protected\s+)?(?:theorem|lemma)\s*$")
-NAME_RE = re.compile(r"^\s*([A-Za-z_][\w'.]*)")
-ATTR_LINE_RE = re.compile(r"^\s*@\[[^\]]*\]\s*$")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_lean_source import MODIFIERS, PREFIX, strip_code  # noqa: E402
+
+COMPONENT = r"(?:[A-Za-z_][\w'!?]*|«[^»\n]*»)"
+NAME = rf"{COMPONENT}(?:\.{COMPONENT})*"
+DECL_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}(?:theorem|lemma)\s+({NAME})")
+DECL_KEYWORD_ONLY_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}(?:theorem|lemma)\s*$")
+NAME_RE = re.compile(rf"^\s*({NAME})")
+ATTR_START_RE = re.compile(r"^\s*@\[")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([\w.]+)")
-SECTION_RE = re.compile(r"^\s*(?:noncomputable\s+)?section(?:\s+([\w.]+))?\s*$")
+SECTION_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:public|noncomputable)\s+)*section(?:\s+([\w.]+))?\s*$")
+MUTUAL_RE = re.compile(r"^\s*mutual\s*$")
 END_RE = re.compile(r"^\s*end(?:\s+([\w.]+))?\s*$")
 OPT_OUT_RE = re.compile(r"^\s*--\s*WITNESS:\s*none\s*\(.+\)\s*$")
 ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<anchor>[^|]*?)\s*\|\s*$")
@@ -39,11 +47,47 @@ class Decl:
     opted_out: bool
 
 
-def lean_decls(lean_root: Path) -> list[Decl]:
+def library_files(lean_dir: Path) -> list[Path]:
+    root = lean_dir / "Peluang.lean"
+    lib = lean_dir / "Peluang"
+    return ([root] if root.is_file() else []) + (sorted(lib.rglob("*.lean")) if lib.is_dir() else [])
+
+
+def library_decls(lean_dir: Path) -> list[Decl]:
+    return lean_decls(library_files(lean_dir))
+
+
+def attribute_lines(lines: list[str]) -> set[int]:
+    """Indices of lines forming an `@[…]` block alone on its lines (comments already stripped)."""
+    marked: set[int] = set()
+    i = 0
+    while i < len(lines):
+        if not ATTR_START_RE.match(lines[i]):
+            i += 1
+            continue
+        depth, j, rest = 0, i, None
+        while j < len(lines) and rest is None:
+            for k, ch in enumerate(lines[j]):
+                depth += (ch == "[") - (ch == "]")
+                if depth == 0 and ch == "]":
+                    rest = lines[j][k + 1 :]
+                    break
+            if rest is None:
+                j += 1
+        if rest is not None and not rest.strip():
+            marked.update(range(i, j + 1))
+        i = j + 1
+    return marked
+
+
+def lean_decls(paths: list[Path]) -> list[Decl]:
     decls: list[Decl] = []
-    for path in sorted(lean_root.rglob("*.lean")):
-        stack: list[tuple[str, str]] = []  # (kind, name); kind is "namespace" or "section"
-        lines = path.read_text(encoding="utf-8").splitlines()
+    for path in paths:
+        stack: list[tuple[str, str]] = []  # (kind, name); kind is "namespace", "section" or "mutual"
+        source = path.read_text(encoding="utf-8")
+        raw = source.splitlines()
+        lines = strip_code(source).splitlines()
+        attrs = attribute_lines(lines)
         for i, line in enumerate(lines):
             m = NAMESPACE_RE.match(line)
             if m:
@@ -52,6 +96,9 @@ def lean_decls(lean_root: Path) -> list[Decl]:
             m = SECTION_RE.match(line)
             if m:
                 stack.append(("section", m.group(1) or ""))
+                continue
+            if MUTUAL_RE.match(line):
+                stack.append(("mutual", ""))
                 continue
             m = END_RE.match(line)
             if m and stack and (m.group(1) is None or m.group(1) == stack[-1][1]):
@@ -70,11 +117,18 @@ def lean_decls(lean_root: Path) -> list[Decl]:
             if name is None:
                 continue
             namespaces = [name for (kind, name) in stack if kind == "namespace"]
-            qualified = ".".join([*namespaces, name]) if namespaces else name
+            if name.startswith("_root_."):
+                qualified = name.removeprefix("_root_.")
+            else:
+                qualified = ".".join([*namespaces, name]) if namespaces else name
+            qualified = qualified.replace("«", "").replace("»", "")
+            opted = False
             j = i - 1
-            while j >= 0 and ATTR_LINE_RE.match(lines[j]):
+            while j >= 0 and (not lines[j].strip() or j in attrs):
+                if OPT_OUT_RE.match(raw[j]):
+                    opted = True
+                    break
                 j -= 1
-            opted = j >= 0 and OPT_OUT_RE.match(lines[j]) is not None
             decls.append(Decl(qualified, path, i + 1, opted))
     return decls
 
@@ -133,8 +187,7 @@ def check(root: Path) -> list[str]:
     tests_root = root / "tests" / "formalization_lean"
     tags = tagged_tests(tests_root)
 
-    lean_root = root / "lean" / "Peluang"
-    decls = lean_decls(lean_root) if lean_root.is_dir() else []
+    decls = library_decls(root / "lean")
     for d in decls:
         if d.opted_out:
             continue
