@@ -1,5 +1,6 @@
 /target
 /lean/.lake
+/lean/.beam
 /lean/lake-packages
 __pycache__/
 
