@@ -43,6 +43,7 @@ python3 -I scripts/check_lean_source.py
 env -C lean lake exe cache get
 env -C lean lake build
 python3 -I scripts/print_axioms.py
+python3 -I scripts/probe_selftest.py
 ```
 
 ## Examples

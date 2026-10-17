@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Audit the axioms of every constant defined in the `Peluang` library.
 
-Elaborates a probe that imports `Peluang` and, for every constant whose module
-is `Peluang` or `Peluang.*` (theorems, definitions, instances, private and
+Elaborates a probe that imports `Peluang` and, for every constant of a
+`Peluang` / `Peluang.*` module (theorems, definitions, instances, private and
 auxiliary declarations alike), prints the axioms `Lean.collectAxioms` reports.
 The probe runs as `lake env lean` with lean/ as the working directory, so elan
 selects the toolchain in lean/lean-toolchain. Exit 0 when the probe
 elaborates, every constant depends only on axioms in ALLOWED, every file under
-lean/Peluang/ is among the loaded modules, and every theorem name scanned by
-check_theorem_map is a constant of the library; exit 1 otherwise, printing
-each failure on its own line. Requires a built `lake build`.
+lean/Peluang/ is among the loaded modules, and the theorems
+check_theorem_map scans equal the source-level theorems of the environment
+(non-internal theorem constants with a declaration range); exit 1 otherwise,
+printing each failure on its own line. Requires a built `lake build`.
 
 Usage: print_axioms.py [REPO_ROOT]
 """
@@ -30,21 +31,23 @@ TIMEOUT_S = 900
 PRIVATE_PREFIX = "_private."
 
 PROBE = """import Lean.Util.CollectAxioms
+import Lean.DeclarationRange
 import Peluang
 
 open Lean Elab Command in
 run_cmd do
   let env ← getEnv
   let mods := env.header.moduleNames
-  for m in mods do
+  for i in [:mods.size] do
+    let m := mods[i]!
     if (`Peluang).isPrefixOf m then
       IO.println s!"MODULE\\t{m}"
-  for (n, _) in env.constants.map₁.toList do
-    if let some idx := env.getModuleIdxFor? n then
-      let m := mods[idx.toNat]!
-      if (`Peluang).isPrefixOf m then
+      for n in env.header.moduleData[i]!.constNames do
+        let some ci := env.find? n | continue
         let axs ← liftCoreM (Lean.collectAxioms n)
-        IO.println s!"AXIOMS\\t{n}\\t{String.intercalate "," (axs.toList.map toString)}"
+        let ranges ← liftCoreM (findDeclarationRanges? n)
+        let source := (ci matches .thmInfo _) && !(privateToUserName n).isInternalDetail && ranges.isSome
+        IO.println s!"CONST\\t{n}\\t{source}\\t{String.intercalate "," (axs.toList.map toString)}"
 """
 
 
@@ -52,12 +55,13 @@ run_cmd do
 class ProbeResult:
     modules: set[str] = field(default_factory=set)
     axioms: dict[str, list[str]] = field(default_factory=dict)
+    source_theorems: set[str] = field(default_factory=set)
 
 
 def display_name(name: str) -> str:
     if name.startswith(PRIVATE_PREFIX) and ".0." in name:
-        return name.split(".0.", 1)[1]
-    return name
+        name = name.split(".0.", 1)[1]
+    return name.replace("«", "").replace("»", "")
 
 
 def parse_output(output: str) -> ProbeResult:
@@ -66,42 +70,41 @@ def parse_output(output: str) -> ProbeResult:
         parts = line.split("\t")
         if parts[0] == "MODULE" and len(parts) == 2:
             result.modules.add(parts[1])
-        elif parts[0] == "AXIOMS" and len(parts) == 3:
-            result.axioms[parts[1]] = [a for a in parts[2].split(",") if a]
+        elif parts[0] == "CONST" and len(parts) == 4:
+            result.axioms[parts[1]] = [a for a in parts[3].split(",") if a]
+            if parts[2] == "true":
+                result.source_theorems.add(display_name(parts[1]))
     return result
 
 
 def module_names(lean_dir: Path) -> list[str]:
     lib = lean_dir / "Peluang"
     files = sorted(lib.rglob("*.lean")) if lib.is_dir() else []
-    return [".".join(p.relative_to(lean_dir).with_suffix("").parts) for p in files]
+    return ["Peluang", *(".".join(p.relative_to(lean_dir).with_suffix("").parts) for p in files)]
 
 
 def evaluate(result: ProbeResult, on_disk: list[str], scanned: list[str]) -> list[str]:
     failures: list[str] = []
     for m in on_disk:
         if m not in result.modules:
-            failures.append(f"`{m}`: file under lean/Peluang/ is not imported (transitively) by lean/Peluang.lean")
+            failures.append(f"`{m}`: library file is not imported (transitively) by lean/Peluang.lean")
     for name, axioms in sorted(result.axioms.items()):
         bad = sorted(a for a in axioms if a not in ALLOWED)
         if bad:
             failures.append(
                 f"`{display_name(name)}`: depends on {', '.join(bad)} (allowed: {', '.join(sorted(ALLOWED))})"
             )
-    constants = {display_name(n) for n in result.axioms}
-    for n in scanned:
-        if n not in constants:
-            failures.append(f"`{n}`: scanned as a theorem by check_theorem_map but is not a constant of the library")
+    scanned_set = {display_name(n) for n in scanned}
+    for n in sorted(scanned_set - result.source_theorems):
+        failures.append(f"`{n}`: scanned as a theorem by check_theorem_map but is not a source theorem of the library")
+    for n in sorted(result.source_theorems - scanned_set):
+        failures.append(f"`{n}`: source theorem of the library that check_theorem_map does not scan")
     return failures
 
 
 def check(root: Path) -> tuple[int, list[str]]:
     lean_dir = root / "lean"
-    on_disk = module_names(lean_dir)
-    if not on_disk:
-        return 0, []
-    lib = lean_dir / "Peluang"
-    scanned = [d.qualified for d in ctm.lean_decls(lib)]
+    scanned = [d.qualified for d in ctm.library_decls(lean_dir)]
     with tempfile.TemporaryDirectory() as tmp:
         probe = Path(tmp) / "Probe.lean"
         probe.write_text(PROBE, encoding="utf-8")
@@ -120,7 +123,7 @@ def check(root: Path) -> tuple[int, list[str]]:
     if proc.returncode != 0:
         return 0, [f"lean exited {proc.returncode}:\n{output.rstrip()}"]
     result = parse_output(output)
-    return len(result.axioms), evaluate(result, on_disk, scanned)
+    return len(result.axioms), evaluate(result, module_names(lean_dir), scanned)
 
 
 def main(argv: list[str]) -> int:

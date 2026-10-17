@@ -19,9 +19,12 @@ git tag is the authoritative pin.
   `Mathlib.Probability.Kernel.Category.Stoch`.
 - `scripts/print_axioms.py` (axioms of every constant in `Peluang.*`
   modules, allowlist `propext`, `Classical.choice`, `Quot.sound`; orphan
-  files; scanned theorem names) with `scripts/test_print_axioms.py`.
+  files; scanned theorem names against the environment's source theorems)
+  with `scripts/test_print_axioms.py` and the end-to-end
+  `scripts/probe_selftest.py`.
 - `scripts/check_lean_source.py` (`sorry`/`admit`/`axiom` scan outside
   comments and literals) with `scripts/test_check_lean_source.py`.
 - CI: `lean.yml` (pinned elan, fail-closed cache fetch, cached `~/.elan` and
-  `lean/.lake`, warning-free build, axioms probe); `theorem-map.yml` runs the
+  `lean/.lake/packages`, warning-free build, axioms probe and its
+  self-test); `theorem-map.yml` runs the
   source scan and all script tests.

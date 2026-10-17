@@ -25,10 +25,13 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      no `axiom` declaration under `lean/` outside `lean/.lake`, with
      comments, docstrings, string and char literals excluded.
   4. `python3 -I scripts/print_axioms.py` (needs step 2): every constant
-     defined in a `Peluang.*` module depends only on `{propext,
+     of the `Peluang` / `Peluang.*` modules depends only on `{propext,
      Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is
-     imported from `lean/Peluang.lean`; every theorem name
-     `check_theorem_map.py` scans is a constant of the library.
+     imported from `lean/Peluang.lean`; the theorems `check_theorem_map.py`
+     scans equal the library's source theorems. Then
+     `python3 -I scripts/probe_selftest.py`: the probe reports exactly the
+     constants of a planted `sorry`/`native_decide` module (the tree is
+     restored afterwards).
 - Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`
   Mathlib `@ git "v4.35.0"`; `lean/lake-manifest.json` Mathlib rev
   `56a005855ea17e0b0958f73ec801ae140b0a1679`.

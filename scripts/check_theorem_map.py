@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Check THEOREM_MAP.md coverage between lean/Peluang/ and tests/formalization_lean/.
+"""Check THEOREM_MAP.md coverage between the Peluang library and tests/formalization_lean/.
 
-Exit 0 when every `theorem`/`lemma` under lean/Peluang/ has a THEOREM_MAP row
-whose Rust test exists, or an opt-out `-- WITNESS: none (<reason>)` on the
-preceding line; and when every non-`mathlib:` row names a test file that holds
+The library is lean/Peluang.lean plus every file under lean/Peluang/. Exit 0
+when every `theorem`/`lemma` in it has a THEOREM_MAP row whose Rust test
+exists, or an opt-out `-- WITNESS: none (<reason>)` separated from the
+declaration only by blank lines, comments, docstrings and attributes; and when
+every non-`mathlib:` row names a test file that holds
 exactly one `/// THEOREM_MAP: <id>` tag directly above a `#[test]` fn of the
 named name. Exit 1 otherwise, printing each failure on its own line.
 
@@ -20,10 +22,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_lean_source import MODIFIERS, strip_code  # noqa: E402
 
-DECL_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}(?:theorem|lemma)\s+([A-Za-z_][\w'.]*)")
-DECL_KEYWORD_ONLY_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}(?:theorem|lemma)\s*$")
-NAME_RE = re.compile(r"^\s*([A-Za-z_][\w'.]*)")
-ATTR_LINE_RE = re.compile(r"^\s*@\[[^\]]*\]\s*$")
+COMPONENT = r"(?:[A-Za-z_][\w'!?]*|«[^»\n]*»)"
+NAME = rf"{COMPONENT}(?:\.{COMPONENT})*"
+PREFIX = r"(?:(?:open|set_option)\b[^\n]*?\bin\s+)*(?:@\[[^\]]*\]\s*)*"
+DECL_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}(?:theorem|lemma)\s+({NAME})")
+DECL_KEYWORD_ONLY_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}(?:theorem|lemma)\s*$")
+NAME_RE = re.compile(rf"^\s*({NAME})")
+HEADER_LINE_RE = re.compile(r"^\s*$|@\[|[\],]\s*$")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([\w.]+)")
 SECTION_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:public|noncomputable)\s+)*section(?:\s+([\w.]+))?\s*$")
 MUTUAL_RE = re.compile(r"^\s*mutual\s*$")
@@ -43,9 +48,21 @@ class Decl:
     opted_out: bool
 
 
-def lean_decls(lean_root: Path) -> list[Decl]:
+def library_files(lean_dir: Path) -> list[Path]:
+    root = lean_dir / "Peluang.lean"
+    lib = lean_dir / "Peluang"
+    return ([root] if root.is_file() else []) + (sorted(lib.rglob("*.lean")) if lib.is_dir() else [])
+
+
+def library_decls(lean_dir: Path) -> list[Decl]:
+    return lean_decls(library_files(lean_dir))
+
+
+def lean_decls(paths: Path | list[Path]) -> list[Decl]:
+    if isinstance(paths, Path):
+        paths = sorted(paths.rglob("*.lean"))
     decls: list[Decl] = []
-    for path in sorted(lean_root.rglob("*.lean")):
+    for path in paths:
         stack: list[tuple[str, str]] = []  # (kind, name); kind is "namespace", "section" or "mutual"
         source = path.read_text(encoding="utf-8")
         raw = source.splitlines()
@@ -83,10 +100,14 @@ def lean_decls(lean_root: Path) -> list[Decl]:
                 qualified = name.removeprefix("_root_.")
             else:
                 qualified = ".".join([*namespaces, name]) if namespaces else name
+            qualified = qualified.replace("«", "").replace("»", "")
+            opted = False
             j = i - 1
-            while j >= 0 and ATTR_LINE_RE.match(raw[j]):
+            while j >= 0 and HEADER_LINE_RE.search(lines[j]):
+                if OPT_OUT_RE.match(raw[j]):
+                    opted = True
+                    break
                 j -= 1
-            opted = j >= 0 and OPT_OUT_RE.match(raw[j]) is not None
             decls.append(Decl(qualified, path, i + 1, opted))
     return decls
 
@@ -145,8 +166,7 @@ def check(root: Path) -> list[str]:
     tests_root = root / "tests" / "formalization_lean"
     tags = tagged_tests(tests_root)
 
-    lean_root = root / "lean" / "Peluang"
-    decls = lean_decls(lean_root) if lean_root.is_dir() else []
+    decls = library_decls(root / "lean")
     for d in decls:
         if d.opted_out:
             continue

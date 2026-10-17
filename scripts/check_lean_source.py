@@ -3,8 +3,9 @@
 
 Scans every `*.lean` file under lean/ outside lean/.lake, after blanking line
 comments (`--`), nested block comments and docstrings (`/- … -/`), string
-literals (`"…"`, raw `r"…"` / `r#"…"#`) and char literals. Exit 0 when none
-occurs; exit 1 otherwise, printing `path:line: <kind>` per hit.
+literals (`"…"`, raw `r"…"` / `r#"…"#`; the `{…}` holes of `s!`/`m!`/`f!`
+strings stay code) and char literals. Exit 0 when none occurs; exit 1
+otherwise, printing `path:line: <kind>` per hit.
 
 Usage: check_lean_source.py [REPO_ROOT]
 """
@@ -16,7 +17,7 @@ import sys
 from pathlib import Path
 
 MODIFIERS = r"(?:(?:private|protected|public|noncomputable|unsafe|partial|nonrec)\s+)*"
-SORRY_RE = re.compile(r"(?<![\w.'])(sorry|admit)(?![\w'])")
+SORRY_RE = re.compile(r"(?<![\w.'`«])(sorry|admit)(?![\w'»])")
 CHAR_RE = re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.)|[^\\'\n])'")
 RAW_RE = re.compile(r'r(#*)"')
 AXIOM_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}axiom\b")
@@ -26,10 +27,13 @@ def strip_code(src: str) -> str:
     """Return `src` with comments and string literals replaced by spaces, newlines kept."""
     out: list[str] = []
     i, n, depth = 0, len(src), 0
-    in_string = False
+    # frames: ("code", brace depth) or ("str", interpolated); bottom frame is code.
+    frames: list[tuple[str, int]] = [("code", 0)]
     while i < n:
         c = src[i]
         nxt = src[i + 1] if i + 1 < n else ""
+        kind, val = frames[-1]
+        in_string = kind == "str"
         if depth > 0:
             if c == "/" and nxt == "-":
                 depth += 1
@@ -48,9 +52,22 @@ def strip_code(src: str) -> str:
                 i += 2
             else:
                 if c == '"':
-                    in_string = False
+                    frames.pop()
+                elif c == "{" and val:
+                    frames.append(("code", 0))
                 out.append("\n" if c == "\n" else " ")
                 i += 1
+        elif c == "}" and len(frames) > 1:
+            if val == 0:
+                frames.pop()
+            else:
+                frames[-1] = ("code", val - 1)
+            out.append(" " if val == 0 else c)
+            i += 1
+        elif c == "{" and len(frames) > 1:
+            frames[-1] = ("code", val + 1)
+            out.append(c)
+            i += 1
         elif c == "/" and nxt == "-":
             depth = 1
             out.append("  ")
@@ -60,7 +77,7 @@ def strip_code(src: str) -> str:
                 out.append(" ")
                 i += 1
         elif c == '"':
-            in_string = True
+            frames.append(("str", int(i > 0 and src[i - 1] == "!")))
             out.append(" ")
             i += 1
         elif c in "'r" and not (i > 0 and (src[i - 1].isalnum() or src[i - 1] in "_'.")):

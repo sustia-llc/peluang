@@ -67,6 +67,19 @@ class Scan(unittest.TestCase):
     def test_identifier_ending_in_r_is_not_raw_string(self) -> None:
         self.assertEqual(cls.scan('def s := for"x"\ntheorem t : False := sorry\n'), [(2, "sorry")])
 
+    def test_interpolation_hole_is_code(self) -> None:
+        self.assertEqual(cls.scan('def msg : String := s!"{(sorry : Nat)}"\n'), [(1, "sorry")])
+
+    def test_interpolation_text_and_nested_string_ignored(self) -> None:
+        src = 'def m : String := s!"sorry {f "sorry {x}" (g {a := 1})} sorry"\ntheorem t : False := sorry\n'
+        self.assertEqual(cls.scan(src), [(2, "sorry")])
+
+    def test_plain_string_brace_is_text(self) -> None:
+        self.assertEqual(cls.scan('def s : String := "{ sorry"\ntheorem t : True := trivial\n'), [])
+
+    def test_name_literal_and_guillemet_ignored(self) -> None:
+        self.assertEqual(cls.scan("def b (n : Lean.Name) : Bool := n == `sorry || n == `admit\ndef «sorry» := 1\n"), [])
+
     def test_line_numbers_survive_block_comments(self) -> None:
         self.assertEqual(cls.scan("/-\n\n\n-/\nexample : False := sorry\n"), [(5, "sorry")])
 
