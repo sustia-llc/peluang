@@ -13,12 +13,21 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   `--features f64-prob`), `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`,
   ``rg -n '^\s*(///|//!).*`{3}' src/`` (must print nothing),
   `cargo nextest run`, `cargo nextest run --features f64-prob`.
-- Bridge gate: `python3 -I scripts/test_check_theorem_map.py`, then
+- Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
+  `python3 -I scripts/test_print_axioms.py`, then
   `python3 -I scripts/check_theorem_map.py`.
-- Lean gates (from Phase 1b): `lake -d lean exe cache get` (fail closed),
-  `lake -d lean build` (warning-free), the `sorry`/`axiom` greps, the
-  `#print axioms` probe with allowlist `{propext, Classical.choice,
-  Quot.sound}`.
+- Lean gates, in order, each to a log file:
+  1. `env -C lean lake exe cache get` (fail closed: a non-zero exit stops
+     the gate; never fall through to a cold build).
+  2. `lake -d lean build` — `rg -c 'warning:' <log>` must print nothing.
+  3. `rg -n '\bsorry\b' lean/` and `rg -n '^\s*axiom\b' lean/` print
+     nothing (`rg` skips the gitignored `lean/.lake`).
+  4. `python3 -I scripts/print_axioms.py` (needs step 2): every theorem
+     under `lean/Peluang/` depends only on `{propext, Classical.choice,
+     Quot.sound}`.
+- Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`
+  Mathlib `@ git "v4.35.0"`; `lean/lake-manifest.json` Mathlib rev
+  `56a005855ea17e0b0958f73ec801ae140b0a1679`.
 - Witness tests compile only in the exact lane
   (`#[cfg(not(feature = "f64-prob"))]`); the `f64-prob` lane runs law tests
   with declared tolerances only.
@@ -48,4 +57,12 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 
 ## Gotchas (do not regress)
 
-None recorded yet.
+- `lake -d lean exe cache get` downloads the cache and then exits 1 with
+  `no such file or directory … lean-toolchain`: the cache tool reads
+  `lean-toolchain` from the process working directory. Run it as
+  `env -C lean lake exe cache get` (CI: `working-directory: lean`).
+- `lean_lib Peluang` takes the default root; an `.andSubmodules` glob
+  fails the build while `lean/Peluang/` does not exist. Every file under
+  `lean/Peluang/` is reached through an import from `lean/Peluang.lean`.
+- Lean files use the module system (`module`, `public import`, theorems in
+  a `public section`), matching the Mathlib files they import.

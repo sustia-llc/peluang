@@ -1,0 +1,67 @@
+name: lean
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lean/**"
+      - "scripts/print_axioms.py"
+      - "scripts/check_theorem_map.py"
+      - ".github/workflows/lean.yml"
+  pull_request:
+    paths:
+      - "lean/**"
+      - "scripts/print_axioms.py"
+      - "scripts/check_theorem_map.py"
+      - ".github/workflows/lean.yml"
+concurrency:
+  group: lean-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache the elan toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: elan-${{ hashFiles('lean/lean-toolchain') }}
+      - name: Install elan (pinned elan-init, leanprover/elan@0e36a07b)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/0e36a07b9bbcc5381fa6250df109f9a4f94d7bac/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Install pinned toolchain
+        run: elan toolchain install "$(cat lean/lean-toolchain)"
+      - name: Fetch Mathlib cache (fail closed)
+        working-directory: lean
+        run: |
+          if ! lake exe cache get; then
+            echo "::error::Mathlib cache fetch failed; refusing a cold build"
+            exit 1
+          fi
+      - name: Build (warning-free)
+        working-directory: lean
+        run: |
+          lake build 2>&1 | tee ../lake-build.log
+          test "${PIPESTATUS[0]}" -eq 0
+          if grep -n 'warning:' ../lake-build.log; then
+            echo "::error::lake build emitted warnings"
+            exit 1
+          fi
+        shell: bash
+      - name: sorry and axiom greps
+        shell: bash
+        run: |
+          if grep -rnwE 'sorry' lean --include='*.lean' --exclude-dir=.lake; then
+            echo "::error::sorry under lean/"
+            exit 1
+          fi
+          if grep -rnE '^\s*axiom\b' lean --include='*.lean' --exclude-dir=.lake; then
+            echo "::error::axiom declaration under lean/"
+            exit 1
+          fi
+      - name: "#print axioms probe"
+        run: python3 -I scripts/print_axioms.py

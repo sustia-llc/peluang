@@ -13,3 +13,11 @@ git tag is the authoritative pin.
   `verify_prob_axioms`), `tests/canonical.rs`.
 - `THEOREM_MAP.md` schema and `scripts/check_theorem_map.py`.
 - CI: `rust.yml`, `theorem-map.yml`.
+- Lake project `lean/` pinned to `leanprover/lean4:v4.35.0` + Mathlib
+  `v4.35.0`; root `Peluang.lean` imports
+  `Mathlib.CategoryTheory.MarkovCategory.Basic` and
+  `Mathlib.Probability.Kernel.Category.Stoch`.
+- `scripts/print_axioms.py` (`#print axioms` probe, allowlist `propext`,
+  `Classical.choice`, `Quot.sound`) with `scripts/test_print_axioms.py`.
+- CI: `lean.yml` (pinned elan, fail-closed cache fetch, warning-free build,
+  `sorry`/`axiom` greps, axioms probe).

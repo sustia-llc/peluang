@@ -19,6 +19,8 @@ arXiv:1908.07021; cited by definition and theorem number.
 - `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`.
 - `THEOREM_MAP.md` — Lean theorem → Rust test → anchor.
 - `scripts/check_theorem_map.py` — the coverage check CI runs.
+- `scripts/print_axioms.py` — `#print axioms` over every theorem under
+  `lean/Peluang/`, allowlist `{propext, Classical.choice, Quot.sound}`.
 
 ## Requirements
 
@@ -33,7 +35,14 @@ cargo nextest run
 cargo nextest run --features f64-prob
 python3 -I scripts/test_check_theorem_map.py
 python3 -I scripts/check_theorem_map.py
+python3 -I scripts/test_print_axioms.py
+env -C lean lake exe cache get
+lake -d lean build
+python3 -I scripts/print_axioms.py
 ```
+
+`lake exe cache get` reads `lean-toolchain` from the working directory, so it
+runs inside `lean/`.
 
 ## Examples
 
