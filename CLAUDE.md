@@ -14,14 +14,16 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   ``rg -n '^\s*(///|//!).*`{3}' src/`` (must print nothing),
   `cargo nextest run`, `cargo nextest run --features f64-prob`.
 - Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
-  `python3 -I scripts/test_print_axioms.py`, then
+  `python3 -I scripts/test_print_axioms.py`,
+  `python3 -I scripts/test_check_lean_source.py`, then
   `python3 -I scripts/check_theorem_map.py`.
 - Lean gates, in order, each to a log file:
   1. `env -C lean lake exe cache get` (fail closed: a non-zero exit stops
      the gate; never fall through to a cold build).
   2. `env -C lean lake build` — `rg -c 'warning:' <log>` must print nothing.
-  3. `rg -n '\bsorry\b' lean/` and `rg -n '^\s*axiom\b' lean/` print
-     nothing (`rg` skips the gitignored `lean/.lake`).
+  3. `python3 -I scripts/check_lean_source.py`: no `sorry` term and no
+     `axiom` declaration under `lean/` outside `lean/.lake`, with comments,
+     docstrings, string and char literals excluded.
   4. `python3 -I scripts/print_axioms.py` (needs step 2): every theorem
      under `lean/Peluang/` depends only on `{propext, Classical.choice,
      Quot.sound}`.

@@ -19,5 +19,8 @@ git tag is the authoritative pin.
   `Mathlib.Probability.Kernel.Category.Stoch`.
 - `scripts/print_axioms.py` (`#print axioms` probe, allowlist `propext`,
   `Classical.choice`, `Quot.sound`) with `scripts/test_print_axioms.py`.
-- CI: `lean.yml` (pinned elan, fail-closed cache fetch, warning-free build,
-  `sorry`/`axiom` greps, axioms probe).
+- `scripts/check_lean_source.py` (`sorry`/`axiom` scan outside comments and
+  literals) with `scripts/test_check_lean_source.py`.
+- CI: `lean.yml` (pinned elan, fail-closed cache fetch, cached `lean/.lake`,
+  warning-free build, source scan, axioms probe); `theorem-map.yml` runs the
+  source scan and all script tests.

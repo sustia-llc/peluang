@@ -6,12 +6,14 @@ on:
       - "lean/**"
       - "scripts/print_axioms.py"
       - "scripts/check_theorem_map.py"
+      - "scripts/check_lean_source.py"
       - ".github/workflows/lean.yml"
   pull_request:
     paths:
       - "lean/**"
       - "scripts/print_axioms.py"
       - "scripts/check_theorem_map.py"
+      - "scripts/check_lean_source.py"
       - ".github/workflows/lean.yml"
 concurrency:
   group: lean-${{ github.ref }}
@@ -57,16 +59,7 @@ jobs:
             exit 1
           fi
         shell: bash
-      - name: sorry and axiom greps
-        shell: bash
-        run: |
-          if grep -rnwE 'sorry' lean --include='*.lean' --exclude-dir=.lake; then
-            echo "::error::sorry under lean/"
-            exit 1
-          fi
-          if grep -rnE '^\s*axiom\b' lean --include='*.lean' --exclude-dir=.lake; then
-            echo "::error::axiom declaration under lean/"
-            exit 1
-          fi
+      - name: sorry and axiom scan (comments and strings excluded)
+        run: python3 -I scripts/check_lean_source.py
       - name: "#print axioms probe"
         run: python3 -I scripts/print_axioms.py
