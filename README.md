@@ -37,12 +37,9 @@ python3 -I scripts/test_check_theorem_map.py
 python3 -I scripts/check_theorem_map.py
 python3 -I scripts/test_print_axioms.py
 env -C lean lake exe cache get
-lake -d lean build
+env -C lean lake build
 python3 -I scripts/print_axioms.py
 ```
-
-`lake exe cache get` reads `lean-toolchain` from the working directory, so it
-runs inside `lean/`.
 
 ## Examples
 

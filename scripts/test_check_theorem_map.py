@@ -109,6 +109,26 @@ class CheckTheoremMap(unittest.TestCase):
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("duplicate row", failures[0])
 
+    def test_public_section_end_keeps_namespace(self) -> None:
+        for header in ("public section", "@[expose] public section", "public noncomputable section"):
+            with self.subTest(header=header):
+                lean = f"namespace Peluang\n{header}\ntheorem t1 : True := trivial\nend\ntheorem t2 : True := trivial\nend Peluang\n"
+                with tempfile.TemporaryDirectory() as tmp:
+                    d = Path(tmp) / "Peluang"
+                    d.mkdir()
+                    (d / "X.lean").write_text(lean, encoding="utf-8")
+                    names = [x.qualified for x in ctm.lean_decls(d)]
+                self.assertEqual(names, ["Peluang.t1", "Peluang.t2"], f"header {header!r} gave {names}")
+
+    def test_visibility_modifiers_detected(self) -> None:
+        lean = "namespace Peluang\npublic theorem a : True := trivial\nprivate theorem b : True := trivial\n@[simp] public theorem c : True := trivial\nend Peluang\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / "Peluang"
+            d.mkdir()
+            (d / "X.lean").write_text(lean, encoding="utf-8")
+            names = [x.qualified for x in ctm.lean_decls(d)]
+        self.assertEqual(names, ["Peluang.a", "Peluang.b", "Peluang.c"], f"got {names}")
+
     def test_bad_test_column_fails(self) -> None:
         row = "| Peluang.Conditional.unique_as | conditional_tests.rs::unique_as | — |\n"
         failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)

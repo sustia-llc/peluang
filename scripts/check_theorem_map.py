@@ -17,12 +17,13 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-DECL_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:private\s+|protected\s+)?(?:theorem|lemma)\s+([A-Za-z_][\w'.]*)")
-DECL_KEYWORD_ONLY_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:private\s+|protected\s+)?(?:theorem|lemma)\s*$")
+MODIFIERS = r"(?:(?:private|protected|public)\s+)*"
+DECL_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}(?:theorem|lemma)\s+([A-Za-z_][\w'.]*)")
+DECL_KEYWORD_ONLY_RE = re.compile(rf"^\s*(?:@\[[^\]]*\]\s*)*{MODIFIERS}(?:theorem|lemma)\s*$")
 NAME_RE = re.compile(r"^\s*([A-Za-z_][\w'.]*)")
 ATTR_LINE_RE = re.compile(r"^\s*@\[[^\]]*\]\s*$")
 NAMESPACE_RE = re.compile(r"^\s*namespace\s+([\w.]+)")
-SECTION_RE = re.compile(r"^\s*(?:noncomputable\s+)?section(?:\s+([\w.]+))?\s*$")
+SECTION_RE = re.compile(r"^\s*(?:@\[[^\]]*\]\s*)*(?:(?:public|noncomputable)\s+)*section(?:\s+([\w.]+))?\s*$")
 END_RE = re.compile(r"^\s*end(?:\s+([\w.]+))?\s*$")
 OPT_OUT_RE = re.compile(r"^\s*--\s*WITNESS:\s*none\s*\(.+\)\s*$")
 ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<anchor>[^|]*?)\s*\|\s*$")

@@ -35,6 +35,11 @@ jobs:
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Install pinned toolchain
         run: elan toolchain install "$(cat lean/lean-toolchain)"
+      - name: Cache lean/.lake (dependencies and Mathlib oleans)
+        uses: actions/cache@v4
+        with:
+          path: lean/.lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}
       - name: Fetch Mathlib cache (fail closed)
         working-directory: lean
         run: |
@@ -45,8 +50,8 @@ jobs:
       - name: Build (warning-free)
         working-directory: lean
         run: |
+          set -o pipefail
           lake build 2>&1 | tee ../lake-build.log
-          test "${PIPESTATUS[0]}" -eq 0
           if grep -n 'warning:' ../lake-build.log; then
             echo "::error::lake build emitted warnings"
             exit 1

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Run `#print axioms` over every `theorem`/`lemma` under lean/Peluang/.
 
-Exit 0 when Lean elaborates the probe file and every declaration depends only
-on axioms in ALLOWED; exit 1 otherwise, printing each failure on its own line.
-A declaration with no `#print axioms` result from `import Peluang` is a
-failure. Requires a built `lake -d lean build`.
+The probe is a `module` that does `import all` of `Peluang` and of every file
+under lean/Peluang/, so private and non-public declarations resolve; it runs
+as `lake env lean` with lean/ as the working directory, so elan selects the
+toolchain in lean/lean-toolchain. Exit 0 when Lean elaborates the probe and
+every declaration depends only on axioms in ALLOWED; exit 1 otherwise,
+printing each failure on its own line. Requires a built `lake build`.
 
 Usage: print_axioms.py [REPO_ROOT]
 """
@@ -21,24 +23,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_theorem_map as ctm  # noqa: E402
 
 ALLOWED = frozenset({"propext", "Classical.choice", "Quot.sound"})
-DEPENDS_RE = re.compile(r"^'(?P<name>[^']+)' depends on axioms: \[(?P<axioms>[^\]]*)\]\s*$")
-NONE_RE = re.compile(r"^'(?P<name>[^']+)' does not depend on any axioms\s*$")
+DEPENDS_RE = re.compile(r"^'(?P<name>.+?)' depends on axioms: \[(?P<axioms>[^\]]*)\]", re.M)
+NONE_RE = re.compile(r"^'(?P<name>.+?)' does not depend on any axioms", re.M)
+PRIVATE_RE = re.compile(r"^_private\.[\w.']*?\.0\.")
 
 
-def probe_source(names: list[str]) -> str:
-    return "import Peluang\n\n" + "".join(f"#print axioms {n}\n" for n in names)
+def module_names(lean_dir: Path) -> list[str]:
+    lib = lean_dir / "Peluang"
+    files = sorted(lib.rglob("*.lean")) if lib.is_dir() else []
+    return ["Peluang", *(".".join(p.relative_to(lean_dir).with_suffix("").parts) for p in files)]
+
+
+def probe_source(modules: list[str], names: list[str]) -> str:
+    imports = "".join(f"import all {m}\n" for m in modules)
+    return "module\n\n" + imports + "\n" + "".join(f"#print axioms {n}\n" for n in names)
 
 
 def parse_output(names: list[str], output: str) -> list[str]:
     seen: dict[str, list[str]] = {}
-    for line in output.splitlines():
-        m = DEPENDS_RE.match(line)
-        if m:
-            seen[m.group("name")] = [a.strip() for a in m.group("axioms").split(",") if a.strip()]
-            continue
-        m = NONE_RE.match(line)
-        if m:
-            seen[m.group("name")] = []
+    for m in DEPENDS_RE.finditer(output):
+        seen[PRIVATE_RE.sub("", m.group("name"))] = [a.strip() for a in m.group("axioms").split(",") if a.strip()]
+    for m in NONE_RE.finditer(output):
+        seen[PRIVATE_RE.sub("", m.group("name"))] = []
     failures: list[str] = []
     for n in names:
         if n not in seen:
@@ -50,24 +56,30 @@ def parse_output(names: list[str], output: str) -> list[str]:
     return failures
 
 
+def evaluate(names: list[str], returncode: int, output: str) -> list[str]:
+    if returncode != 0:
+        return [f"lean exited {returncode}:\n{output.rstrip()}"]
+    return parse_output(names, output)
+
+
 def check(root: Path) -> tuple[int, list[str]]:
     lean_dir = root / "lean"
     lib = lean_dir / "Peluang"
     names = [d.qualified for d in ctm.lean_decls(lib)] if lib.is_dir() else []
     with tempfile.TemporaryDirectory() as tmp:
         probe = Path(tmp) / "Probe.lean"
-        probe.write_text(probe_source(names), encoding="utf-8")
-        proc = subprocess.run(
-            ["lake", "-d", str(lean_dir), "env", "lean", str(probe)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    output = proc.stdout + proc.stderr
-    failures = parse_output(names, output)
-    if proc.returncode != 0:
-        failures.insert(0, f"lean exited {proc.returncode}:\n{output.rstrip()}")
-    return len(names), failures
+        probe.write_text(probe_source(module_names(lean_dir), names), encoding="utf-8")
+        try:
+            proc = subprocess.run(
+                ["lake", "env", "lean", str(probe)],
+                cwd=lean_dir,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as e:
+            return len(names), [f"could not run `lake env lean` in {lean_dir}: {e}"]
+    return len(names), evaluate(names, proc.returncode, proc.stdout + proc.stderr)
 
 
 def main(argv: list[str]) -> int:

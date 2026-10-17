@@ -19,7 +19,7 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 - Lean gates, in order, each to a log file:
   1. `env -C lean lake exe cache get` (fail closed: a non-zero exit stops
      the gate; never fall through to a cold build).
-  2. `lake -d lean build` — `rg -c 'warning:' <log>` must print nothing.
+  2. `env -C lean lake build` — `rg -c 'warning:' <log>` must print nothing.
   3. `rg -n '\bsorry\b' lean/` and `rg -n '^\s*axiom\b' lean/` print
      nothing (`rg` skips the gitignored `lean/.lake`).
   4. `python3 -I scripts/print_axioms.py` (needs step 2): every theorem
@@ -57,10 +57,13 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 
 ## Gotchas (do not regress)
 
-- `lake -d lean exe cache get` downloads the cache and then exits 1 with
-  `no such file or directory … lean-toolchain`: the cache tool reads
-  `lean-toolchain` from the process working directory. Run it as
-  `env -C lean lake exe cache get` (CI: `working-directory: lean`).
+- Every `lake` command runs as `env -C lean lake …`, never `lake -d lean
+  …`. elan picks the toolchain from the working directory's
+  `lean-toolchain`, not from `-d`: from the repo root, `lake -d lean`
+  runs the elan default toolchain. `lake -d lean exe cache get` also
+  exits 1 after downloading (`no such file or directory … lean-toolchain`).
+  CI uses `working-directory: lean`; `scripts/print_axioms.py` runs `lake`
+  with `cwd=lean/`.
 - `lean_lib Peluang` takes the default root; an `.andSubmodules` glob
   fails the build while `lean/Peluang/` does not exist. Every file under
   `lean/Peluang/` is reached through an import from `lean/Peluang.lean`.
