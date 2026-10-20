@@ -19,9 +19,11 @@ git tag is the authoritative pin.
 - Lean `Peluang.Deterministic.Lemmas`: `Deterministic` instances for `Δ`,
   `ε`, `⊗ₘ`, `▷`, `◁`, `α`, `λ`, `ρ`, `β` in any `CopyDiscardCategory`
   (Def. 10.1, Remark 10.2, Lemma 10.12); `IsComonHom` instances at the
-  tensor-product comonoid structure for `Δ`, `▷`, `◁`, `α`, `λ`, `ρ`, `β`;
-  `Comon.instIsComonHomTensorHom` for `⊗ₘ` in a braided monoidal category;
-  `Deterministic.instIsComonHomOfTensorObjSource`/`…Target` (low priority).
+  tensor-product comonoid structure for `α` and `β`;
+  `Comon.instIsComonHomTensorHom`, `Comon.instIsComonHomWhiskerRight`/`Left`
+  for `⊗ₘ`, `▷`, `◁` at any comonoid structures in a braided monoidal
+  category; `Deterministic.instIsComonHomOfTensorObjSource`/`…Target`
+  (low priority).
 - Lean `Peluang.Deterministic.Wide`: `MorphismProperty.deterministic`, its
   braiding and comonoid stability, and
   `WideSubcategory.instMarkovCategory` (Remark 10.13).
@@ -31,12 +33,11 @@ git tag is the authoritative pin.
 ### Changed
 
 - `lake build` runs Mathlib's style linters
-  (`weak.linter.mathlibStandardSet`, header linter off) and `#lint in
-  Peluang`; a lint finding fails the build.
+  (`weak.linter.mathlibStandardSet`, header linter off), whose findings
+  are warnings, and `#lint in Peluang`, whose findings are build errors.
 - `scripts/print_axioms.py` checks freshness with
-  `lake build --no-build Peluang`; `scripts/probe_selftest.py` builds the
-  `Peluang` target with its fixture and both default targets after
-  restoring.
+  `lake build --no-build Peluang`; `scripts/probe_selftest.py` builds only
+  the `Peluang` target, with its fixture and after restoring.
 
 ## [0.1.1] - 2026-10-20
 

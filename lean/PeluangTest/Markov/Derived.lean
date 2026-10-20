@@ -11,7 +11,8 @@ public import Peluang.Markov.Derived
 
 `simp` closes discard naturality into binary and nested tensor products, and the marginals
 of copying and of `Δ[A] ≫ (g ⊗ₘ h)`; `simp [marginalFst_tensorHom]` and
-`simp [marginalSnd_tensorHom]` close the marginals of `f ⊗ₘ g`.
+`simp [marginalSnd_tensorHom]` close the marginals of `f ⊗ₘ g` pre- and post-composed with
+arbitrary morphisms.
 -/
 
 public section
@@ -49,12 +50,12 @@ example {A : C} : marginalFst Δ[A] = 𝟙 A := by
 example {A : C} : marginalSnd Δ[A] = 𝟙 A := by
   simp
 
-example {A B X Y : C} (f : A ⟶ X) (g : B ⟶ Y) :
-    marginalFst (f ⊗ₘ g) = A ◁ ε[B] ≫ (ρ_ A).hom ≫ f := by
+example {W A B X Y Z : C} (k : W ⟶ A ⊗ B) (f : A ⟶ X) (g : B ⟶ Y) (h : X ⟶ Z) :
+    k ≫ marginalFst (f ⊗ₘ g) ≫ h = k ≫ A ◁ ε[B] ≫ (ρ_ A).hom ≫ f ≫ h := by
   simp [marginalFst_tensorHom]
 
-example {A B X Y : C} (f : A ⟶ X) (g : B ⟶ Y) :
-    marginalSnd (f ⊗ₘ g) = ε[A] ▷ B ≫ (λ_ B).hom ≫ g := by
+example {W A B X Y Z : C} (k : W ⟶ A ⊗ B) (f : A ⟶ X) (g : B ⟶ Y) (h : Y ⟶ Z) :
+    k ≫ marginalSnd (f ⊗ₘ g) ≫ h = k ≫ ε[A] ▷ B ≫ (λ_ B).hom ≫ g ≫ h := by
   simp [marginalSnd_tensorHom]
 
 end CategoryTheory

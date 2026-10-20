@@ -9,8 +9,9 @@ public import Peluang.Deterministic.Lemmas
 /-!
 # Tests for `Peluang.Deterministic.Lemmas`
 
-Instance synthesis of `IsComonHom` and `Deterministic` for the structure maps and for
-tensor products in a copy-discard category.
+Instance synthesis of `IsComonHom` and `Deterministic` for the structure maps, tensor
+products and whiskerings in a copy-discard category; `fail_if_success` pins the goals on
+which synthesis fails.
 -/
 
 public section
@@ -31,7 +32,11 @@ example (X Y Z : C) : IsComonHom (α_ X Y Z).hom := inferInstance
 
 example (X Y Z : C) : IsComonHom (α_ X Y Z).inv := inferInstance
 
+example (X : C) : IsComonHom (λ_ X).hom := inferInstance
+
 example (X : C) : IsComonHom (λ_ X).inv := inferInstance
+
+example (X : C) : IsComonHom (ρ_ X).hom := inferInstance
 
 example (X : C) : IsComonHom (ρ_ X).inv := inferInstance
 
@@ -71,12 +76,22 @@ example {X₁ X₂ Y Z : C} (f : (X₁ ⊗ X₂) ⊗ Y ⟶ Z) [Deterministic f] 
   fail_if_success have : IsComonHom f := inferInstance
   trivial
 
-example {A B Y : C} (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : C) : f ▷ Z = f ▷ Z := by
-  fail_if_success have : IsComonHom (f ▷ Z) := inferInstance
-  rfl
+example {A B Y : C} (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : C) : IsComonHom (f ▷ Z) :=
+  inferInstance
+
+example {A B Y : C} (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : C) : IsComonHom (Z ◁ f) :=
+  inferInstance
 
 example {A B Y : C} (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : C) : f ▷ Z = f ▷ Z := by
   fail_if_success have : Deterministic (f ▷ Z) := inferInstance
+  rfl
+
+example (A B Y Z : C) : (α_ (A ⊗ B) Y Z).hom = (α_ (A ⊗ B) Y Z).hom := by
+  fail_if_success have : IsComonHom (α_ (A ⊗ B) Y Z).hom := inferInstance
+  rfl
+
+example (A B : C) : Δ[A ⊗ B] = Δ[A ⊗ B] := by
+  fail_if_success have : IsComonHom Δ[A ⊗ B] := inferInstance
   rfl
 
 example {X Y Z W : C} (f : X ⊗ Y ⟶ Z ⊗ W) [Deterministic f] : IsComonHom f := inferInstance

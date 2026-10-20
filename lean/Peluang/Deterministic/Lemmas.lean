@@ -23,19 +23,19 @@ braidings (Fritz 2020, Lemma 10.12).
 * `Deterministic.instAssociator`, `Deterministic.instLeftUnitor`,
   `Deterministic.instRightUnitor`, `Deterministic.instBraiding` - the structure
   isomorphisms are deterministic.
-* `Deterministic.instIsComonHomCopy`, `Deterministic.instIsComonHomWhiskerRight`,
-  `Deterministic.instIsComonHomWhiskerLeft`, `Deterministic.instIsComonHomAssociator`,
-  `Deterministic.instIsComonHomLeftUnitor`, `Deterministic.instIsComonHomRightUnitor`,
-  `Deterministic.instIsComonHomBraiding` - the same statements as `IsComonHom` instances
-  at the tensor product comonoid structure `Comon.instComonObjTensorObj` on every tensor
-  product object.
+* `Deterministic.instIsComonHomAssociator`, `Deterministic.instIsComonHomBraiding` - the
+  associator `α_ X Y Z` and the braiding `β_ X Y` are `IsComonHom` instances at the comonoid
+  structure `Comon.instComonObjTensorObj` on `X ⊗ Y`, `Y ⊗ Z`, `(X ⊗ Y) ⊗ Z`, `X ⊗ (Y ⊗ Z)`
+  and `Y ⊗ X`, with `CopyDiscardCategory.comonObj` on `X`, `Y` and `Z`.
 * `Deterministic.instIsComonHomOfTensorObjSource`,
   `Deterministic.instIsComonHomOfTensorObjTarget` - a comonoid morphism out of or into
   `X ⊗ Y` at `CopyDiscardCategory.comonObj (X ⊗ Y)` is a comonoid morphism at
   `Comon.instComonObjTensorObj X Y`.
-* `Comon.instIsComonHomTensorHom` - in a braided monoidal category, the tensor product of
-  comonoid morphisms is a comonoid morphism for the tensor product comonoid structures, at any
-  comonoid structures on the four objects.
+* `Comon.instIsComonHomTensorHom`, `Comon.instIsComonHomWhiskerRight`,
+  `Comon.instIsComonHomWhiskerLeft` - in a braided monoidal category, `f ⊗ₘ g`, `f ▷ Z` and
+  `Z ◁ f` are comonoid morphisms for the tensor product comonoid structures, for comonoid
+  morphisms `f` and `g` at any comonoid structures on their domains and codomains and any
+  comonoid structure on `Z`.
 
 ## References
 
@@ -62,6 +62,22 @@ instance Comon.instIsComonHomTensorHom [BraidedCategory C] {X Y X' Y' : C} [Como
   inferInstanceAs (IsComonHom (MonoidalCategoryStruct.tensorHom (C := Comon C)
     (X₁ := Comon.mk X) (Y₁ := Comon.mk Y) (X₂ := Comon.mk X') (Y₂ := Comon.mk Y')
     (Comon.Hom.mk f) (Comon.Hom.mk g)).hom)
+
+/-- In a braided monoidal category, `f ▷ Z` is a comonoid morphism for the tensor product
+comonoid structures, for every comonoid morphism `f : X ⟶ Y` at any comonoid structures on
+`X` and `Y` and any comonoid structure on `Z`. -/
+instance Comon.instIsComonHomWhiskerRight [BraidedCategory C] {X Y : C} [ComonObj X]
+    [ComonObj Y] (f : X ⟶ Y) [IsComonHom f] (Z : C) [ComonObj Z] : IsComonHom (f ▷ Z) := by
+  rw [← tensorHom_id]
+  infer_instance
+
+/-- In a braided monoidal category, `Z ◁ f` is a comonoid morphism for the tensor product
+comonoid structures, for every comonoid morphism `f : X ⟶ Y` at any comonoid structures on
+`X` and `Y` and any comonoid structure on `Z`. -/
+instance Comon.instIsComonHomWhiskerLeft [BraidedCategory C] (Z : C) [ComonObj Z] {X Y : C}
+    [ComonObj X] [ComonObj Y] (f : X ⟶ Y) [IsComonHom f] : IsComonHom (Z ◁ f) := by
+  rw [← id_tensorHom]
+  infer_instance
 
 namespace Deterministic
 
@@ -153,45 +169,13 @@ instance instBraiding (X Y : C) : Deterministic (β_ X Y).hom := by
     rw [copy_tensor, copy_tensor, ← BraidedCategory.braiding_naturality_assoc, coh,
       Category.assoc]
 
-/-! The instances below restate the ones above at the comonoid structure that
-instance synthesis finds on tensor products, `Comon.instComonObjTensorObj`. -/
-
-/-- Copying `X` is a comonoid morphism into `X ⊗ X` with the tensor product comonoid
-structure. -/
-instance instIsComonHomCopy (X : C) : IsComonHom Δ[X] := by
-  rw [← comonObj_tensor]
-  exact instCopy X
-
-/-- Right whiskering a comonoid morphism gives a comonoid morphism for the tensor product
-comonoid structures. -/
-instance instIsComonHomWhiskerRight {X Y : C} (f : X ⟶ Y) [IsComonHom f] (Z : C) :
-    IsComonHom (f ▷ Z) := by
-  rw [← comonObj_tensor, ← comonObj_tensor]
-  exact instWhiskerRight f Z
-
-/-- Left whiskering a comonoid morphism gives a comonoid morphism for the tensor product
-comonoid structures. -/
-instance instIsComonHomWhiskerLeft (Z : C) {X Y : C} (f : X ⟶ Y) [IsComonHom f] :
-    IsComonHom (Z ◁ f) := by
-  rw [← comonObj_tensor, ← comonObj_tensor]
-  exact instWhiskerLeft Z f
+/-! The instances below are stated at the comonoid structure `Comon.instComonObjTensorObj`
+on tensor products of objects carrying `CopyDiscardCategory.comonObj`. -/
 
 /-- The associator is a comonoid morphism for the tensor product comonoid structures. -/
 instance instIsComonHomAssociator (X Y Z : C) : IsComonHom (α_ X Y Z).hom := by
   rw [← comonObj_tensor X Y, ← comonObj_tensor, ← comonObj_tensor Y Z, ← comonObj_tensor]
   exact instAssociator X Y Z
-
-/-- The left unitor is a comonoid morphism for the tensor product comonoid structure on
-`𝟙_ C ⊗ X`. -/
-instance instIsComonHomLeftUnitor (X : C) : IsComonHom (λ_ X).hom := by
-  rw [← comonObj_tensor]
-  exact instLeftUnitor X
-
-/-- The right unitor is a comonoid morphism for the tensor product comonoid structure on
-`X ⊗ 𝟙_ C`. -/
-instance instIsComonHomRightUnitor (X : C) : IsComonHom (ρ_ X).hom := by
-  rw [← comonObj_tensor]
-  exact instRightUnitor X
 
 /-- The braiding is a comonoid morphism for the tensor product comonoid structures. -/
 instance instIsComonHomBraiding (X Y : C) : IsComonHom (β_ X Y).hom := by

@@ -4,8 +4,7 @@
 Writes lean/Peluang/ProbeSelfTest.lean (constants built with `sorry` and
 `native_decide`, plus a clean theorem), imports it from lean/Peluang.lean,
 runs `lake build Peluang` and print_axioms.check, then restores
-lean/Peluang.lean, deletes the fixture and runs `lake build` over the default
-targets. Refuses to run when the
+lean/Peluang.lean, deletes the fixture and runs `lake build Peluang` again. Refuses to run when the
 fixture path already exists. Exit 0 when the probe reports a
 disallowed-axiom failure for exactly the planted constants and nothing else,
 and the restoring build succeeds; exit 1 otherwise. Requires the Mathlib
@@ -112,7 +111,7 @@ def run(root: Path) -> list[str]:
         fixture.unlink(missing_ok=True)
         if created_dir:
             fixture.parent.rmdir()
-        restored_build = build(lean_dir, "after restoring", [])
+        restored_build = build(lean_dir, "after restoring", ["Peluang"])
     if planted_build or restored_build:
         return planted_build + restored_build
     problems: list[str] = []
