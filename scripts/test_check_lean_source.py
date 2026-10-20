@@ -84,6 +84,23 @@ class Scan(unittest.TestCase):
     def test_name_literal_and_guillemet_ignored(self) -> None:
         self.assertEqual(cls.scan("def b (n : Lean.Name) : Bool := n == `sorry || n == `admit\ndef «sorry» := 1\n"), [])
 
+    def test_native_decide_hits(self) -> None:
+        self.assertEqual(cls.scan("example : 1 < 2 := by native_decide\n"), [(1, "native_decide")])
+
+    def test_decide_native_hits(self) -> None:
+        self.assertEqual(cls.scan("example : 1 < 2 := by decide +native\n"), [(1, "decide +native")])
+
+    def test_native_decide_in_comment_ignored(self) -> None:
+        self.assertEqual(cls.scan("-- no native_decide, no decide +native\nexample : True := trivial\n"), [])
+
+    def test_theorem_hits_only_in_test_file(self) -> None:
+        src = "@[simp] theorem t : True := trivial\nprivate lemma u : True := trivial\n"
+        self.assertEqual(cls.scan(src), [])
+        self.assertEqual(
+            cls.scan(src, test_file=True),
+            [(1, "theorem/lemma in the test library"), (2, "theorem/lemma in the test library")],
+        )
+
     def test_line_numbers_survive_block_comments(self) -> None:
         self.assertEqual(cls.scan("/-\n\n\n-/\nexample : False := sorry\n"), [(5, "sorry")])
 
@@ -111,6 +128,22 @@ class Check(unittest.TestCase):
             (root / "lean" / "Peluang").mkdir(parents=True)
             (root / "lean" / "Peluang" / "A.lean").write_text("\ntheorem t : False := sorry\n", encoding="utf-8")
             self.assertEqual(cls.check(root), ["lean/Peluang/A.lean:2: sorry"])
+
+    def test_theorem_reported_under_test_dir_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "lean" / "Peluang").mkdir(parents=True)
+            (root / "lean" / "PeluangTest").mkdir(parents=True)
+            (root / "lean" / "Peluang" / "A.lean").write_text("theorem a : True := trivial\n", encoding="utf-8")
+            (root / "lean" / "PeluangTest" / "B.lean").write_text("theorem b : True := trivial\n", encoding="utf-8")
+            (root / "lean" / "PeluangTest.lean").write_text("lemma c : True := trivial\n", encoding="utf-8")
+            self.assertEqual(
+                sorted(cls.check(root)),
+                [
+                    "lean/PeluangTest.lean:1: theorem/lemma in the test library",
+                    "lean/PeluangTest/B.lean:1: theorem/lemma in the test library",
+                ],
+            )
 
 
 if __name__ == "__main__":

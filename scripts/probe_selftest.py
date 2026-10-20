@@ -4,8 +4,9 @@
 Writes lean/Peluang/ProbeSelfTest.lean (constants built with `sorry` and
 `native_decide`, plus a clean theorem), imports it from lean/Peluang.lean,
 runs `lake build Peluang` and print_axioms.check, then restores
-lean/Peluang.lean, deletes the fixture and runs `lake build Peluang` again. Refuses to run when the
-fixture path already exists. Exit 0 when the probe reports a
+lean/Peluang.lean, deletes the fixture and runs `lake build Peluang` again.
+Refuses to run when the fixture path already exists. Exit 0 when the probe
+reports a
 disallowed-axiom failure for exactly the planted constants and nothing else,
 and the restoring build succeeds; exit 1 otherwise. Requires the Mathlib
 cache.
@@ -82,9 +83,9 @@ def flagged(failures: list[str]) -> set[str]:
     return names
 
 
-def build(lean_dir: Path, what: str, targets: list[str]) -> list[str]:
+def build(lean_dir: Path, what: str) -> list[str]:
     try:
-        proc = pa.run_lake(["build", *targets], lean_dir)
+        proc = pa.run_lake(["build", "Peluang"], lean_dir)
     except (OSError, subprocess.TimeoutExpired) as e:
         return [f"lake build ({what}) could not run: {e}"]
     if proc.returncode != 0:
@@ -104,14 +105,14 @@ def run(root: Path) -> list[str]:
         fixture.parent.mkdir(exist_ok=True)
         fixture.write_text(FIXTURE, encoding="utf-8")
         root_file.write_text(with_import(original), encoding="utf-8")
-        planted_build = build(lean_dir, "with the fixture", ["Peluang"])
+        planted_build = build(lean_dir, "with the fixture")
         failures = [] if planted_build else pa.check(root)[1]
     finally:
         root_file.write_text(original, encoding="utf-8")
         fixture.unlink(missing_ok=True)
         if created_dir:
             fixture.parent.rmdir()
-        restored_build = build(lean_dir, "after restoring", ["Peluang"])
+        restored_build = build(lean_dir, "after restoring")
     if planted_build or restored_build:
         return planted_build + restored_build
     problems: list[str] = []

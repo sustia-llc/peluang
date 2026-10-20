@@ -35,9 +35,11 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      in `lean/lakefile.lean`, header linter off) and, through
      `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are
      build errors.
-  3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit` term and
-     no `axiom` declaration under `lean/` outside `lean/.lake`, with
-     comments, docstrings, string and char literals excluded.
+  3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit`/
+     `native_decide`/`decide +native` term and no `axiom` declaration under
+     `lean/` outside `lean/.lake`, and no `theorem`/`lemma` under
+     `lean/PeluangTest`, with comments, docstrings, string and char
+     literals excluded.
   4. `python3 -I scripts/print_axioms.py` (needs step 2): every constant
      of the `Peluang` / `Peluang.*` modules depends only on `{propext,
      Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is
@@ -89,8 +91,8 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   olean is missing; `lake build --no-build Mathlib` exits 3 on it, and
   `lake exe cache get!` restores it.
 - `scripts/print_axioms.py` audits the oleans on disk; it refuses to run
-  when `lake build --no-build Peluang` reports the build stale (a probe on a stale
-  build audits deleted or edited sources).
+  when `lake build --no-build Peluang` reports the build stale (a probe on
+  a stale build audits deleted or edited sources).
 - `lean_lib Peluang` takes the default root; an `.andSubmodules` glob
   fails the build while `lean/Peluang/` does not exist. Every file under
   `lean/Peluang/` is reached through an import from `lean/Peluang.lean`.

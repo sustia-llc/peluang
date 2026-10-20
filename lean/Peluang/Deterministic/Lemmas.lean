@@ -23,10 +23,9 @@ braidings (Fritz 2020, Lemma 10.12).
 * `Deterministic.instAssociator`, `Deterministic.instLeftUnitor`,
   `Deterministic.instRightUnitor`, `Deterministic.instBraiding` - the structure
   isomorphisms are deterministic.
-* `Deterministic.instIsComonHomAssociator`, `Deterministic.instIsComonHomBraiding` - the
-  associator `α_ X Y Z` and the braiding `β_ X Y` are `IsComonHom` instances at the comonoid
-  structure `Comon.instComonObjTensorObj` on `X ⊗ Y`, `Y ⊗ Z`, `(X ⊗ Y) ⊗ Z`, `X ⊗ (Y ⊗ Z)`
-  and `Y ⊗ X`, with `CopyDiscardCategory.comonObj` on `X`, `Y` and `Z`.
+* `Deterministic.instIsComonHomAssociator` - the associator `α_ X Y Z` is an `IsComonHom`
+  instance at the comonoid structure `Comon.instComonObjTensorObj` on `X ⊗ Y`, `Y ⊗ Z`,
+  `(X ⊗ Y) ⊗ Z` and `X ⊗ (Y ⊗ Z)`, with `CopyDiscardCategory.comonObj` on `X`, `Y` and `Z`.
 * `Deterministic.instIsComonHomOfTensorObjSource`,
   `Deterministic.instIsComonHomOfTensorObjTarget` - a comonoid morphism out of or into
   `X ⊗ Y` at `CopyDiscardCategory.comonObj (X ⊗ Y)` is a comonoid morphism at
@@ -176,11 +175,6 @@ on tensor products of objects carrying `CopyDiscardCategory.comonObj`. -/
 instance instIsComonHomAssociator (X Y Z : C) : IsComonHom (α_ X Y Z).hom := by
   rw [← comonObj_tensor X Y, ← comonObj_tensor, ← comonObj_tensor Y Z, ← comonObj_tensor]
   exact instAssociator X Y Z
-
-/-- The braiding is a comonoid morphism for the tensor product comonoid structures. -/
-instance instIsComonHomBraiding (X Y : C) : IsComonHom (β_ X Y).hom := by
-  rw [← comonObj_tensor, ← comonObj_tensor]
-  exact instBraiding X Y
 
 /-- A morphism out of `X ⊗ Y` that is a comonoid morphism out of
 `CopyDiscardCategory.comonObj (X ⊗ Y)` is a comonoid morphism for the tensor product comonoid

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Find `sorry`/`admit` terms and `axiom` declarations in the Lean sources under lean/.
+"""Find `sorry`/`admit`/`native_decide`/`decide +native` terms and `axiom`
+declarations in the Lean sources under lean/, and `theorem`/`lemma`
+declarations under lean/PeluangTest/.
 
 Scans every `*.lean` file under lean/ outside lean/.lake, after blanking line
 comments (`--`), nested block comments and docstrings (`/- … -/`), string
@@ -19,10 +21,13 @@ from pathlib import Path
 
 MODIFIERS = r"(?:(?:private|protected|public|noncomputable|unsafe|partial|nonrec)\s+)*"
 PREFIX = r"(?:(?:open|set_option)\b[^\n]*?\bin\s+)*(?:@\[[^\]]*\]\s*)*"
-SORRY_RE = re.compile(r"(?<![\w.'`«])(sorry|admit)(?![\w'»])")
+SORRY_RE = re.compile(r"(?<![\w.'`«])(sorry|admit|native_decide)(?![\w'»])")
+DECIDE_NATIVE_RE = re.compile(r"(?<![\w.'`«])decide\s*\+native(?![\w'»])")
 CHAR_RE = re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.)|[^\\'\n])'")
 RAW_RE = re.compile(r'r(#*)"')
 AXIOM_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}axiom\b")
+THEOREM_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}(?:theorem|lemma)\b")
+TEST_DIR = "PeluangTest"
 
 
 def strip_code(src: str) -> str:
@@ -100,13 +105,17 @@ def strip_code(src: str) -> str:
     return "".join(out)
 
 
-def scan(text: str) -> list[tuple[int, str]]:
+def scan(text: str, test_file: bool = False) -> list[tuple[int, str]]:
     hits: list[tuple[int, str]] = []
     for lineno, line in enumerate(strip_code(text).splitlines(), start=1):
         for m in SORRY_RE.finditer(line):
             hits.append((lineno, m.group(1)))
+        for _ in DECIDE_NATIVE_RE.finditer(line):
+            hits.append((lineno, "decide +native"))
         if AXIOM_RE.match(line):
             hits.append((lineno, "axiom declaration"))
+        if test_file and THEOREM_RE.match(line):
+            hits.append((lineno, "theorem/lemma in the test library"))
     return hits
 
 
@@ -122,7 +131,8 @@ def check(root: Path) -> list[str]:
     lean = root / "lean"
     failures: list[str] = []
     for path in lean_sources(lean) if lean.is_dir() else []:
-        for lineno, kind in scan(path.read_text(encoding="utf-8")):
+        test_file = path.relative_to(lean).parts[0] in (TEST_DIR, f"{TEST_DIR}.lean")
+        for lineno, kind in scan(path.read_text(encoding="utf-8"), test_file):
             failures.append(f"{path.relative_to(root)}:{lineno}: {kind}")
     return failures
 

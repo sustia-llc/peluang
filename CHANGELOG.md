@@ -18,8 +18,8 @@ git tag is the authoritative pin.
   (Remark 2.4).
 - Lean `Peluang.Deterministic.Lemmas`: `Deterministic` instances for `Δ`,
   `ε`, `⊗ₘ`, `▷`, `◁`, `α`, `λ`, `ρ`, `β` in any `CopyDiscardCategory`
-  (Def. 10.1, Remark 10.2, Lemma 10.12); `IsComonHom` instances at the
-  tensor-product comonoid structure for `α` and `β`;
+  (Def. 10.1, Remark 10.2, Lemma 10.12); an `IsComonHom` instance at the
+  tensor-product comonoid structure for `α`;
   `Comon.instIsComonHomTensorHom`, `Comon.instIsComonHomWhiskerRight`/`Left`
   for `⊗ₘ`, `▷`, `◁` at any comonoid structures in a braided monoidal
   category; `Deterministic.instIsComonHomOfTensorObjSource`/`…Target`
@@ -38,6 +38,9 @@ git tag is the authoritative pin.
 - `scripts/print_axioms.py` checks freshness with
   `lake build --no-build Peluang`; `scripts/probe_selftest.py` builds only
   the `Peluang` target, with its fixture and after restoring.
+- `scripts/check_lean_source.py` also rejects `native_decide` and
+  `decide +native` terms anywhere under `lean/`, and `theorem`/`lemma`
+  declarations under `lean/PeluangTest`.
 
 ## [0.1.1] - 2026-10-20
 
