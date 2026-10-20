@@ -31,9 +31,15 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      --no-build Mathlib` (fail closed: a non-zero exit from either stops the
      gate; never fall through to a cold build).
   2. `env -C lean lake build` — `rg -c 'warning:' <log>` must print nothing.
-  3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit` term and
-     no `axiom` declaration under `lean/` outside `lean/.lake`, with
-     comments, docstrings, string and char literals excluded.
+     The build runs Mathlib's style linters (`weak.linter.mathlibStandardSet`
+     in `lean/lakefile.lean`, header linter off) and, through
+     `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are
+     build errors.
+  3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit`/
+     `native_decide` term, no standalone `native` word and no `axiom`
+     declaration under `lean/` outside `lean/.lake`, and no declaration
+     other than `example` under `lean/PeluangTest`, with comments,
+     docstrings, string and char literals excluded.
   4. `python3 -I scripts/print_axioms.py` (needs step 2): every constant
      of the `Peluang` / `Peluang.*` modules depends only on `{propext,
      Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is
@@ -85,10 +91,16 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   olean is missing; `lake build --no-build Mathlib` exits 3 on it, and
   `lake exe cache get!` restores it.
 - `scripts/print_axioms.py` audits the oleans on disk; it refuses to run
-  when `lake build --no-build` reports the build stale (a probe on a stale
-  build audits deleted or edited sources).
+  when `lake build --no-build Peluang` reports the build stale (a probe on
+  a stale build audits deleted or edited sources).
 - `lean_lib Peluang` takes the default root; an `.andSubmodules` glob
   fails the build while `lean/Peluang/` does not exist. Every file under
   `lean/Peluang/` is reached through an import from `lean/Peluang.lean`.
+- `lean_lib PeluangTest` (second default target) builds every file under
+  `lean/PeluangTest/` through `globs := #[.andSubmodules `PeluangTest]`.
+  It holds `example`s and the `#lint` file only; `print_axioms.py` does
+  not audit it, and `check_lean_source.py` scans it. `Lint.lean` is a
+  plain (non-`module`) file, reached through the glob and not imported
+  from `lean/PeluangTest.lean`.
 - Lean files use the module system (`module`, `public import`, theorems in
   a `public section`), matching the Mathlib files they import.

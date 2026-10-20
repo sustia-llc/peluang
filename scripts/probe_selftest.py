@@ -3,9 +3,10 @@
 
 Writes lean/Peluang/ProbeSelfTest.lean (constants built with `sorry` and
 `native_decide`, plus a clean theorem), imports it from lean/Peluang.lean,
-runs `lake build` and print_axioms.check, then restores lean/Peluang.lean,
-deletes the fixture and runs `lake build` again. Refuses to run when the
-fixture path already exists. Exit 0 when the probe reports a
+runs `lake build Peluang` and print_axioms.check, then restores
+lean/Peluang.lean, deletes the fixture and runs `lake build Peluang` again.
+Refuses to run when the fixture path already exists. Exit 0 when the probe
+reports a
 disallowed-axiom failure for exactly the planted constants and nothing else,
 and the restoring build succeeds; exit 1 otherwise. Requires the Mathlib
 cache.
@@ -84,7 +85,7 @@ def flagged(failures: list[str]) -> set[str]:
 
 def build(lean_dir: Path, what: str) -> list[str]:
     try:
-        proc = pa.run_lake(["build"], lean_dir)
+        proc = pa.run_lake(["build", "Peluang"], lean_dir)
     except (OSError, subprocess.TimeoutExpired) as e:
         return [f"lake build ({what}) could not run: {e}"]
     if proc.returncode != 0:

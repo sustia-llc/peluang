@@ -6,6 +6,43 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- Lean `Peluang.Markov.Derived`: `CopyDiscardCategory.comonObj_tensor`,
+  `MarkovCategory.discard_natural_tensor`,
+  `MarkovCategory.comp_tensorHom_leftUnitor_hom_eq_discard`;
+  `CopyDiscardCategory.marginalFst`/`marginalSnd` with `_comp` and
+  `@[simp]` `_copy` lemmas; `MarkovCategory.marginalFst`/`Snd` `_tensorHom`
+  and `@[simp]` `_copy_comp_tensorHom` lemmas (Fritz 2020 Notation 2.8).
+- Lean `Peluang.Markov.Cartesian`: `MarkovCategory.ofCartesianMonoidalCategory`
+  (Remark 2.4).
+- Lean `Peluang.Deterministic.Lemmas`: `Deterministic` instances for `Δ`,
+  `ε`, `⊗ₘ`, `▷`, `◁`, `α`, `λ`, `ρ`, `β` in any `CopyDiscardCategory`
+  (Def. 10.1, Remark 10.2, Lemma 10.12); an `IsComonHom` instance at the
+  tensor-product comonoid structure for `α`;
+  `Comon.instIsComonHomTensorHom`, `Comon.instIsComonHomWhiskerRight`/`Left`
+  for `⊗ₘ`, `▷`, `◁` at any comonoid structures in a braided monoidal
+  category; `Deterministic.instIsComonHomOfTensorObjSource`/`…Target`
+  (low priority).
+- Lean `Peluang.Deterministic.Wide`: `MorphismProperty.deterministic`, its
+  braiding and comonoid stability, and
+  `WideSubcategory.instMarkovCategory` (Remark 10.13).
+- Lean test library `PeluangTest` (a default target of `lean/lakefile.lean`),
+  including `PeluangTest/Lint.lean` (`#lint in Peluang`).
+
+### Changed
+
+- `lake build` runs Mathlib's style linters
+  (`weak.linter.mathlibStandardSet`, header linter off), whose findings
+  are warnings, and `#lint in Peluang`, whose findings are build errors.
+- `scripts/print_axioms.py` checks freshness with
+  `lake build --no-build Peluang`; `scripts/probe_selftest.py` builds only
+  the `Peluang` target, with its fixture and after restoring.
+- `scripts/check_lean_source.py` also rejects `native_decide` and any
+  standalone `native` word (`decide +native`, `native := true`) anywhere
+  under `lean/`, and every declaration other than `example` under
+  `lean/PeluangTest`.
+
 ## [0.1.1] - 2026-10-20
 
 ### Added

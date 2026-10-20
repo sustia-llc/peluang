@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -113,6 +114,27 @@ class Layout(unittest.TestCase):
     def test_module_file(self) -> None:
         self.assertEqual(pa.module_file(Path("/l"), "Peluang"), Path("/l/Peluang.lean"))
         self.assertEqual(pa.module_file(Path("/l"), "Peluang.Markov.Derived"), Path("/l/Peluang/Markov/Derived.lean"))
+
+
+class Freshness(unittest.TestCase):
+    def test_stale_check_targets_peluang_only(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_lake(args: list[str], lean_dir: Path) -> subprocess.CompletedProcess[str]:
+            calls.append(args)
+            return subprocess.CompletedProcess(["lake", *args], 1, "", "stale")
+
+        original = pa.run_lake
+        pa.run_lake = fake_run_lake
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                (Path(tmp) / "lean").mkdir()
+                _, failures = pa.check(Path(tmp))
+        finally:
+            pa.run_lake = original
+        self.assertEqual(calls[:1], [["build", "--no-build", "Peluang"]], f"first lake call was {calls[:1]}")
+        self.assertEqual(len(failures), 1, f"failures: {failures}")
+        self.assertIn("stale", failures[0])
 
 
 if __name__ == "__main__":
