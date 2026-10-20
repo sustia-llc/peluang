@@ -10,6 +10,15 @@ pub enum Error {
         /// The verifier's identifier for the violated law.
         law: &'static str,
     },
+
+    /// Building an `exec::Executor` thread pool failed.
+    #[cfg(feature = "async")]
+    #[error("thread pool build failed")]
+    ThreadPool {
+        /// The rayon builder's error.
+        #[source]
+        source: tokio_rayon::rayon::ThreadPoolBuildError,
+    },
 }
 
 /// Result alias over the crate's `Error`.

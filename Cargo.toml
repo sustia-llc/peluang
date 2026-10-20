@@ -2,7 +2,7 @@
 name = "peluang"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.99"
+rust-version = "1.99.1"
 license = "MIT"
 publish = false
 
@@ -11,9 +11,17 @@ doctest = false
 
 [features]
 f64-prob = []
+parallel = ["dep:rayon-cond"]
+async = ["parallel", "dep:tokio-rayon"]
 
 [dependencies]
 num-bigint = "0.4"
 num-rational = "0.4.2"
 num-traits = "0.2.19"
+rayon-cond = { version = "0.4", optional = true }
 thiserror = "2.0.21"
+tokio-rayon = { version = "2.1", optional = true }
+
+[dev-dependencies]
+rayon = "1.12"
+tokio = { version = "1", default-features = false, features = ["rt", "macros"] }

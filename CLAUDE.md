@@ -9,10 +9,19 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 
 - Rust gates, each in its own shell call with output to a file:
   `cargo metadata --locked`, `cargo fmt --all --check`,
-  `cargo clippy --all-targets -- -D warnings` (also with
-  `--features f64-prob`), `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps`,
+  `cargo clippy --all-targets -- -D warnings` and `cargo nextest run`, each
+  over the feature matrix: default, `--features f64-prob`,
+  `--features parallel`, `--features async`, `--all-features`;
+  `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features`,
   ``rg -n '^\s*(///|//!).*`{3}' src/`` (must print nothing),
-  `cargo nextest run`, `cargo nextest run --features f64-prob`.
+  `cargo tree --duplicates --all-features` (prints nothing).
+- WASM gate (compile-only, `--lib` only; never `--workspace` or
+  `--all-targets` on a wasm target): `cargo check --lib --target
+  wasm32-wasip1`, `cargo check --lib --features parallel --target
+  wasm32-wasip1-threads`, `cargo check --lib --features async --target
+  wasm32-wasip1-threads`, `cargo check --lib --target
+  wasm32-unknown-unknown`. The targets are installed with `rustup target
+  add wasm32-wasip1 wasm32-wasip1-threads wasm32-unknown-unknown`.
 - Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
   `python3 -I scripts/test_print_axioms.py`,
   `python3 -I scripts/test_check_lean_source.py`, then

@@ -3,6 +3,7 @@
 /lean/.beam
 /lean/lake-packages
 __pycache__/
+/.vscode
 
 # private working context, symlinked from the notes repo (bootstrap.sh)
 /CLAUDE.local.md
@@ -10,5 +11,7 @@ __pycache__/
 /.claude/plans
 /.claude/stack
 /.claude/commands
+/.claude/skills
+/.claude/agents
 /.claude/settings.local.json
 TODO.md
