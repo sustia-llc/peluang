@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-20
+
 ### Added
 
 - Features `parallel` (`rayon-cond`) and `async` (`tokio-rayon`), both off
@@ -15,7 +17,7 @@ git tag is the authoritative pin.
   `Error::ThreadPool`.
 - CI: clippy and nextest over the feature matrix; `wasm-check` job
   (`wasm32-wasip1`, `wasm32-wasip1-threads`, `wasm32-unknown-unknown`,
-  `cargo check --lib`).
+  `cargo check --lib`); `cargo tree --duplicates` guard.
 
 ### Changed
 
@@ -51,5 +53,6 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/sustia-llc/peluang/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sustia-llc/peluang/releases/tag/v0.1.0
