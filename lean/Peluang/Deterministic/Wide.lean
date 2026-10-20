@@ -56,19 +56,10 @@ whiskering and tensor products, and contain the associators, unitors and braidin
 together with their inverses (Fritz 2020, Lemma 10.12). -/
 instance : (MorphismProperty.deterministic C).IsStableUnderBraiding where
   id_mem X := show Deterministic (𝟙 X) from inferInstance
-  comp_mem f g hf hg := by
-    change Deterministic f at hf
-    change Deterministic g at hg
-    change Deterministic (f ≫ g)
-    infer_instance
-  whiskerLeft X _ _ g hg := by
-    change Deterministic g at hg
-    change Deterministic (X ◁ g)
-    infer_instance
-  whiskerRight f hf Y := by
-    change Deterministic f at hf
-    change Deterministic (f ▷ Y)
-    infer_instance
+  comp_mem f g (_ : Deterministic f) (_ : Deterministic g) :=
+    show Deterministic (f ≫ g) from inferInstance
+  whiskerLeft X _ _ g (_ : Deterministic g) := show Deterministic (X ◁ g) from inferInstance
+  whiskerRight f (_ : Deterministic f) Y := show Deterministic (f ▷ Y) from inferInstance
   associator_hom_mem X Y Z := show Deterministic (α_ X Y Z).hom from inferInstance
   associator_inv_mem X Y Z := show Deterministic (α_ X Y Z).inv from inferInstance
   leftUnitor_hom_mem X := show Deterministic (λ_ X).hom from inferInstance

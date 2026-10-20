@@ -24,6 +24,8 @@ that instance, and the marginals of a morphism into a tensor product.
   category assigns to `X ⊗ Y` is the tensor product comonoid structure.
 * `MarkovCategory.discard_natural_tensor` - discard naturality into `X ⊗ Y` at
   the tensor product comonoid structure.
+* `MarkovCategory.discard_tensorHom_natural` - the same statement in simp normal form,
+  with discarding `X ⊗ Y` written as `(ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom`.
 
 ## References
 
@@ -61,11 +63,23 @@ theorem CopyDiscardCategory.comonObj_tensor [CopyDiscardCategory C] (X Y : C) :
 -- WITNESS: none (Mathlib discard_natural at the tensor instance)
 /-- In a Markov category, every morphism into `X ⊗ Y` followed by discarding
 `X ⊗ Y` (at the tensor product comonoid structure) is discarding its domain. -/
-@[reassoc (attr := simp)]
+@[reassoc]
 theorem MarkovCategory.discard_natural_tensor [MarkovCategory C] {A X Y : C}
     (f : A ⟶ X ⊗ Y) : f ≫ ε[X ⊗ Y] = ε[A] := by
   have h := MarkovCategory.discard_natural f
   rwa [CopyDiscardCategory.comonObj_tensor] at h
+
+-- WITNESS: none (Mathlib discard_natural at the tensor instance, simp normal form)
+/-- In a Markov category, every morphism `f : A ⟶ X ⊗ Y` followed by
+`(ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom` is discarding `A`. -/
+@[reassoc (attr := simp)]
+theorem MarkovCategory.discard_tensorHom_natural [MarkovCategory C] {A X Y : C}
+    (f : A ⟶ X ⊗ Y) : f ≫ (ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom = ε[A] :=
+  MarkovCategory.discard_natural_tensor f
+
+example [MarkovCategory C] {A B X Y : C} (k : B ⟶ A) (f : A ⟶ X ⊗ Y) :
+    k ≫ f ≫ ε[X ⊗ Y] = ε[B] := by
+  simp
 
 namespace MarkovCategory
 
@@ -85,14 +99,12 @@ variable [CopyDiscardCategory C] {A B X Y : C}
 
 -- WITNESS: none (Phase 2R witness)
 /-- The first marginal commutes with precomposition. -/
-@[simp]
 theorem marginalFst_comp (k : B ⟶ A) (f : A ⟶ X ⊗ Y) :
     marginalFst (k ≫ f) = k ≫ marginalFst f := by
   simp [marginalFst]
 
 -- WITNESS: none (Phase 2R witness)
 /-- The second marginal commutes with precomposition. -/
-@[simp]
 theorem marginalSnd_comp (k : B ⟶ A) (f : A ⟶ X ⊗ Y) :
     marginalSnd (k ≫ f) = k ≫ marginalSnd f := by
   simp [marginalSnd]
@@ -132,6 +144,18 @@ theorem marginalSnd_copy_comp_tensorHom (g : A ⟶ X) (h : A ⟶ Y) :
   rw [marginalSnd, Category.assoc, ← tensorHom_id, tensorHom_comp_tensorHom_assoc,
     Category.comp_id, MarkovCategory.discard_natural, counit_comul_hom_assoc, Iso.inv_hom_id,
     Category.comp_id]
+
+example (g : A ⟶ X) (h : A ⟶ Y) : marginalFst (Δ[A] ≫ (g ⊗ₘ h)) = g := by
+  simp
+
+example (g : A ⟶ X) (h : A ⟶ Y) : marginalSnd (Δ[A] ≫ (g ⊗ₘ h)) = h := by
+  simp
+
+example : marginalFst Δ[A] = 𝟙 A := by
+  simp
+
+example : marginalSnd Δ[A] = 𝟙 A := by
+  simp
 
 end Markov
 
