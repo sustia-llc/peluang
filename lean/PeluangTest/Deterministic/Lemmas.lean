@@ -71,6 +71,14 @@ example {X₁ X₂ Y Z : C} (f : (X₁ ⊗ X₂) ⊗ Y ⟶ Z) [Deterministic f] 
   fail_if_success have : IsComonHom f := inferInstance
   trivial
 
+example {A B Y : C} (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : C) : f ▷ Z = f ▷ Z := by
+  fail_if_success have : IsComonHom (f ▷ Z) := inferInstance
+  rfl
+
+example {A B Y : C} (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : C) : f ▷ Z = f ▷ Z := by
+  fail_if_success have : Deterministic (f ▷ Z) := inferInstance
+  rfl
+
 example {X Y Z W : C} (f : X ⊗ Y ⟶ Z ⊗ W) [Deterministic f] : IsComonHom f := inferInstance
 
 example {X Y Z : C} (f : Z ⟶ X ⊗ Y) [Deterministic f] : IsComonHom f := inferInstance
