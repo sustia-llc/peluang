@@ -6,6 +6,22 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- Features `parallel` (`rayon-cond`) and `async` (`tokio-rayon`), both off
+  by default.
+- `prob::sum` and `prob::PAR_THRESHOLD`; `prob::sum_with` under `parallel`.
+- `exec::Executor` (`new`, `with_num_threads`, `run`) under `async`;
+  `Error::ThreadPool`.
+- CI: clippy and nextest over the feature matrix; `wasm-check` job
+  (`wasm32-wasip1`, `wasm32-wasip1-threads`, `wasm32-unknown-unknown`,
+  `cargo check --lib`).
+
+### Changed
+
+- `Prob` requires `Send + Sync`.
+- Rust 1.99.1.
+
 ## [0.1.0] - 2026-10-17
 
 ### Added

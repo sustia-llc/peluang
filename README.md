@@ -13,8 +13,27 @@ arXiv:1908.07021; cited by definition and theorem number.
 ## Architecture
 
 - `src/` — the crate: `prob.rs` (the `Prob` carrier trait; exact rationals by
-  default, `f64` behind the `f64-prob` feature), `error.rs`, and the
-  Markov-category modules as they land.
+  default, `f64` behind the `f64-prob` feature; `sum`), `exec.rs` (behind
+  `async`), `error.rs`, and the Markov-category modules as they land.
+
+## Features
+
+All off by default.
+
+- `f64-prob` — `Prob` for `f64` with a declared tolerance; witness tests do
+  not compile in this lane.
+- `parallel` — `prob::sum` runs on rayon (via `rayon-cond`) at or above
+  `prob::PAR_THRESHOLD` terms.
+- `async` — implies `parallel`; `exec::Executor` owns a rayon pool and
+  `Executor::run` awaits a closure on it (`tokio-rayon`). The crate creates
+  no async runtime.
+
+## WebAssembly
+
+WASI first: `wasm32-wasip1-threads` with `parallel`/`async`,
+`wasm32-wasip1` without them; `wasm32-unknown-unknown` builds the library
+with default features. Browsers are out of scope. CI checks these with
+`cargo check --lib`.
 - `lean/` — the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
   `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is
   the library root and imports every file under `lean/Peluang/`.
@@ -43,6 +62,8 @@ arXiv:1908.07021; cited by definition and theorem number.
 # Rust
 cargo nextest run
 cargo nextest run --features f64-prob
+cargo nextest run --features async
+cargo nextest run --all-features
 # scripts and bridge (no Lean needed)
 python3 -I scripts/test_check_theorem_map.py
 python3 -I scripts/test_print_axioms.py

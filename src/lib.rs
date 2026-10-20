@@ -4,4 +4,6 @@
 //! theorem with a witness test under `tests/`.
 
 pub mod error;
+#[cfg(feature = "async")]
+pub mod exec;
 pub mod prob;

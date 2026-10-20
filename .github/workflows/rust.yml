@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.99.0"
+          toolchain: "1.99.1"
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
@@ -21,7 +21,10 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo clippy --all-targets --features f64-prob -- -D warnings
-      - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
+      - run: cargo clippy --all-targets --features parallel -- -D warnings
+      - run: cargo clippy --all-targets --features async -- -D warnings
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
       - name: docstring code-block guard
         run: |
           matches=$(rg -n '^\s*(///|//!).*`{3}' src/ || true)
@@ -32,3 +35,21 @@ jobs:
           fi
       - run: cargo nextest run
       - run: cargo nextest run --features f64-prob
+      - run: cargo nextest run --features parallel
+      - run: cargo nextest run --features async
+      - run: cargo nextest run --all-features
+
+  wasm-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+          targets: wasm32-wasip1, wasm32-wasip1-threads, wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      # Never `--workspace` or `--all-targets` on a wasm target: `--lib` only.
+      - run: cargo check --lib --target wasm32-wasip1
+      - run: cargo check --lib --features parallel --target wasm32-wasip1-threads
+      - run: cargo check --lib --features async --target wasm32-wasip1-threads
+      - run: cargo check --lib --target wasm32-unknown-unknown

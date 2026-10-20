@@ -56,7 +56,7 @@ mod rejection {
 #[cfg(not(feature = "f64-prob"))]
 mod exact {
     use peluang::error::Error;
-    use peluang::prob::{Exact, Prob, verify_prob_axioms};
+    use peluang::prob::{Exact, PAR_THRESHOLD, Prob, sum, verify_prob_axioms};
 
     fn r(n: i64, d: i64) -> Exact {
         Exact::new(n.into(), d.into())
@@ -121,6 +121,30 @@ mod exact {
     fn is_normalized_false_on_empty() {
         let got = Exact::is_normalized(Vec::<Exact>::new());
         assert!(!got, "expected [] not normalized (sum 0), got {got}");
+    }
+
+    #[test]
+    fn sum_telescopes_across_threshold() {
+        for n in [
+            0,
+            1,
+            PAR_THRESHOLD - 1,
+            PAR_THRESHOLD,
+            3 * PAR_THRESHOLD + 7,
+        ] {
+            let terms: Vec<Exact> = (0..n)
+                .map(|i| {
+                    let i = i64::try_from(i).unwrap();
+                    r(1, (i + 1) * (i + 2))
+                })
+                .collect();
+            let got = sum(&terms);
+            let want = Exact::one().add(&r(-1, i64::try_from(n).unwrap() + 1));
+            assert_eq!(
+                got, want,
+                "expected sum of 1/((i+1)(i+2)) over i in 0..{n} = {want}, got {got}"
+            );
+        }
     }
 
     #[test]

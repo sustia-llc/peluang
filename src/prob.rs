@@ -10,7 +10,7 @@ pub const F64_TOLERANCE: f64 = 1e-12;
 
 /// A commutative semiring of probability weights with checked division and
 /// an equality relation used by every law check and normalization test.
-pub trait Prob: Clone + PartialEq + core::fmt::Debug {
+pub trait Prob: Clone + PartialEq + core::fmt::Debug + Send + Sync {
     /// Additive identity.
     fn zero() -> Self;
 
@@ -113,6 +113,34 @@ impl Prob for f64 {
     fn approx_eq(&self, other: &Self) -> bool {
         (self - other).abs() <= F64_TOLERANCE
     }
+}
+
+/// Tuning constant: the slice length at or above which `sum` runs in
+/// parallel under the `parallel` feature.
+pub const PAR_THRESHOLD: usize = 1024;
+
+/// Sum of `terms` under `Prob::add`, `Self::zero()` on an empty slice; under
+/// the `parallel` feature, parallel exactly when `terms.len()` is at least
+/// `PAR_THRESHOLD`.
+pub fn sum<P: Prob>(terms: &[P]) -> P {
+    #[cfg(feature = "parallel")]
+    {
+        sum_with(terms, terms.len() >= PAR_THRESHOLD)
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        terms.iter().fold(P::zero(), |acc, term| acc.add(term))
+    }
+}
+
+/// Sum of `terms` under `Prob::add`, `Self::zero()` on an empty slice,
+/// computed by a rayon reduction when `parallel` is true and by a sequential
+/// fold otherwise.
+#[cfg(feature = "parallel")]
+pub fn sum_with<P: Prob>(terms: &[P], parallel: bool) -> P {
+    rayon_cond::CondIterator::new(terms, parallel)
+        .fold(P::zero, |acc, term| acc.add(term))
+        .reduce(P::zero, |a, b| a.add(&b))
 }
 
 /// Checks the commutative-semiring laws and checked division on the sample
