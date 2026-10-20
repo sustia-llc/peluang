@@ -2,7 +2,10 @@ import Lake
 open Lake DSL
 
 package «Peluang» where
-  leanOptions := #[⟨`autoImplicit, false⟩]
+  leanOptions := #[
+    ⟨`autoImplicit, false⟩,
+    ⟨`weak.linter.mathlibStandardSet, true⟩,
+    ⟨`weak.linter.style.header, false⟩]
 
 require "leanprover-community" / "mathlib" @ git "v4.35.0"
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Audit the axioms of every constant defined in the `Peluang` library.
 
-Requires an up-to-date `lake build` (checked with `lake build --no-build`).
+Requires an up-to-date build of the `Peluang` target (checked with
+`lake build --no-build Peluang`).
 Elaborates a probe that imports `Peluang` and, for every constant of a
 `Peluang` / `Peluang.*` module (theorems, definitions, instances, private and
 auxiliary declarations alike), prints the axioms `Lean.collectAxioms` reports
@@ -162,9 +163,9 @@ def check(root: Path) -> tuple[int, list[str]]:
     lean_dir = root / "lean"
     scanned = [d.qualified for d in ctm.library_decls(lean_dir)]
     try:
-        fresh = run_lake(["build", "--no-build"], lean_dir)
+        fresh = run_lake(["build", "--no-build", "Peluang"], lean_dir)
         if fresh.returncode != 0:
-            return 0, [f"lean build is stale or missing; run `env -C lean lake build`:\n{(fresh.stdout + fresh.stderr).rstrip()}"]
+            return 0, [f"lean build is stale or missing; run `env -C lean lake build Peluang`:\n{(fresh.stdout + fresh.stderr).rstrip()}"]
         with tempfile.TemporaryDirectory() as tmp:
             probe = Path(tmp) / "Probe.lean"
             probe.write_text(PROBE, encoding="utf-8")
