@@ -1,5 +1,6 @@
 //! `exec::Executor`: closures resolve to their value, run on threads named
-//! `peluang-exec-*`, and run on a pool of the configured size.
+//! `peluang-exec-*`, run on a pool of the configured size (rayon's default
+//! for `0`), and resume their panics on the awaiting task.
 
 #![cfg(feature = "async")]
 
@@ -36,4 +37,24 @@ async fn run_uses_the_configured_pool() -> Result<()> {
         "expected the executor's 2-thread pool, observed {threads}"
     );
     Ok(())
+}
+
+#[tokio::test]
+async fn zero_threads_is_rayon_default() -> Result<()> {
+    let default = Executor::new()?.run(rayon::current_num_threads).await;
+    let zero = Executor::with_num_threads(0)?
+        .run(rayon::current_num_threads)
+        .await;
+    assert_eq!(
+        zero, default,
+        "expected with_num_threads(0) to match Executor::new()'s {default} threads, observed {zero}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+#[should_panic(expected = "peluang-exec job panicked")]
+async fn run_resumes_panic_on_awaiting_task() {
+    let exec = Executor::new().expect("pool builds");
+    exec.run(|| panic!("peluang-exec job panicked")).await;
 }

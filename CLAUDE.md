@@ -20,7 +20,8 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   wasm32-wasip1`, `cargo check --lib --features parallel --target
   wasm32-wasip1-threads`, `cargo check --lib --features async --target
   wasm32-wasip1-threads`, `cargo check --lib --target
-  wasm32-unknown-unknown`.
+  wasm32-unknown-unknown`. The targets are installed with `rustup target
+  add wasm32-wasip1 wasm32-wasip1-threads wasm32-unknown-unknown`.
 - Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
   `python3 -I scripts/test_print_axioms.py`,
   `python3 -I scripts/test_check_lean_source.py`, then

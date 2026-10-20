@@ -33,6 +33,14 @@ jobs:
             echo "$matches"
             exit 1
           fi
+      - name: duplicate dependency guard
+        run: |
+          dups=$(cargo tree --duplicates --all-features)
+          if [ -n "$dups" ]; then
+            echo "::error::duplicate dependency versions:"
+            echo "$dups"
+            exit 1
+          fi
       - run: cargo nextest run
       - run: cargo nextest run --features f64-prob
       - run: cargo nextest run --features parallel

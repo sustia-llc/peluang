@@ -15,6 +15,21 @@ arXiv:1908.07021; cited by definition and theorem number.
 - `src/` — the crate: `prob.rs` (the `Prob` carrier trait; exact rationals by
   default, `f64` behind the `f64-prob` feature; `sum`), `exec.rs` (behind
   `async`), `error.rs`, and the Markov-category modules as they land.
+- `lean/` — the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
+  `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is
+  the library root and imports every file under `lean/Peluang/`.
+- `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`
+  (none yet).
+- `THEOREM_MAP.md` — Lean theorem → Rust test → anchor.
+- `scripts/check_theorem_map.py` — every theorem of the library has a
+  `THEOREM_MAP.md` row with an existing witness, or a `-- WITNESS: none`
+  opt-out.
+- `scripts/print_axioms.py` — the axioms of every constant defined in the
+  `Peluang` library, allowlist `{propext, Classical.choice, Quot.sound}`.
+- `scripts/probe_selftest.py` — `print_axioms.py` against a planted module
+  of `sorry` and `native_decide` constants.
+- `scripts/check_lean_source.py` — `sorry`/`admit` terms and `axiom`
+  declarations in `lean/` sources, outside comments and literals.
 
 ## Features
 
@@ -34,21 +49,6 @@ WASI first: `wasm32-wasip1-threads` with `parallel`/`async`,
 `wasm32-wasip1` without them; `wasm32-unknown-unknown` builds the library
 with default features. Browsers are out of scope. CI checks these with
 `cargo check --lib`.
-- `lean/` — the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
-  `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is
-  the library root and imports every file under `lean/Peluang/`.
-- `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`
-  (none yet).
-- `THEOREM_MAP.md` — Lean theorem → Rust test → anchor.
-- `scripts/check_theorem_map.py` — every theorem of the library has a
-  `THEOREM_MAP.md` row with an existing witness, or a `-- WITNESS: none`
-  opt-out.
-- `scripts/print_axioms.py` — the axioms of every constant defined in the
-  `Peluang` library, allowlist `{propext, Classical.choice, Quot.sound}`.
-- `scripts/probe_selftest.py` — `print_axioms.py` against a planted module
-  of `sorry` and `native_decide` constants.
-- `scripts/check_lean_source.py` — `sorry`/`admit` terms and `axiom`
-  declarations in `lean/` sources, outside comments and literals.
 
 ## Requirements
 

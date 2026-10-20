@@ -1,6 +1,9 @@
 //! Canonical integration tests for the `Prob` trait: law verification,
 //! checked division and normalization, in the exact lane and the `f64` lane.
 
+#[cfg(not(feature = "f64-prob"))]
+mod common;
+
 mod rejection {
     use peluang::error::Error;
     use peluang::prob::{Exact, Prob, verify_prob_axioms};
@@ -55,6 +58,7 @@ mod rejection {
 
 #[cfg(not(feature = "f64-prob"))]
 mod exact {
+    use crate::common::{closed_form, telescoping};
     use peluang::error::Error;
     use peluang::prob::{Exact, PAR_THRESHOLD, Prob, sum, verify_prob_axioms};
 
@@ -132,14 +136,8 @@ mod exact {
             PAR_THRESHOLD,
             3 * PAR_THRESHOLD + 7,
         ] {
-            let terms: Vec<Exact> = (0..n)
-                .map(|i| {
-                    let i = i64::try_from(i).unwrap();
-                    r(1, (i + 1) * (i + 2))
-                })
-                .collect();
-            let got = sum(&terms);
-            let want = Exact::one().add(&r(-1, i64::try_from(n).unwrap() + 1));
+            let got = sum(&telescoping(n));
+            let want = closed_form(n);
             assert_eq!(
                 got, want,
                 "expected sum of 1/((i+1)(i+2)) over i in 0..{n} = {want}, got {got}"
