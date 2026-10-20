@@ -117,14 +117,16 @@ instance instTensorHom {X Y X' Y' : C} (f : X ⟶ Y) (g : X' ⟶ Y') [Determinis
 /-- Right whiskering preserves determinism (Fritz 2020, Lemma 10.12). -/
 instance instWhiskerRight {X Y : C} (f : X ⟶ Y) [Deterministic f] (Z : C) :
     Deterministic (f ▷ Z) := by
-  have := instTensorHom f (𝟙 Z)
-  rwa [tensorHom_id] at this
+  unfold Deterministic
+  rw [comonObj_tensor, comonObj_tensor]
+  exact Comon.instIsComonHomWhiskerRight f Z
 
 /-- Left whiskering preserves determinism (Fritz 2020, Lemma 10.12). -/
 instance instWhiskerLeft (Z : C) {X Y : C} (f : X ⟶ Y) [Deterministic f] :
     Deterministic (Z ◁ f) := by
-  have := instTensorHom (𝟙 Z) f
-  rwa [id_tensorHom] at this
+  unfold Deterministic
+  rw [comonObj_tensor, comonObj_tensor]
+  exact Comon.instIsComonHomWhiskerLeft Z f
 
 /-- The associator is deterministic (Fritz 2020, Lemma 10.12). -/
 instance instAssociator (X Y Z : C) : Deterministic (α_ X Y Z).hom := by

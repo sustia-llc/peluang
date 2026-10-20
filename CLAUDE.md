@@ -36,10 +36,10 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are
      build errors.
   3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit`/
-     `native_decide`/`decide +native` term and no `axiom` declaration under
-     `lean/` outside `lean/.lake`, and no `theorem`/`lemma` under
-     `lean/PeluangTest`, with comments, docstrings, string and char
-     literals excluded.
+     `native_decide` term, no standalone `native` word and no `axiom`
+     declaration under `lean/` outside `lean/.lake`, and no declaration
+     other than `example` under `lean/PeluangTest`, with comments,
+     docstrings, string and char literals excluded.
   4. `python3 -I scripts/print_axioms.py` (needs step 2): every constant
      of the `Peluang` / `Peluang.*` modules depends only on `{propext,
      Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is

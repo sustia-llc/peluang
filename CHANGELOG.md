@@ -38,9 +38,10 @@ git tag is the authoritative pin.
 - `scripts/print_axioms.py` checks freshness with
   `lake build --no-build Peluang`; `scripts/probe_selftest.py` builds only
   the `Peluang` target, with its fixture and after restoring.
-- `scripts/check_lean_source.py` also rejects `native_decide` and
-  `decide +native` terms anywhere under `lean/`, and `theorem`/`lemma`
-  declarations under `lean/PeluangTest`.
+- `scripts/check_lean_source.py` also rejects `native_decide` and any
+  standalone `native` word (`decide +native`, `native := true`) anywhere
+  under `lean/`, and every declaration other than `example` under
+  `lean/PeluangTest`.
 
 ## [0.1.1] - 2026-10-20
 

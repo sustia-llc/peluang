@@ -88,18 +88,33 @@ class Scan(unittest.TestCase):
         self.assertEqual(cls.scan("example : 1 < 2 := by native_decide\n"), [(1, "native_decide")])
 
     def test_decide_native_hits(self) -> None:
-        self.assertEqual(cls.scan("example : 1 < 2 := by decide +native\n"), [(1, "decide +native")])
+        self.assertEqual(cls.scan("example : 1 < 2 := by decide +native\n"), [(1, "native")])
+
+    def test_decide_native_after_other_option_hits(self) -> None:
+        self.assertEqual(cls.scan("example : 1 < 2 := by decide +kernel +native\n"), [(1, "native")])
+
+    def test_decide_native_config_hits(self) -> None:
+        src = "example : 1 < 2 := by decide (config := { native := true })\n"
+        self.assertEqual(cls.scan(src), [(1, "native")])
+
+    def test_native_in_dotted_name_ignored(self) -> None:
+        self.assertEqual(cls.scan("set_option linter.style.native false\ndef nativeX := 1\n"), [])
 
     def test_native_decide_in_comment_ignored(self) -> None:
         self.assertEqual(cls.scan("-- no native_decide, no decide +native\nexample : True := trivial\n"), [])
 
-    def test_theorem_hits_only_in_test_file(self) -> None:
-        src = "@[simp] theorem t : True := trivial\nprivate lemma u : True := trivial\n"
+    def test_declarations_hit_only_in_test_file(self) -> None:
+        kinds = ["theorem", "lemma", "def", "abbrev", "instance", "alias", "opaque", "structure", "class", "inductive"]
+        src = "".join(f"@[simp] {k} x{i} : True := trivial\n" for i, k in enumerate(kinds))
+        src += "scoped instance y : Inhabited Nat := ⟨0⟩\nnoncomputable def z := 0\n"
         self.assertEqual(cls.scan(src), [])
         self.assertEqual(
             cls.scan(src, test_file=True),
-            [(1, "theorem/lemma in the test library"), (2, "theorem/lemma in the test library")],
+            [(i, "declaration in the test library") for i in range(1, len(kinds) + 3)],
         )
+
+    def test_example_allowed_in_test_file(self) -> None:
+        self.assertEqual(cls.scan("example : True := trivial\n", test_file=True), [])
 
     def test_line_numbers_survive_block_comments(self) -> None:
         self.assertEqual(cls.scan("/-\n\n\n-/\nexample : False := sorry\n"), [(5, "sorry")])
@@ -140,8 +155,8 @@ class Check(unittest.TestCase):
             self.assertEqual(
                 sorted(cls.check(root)),
                 [
-                    "lean/PeluangTest.lean:1: theorem/lemma in the test library",
-                    "lean/PeluangTest/B.lean:1: theorem/lemma in the test library",
+                    "lean/PeluangTest.lean:1: declaration in the test library",
+                    "lean/PeluangTest/B.lean:1: declaration in the test library",
                 ],
             )
 

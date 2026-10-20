@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Find `sorry`/`admit`/`native_decide`/`decide +native` terms and `axiom`
-declarations in the Lean sources under lean/, and `theorem`/`lemma`
-declarations under lean/PeluangTest/.
+"""Find `sorry`/`admit`/`native_decide` terms, the word `native` (as in
+`decide +native` or `(config := { native := true })`) and `axiom`
+declarations in the Lean sources under lean/, and any `theorem`, `lemma`,
+`def`, `abbrev`, `instance`, `alias`, `axiom`, `opaque`, `structure`, `class`
+or `inductive` declaration under lean/PeluangTest/ and lean/PeluangTest.lean.
 
 Scans every `*.lean` file under lean/ outside lean/.lake, after blanking line
 comments (`--`), nested block comments and docstrings (`/- … -/`), string
@@ -19,14 +21,17 @@ import re
 import sys
 from pathlib import Path
 
-MODIFIERS = r"(?:(?:private|protected|public|noncomputable|unsafe|partial|nonrec)\s+)*"
+MODIFIERS = r"(?:(?:private|protected|public|scoped|noncomputable|unsafe|partial|nonrec)\s+)*"
 PREFIX = r"(?:(?:open|set_option)\b[^\n]*?\bin\s+)*(?:@\[[^\]]*\]\s*)*"
 SORRY_RE = re.compile(r"(?<![\w.'`«])(sorry|admit|native_decide)(?![\w'»])")
-DECIDE_NATIVE_RE = re.compile(r"(?<![\w.'`«])decide\s*\+native(?![\w'»])")
+NATIVE_RE = re.compile(r"(?<![\w.'`«])native(?![\w'»])")
 CHAR_RE = re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.)|[^\\'\n])'")
 RAW_RE = re.compile(r'r(#*)"')
 AXIOM_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}axiom\b")
-THEOREM_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}(?:theorem|lemma)\b")
+TEST_DECL_RE = re.compile(
+    rf"^\s*{PREFIX}{MODIFIERS}"
+    r"(?:theorem|lemma|def|abbrev|instance|alias|axiom|opaque|structure|class|inductive)\b"
+)
 TEST_DIR = "PeluangTest"
 
 
@@ -110,12 +115,12 @@ def scan(text: str, test_file: bool = False) -> list[tuple[int, str]]:
     for lineno, line in enumerate(strip_code(text).splitlines(), start=1):
         for m in SORRY_RE.finditer(line):
             hits.append((lineno, m.group(1)))
-        for _ in DECIDE_NATIVE_RE.finditer(line):
-            hits.append((lineno, "decide +native"))
+        for _ in NATIVE_RE.finditer(line):
+            hits.append((lineno, "native"))
         if AXIOM_RE.match(line):
             hits.append((lineno, "axiom declaration"))
-        if test_file and THEOREM_RE.match(line):
-            hits.append((lineno, "theorem/lemma in the test library"))
+        if test_file and TEST_DECL_RE.match(line):
+            hits.append((lineno, "declaration in the test library"))
     return hits
 
 
