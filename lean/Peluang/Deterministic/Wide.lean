@@ -5,7 +5,6 @@ Released under the MIT license as described in the file LICENSE.
 module
 
 public import Mathlib.CategoryTheory.CopyDiscardCategory.Widesubcategory
-public import Mathlib.CategoryTheory.MarkovCategory.Basic
 public import Peluang.Deterministic.Lemmas
 
 /-!
@@ -21,7 +20,10 @@ Markov category (Fritz 2020, Remark 10.13).
 
 * `MorphismProperty.deterministic` - the deterministic morphisms of a copy-discard
   category.
-* `MorphismProperty.markovCategory` - the Markov category structure on
+
+## Main results
+
+* `WideSubcategory.instMarkovCategory` - the Markov category structure on
   `WideSubcategory P` for `P` stable under braiding and the comonoid structure maps.
 
 ## References
@@ -51,8 +53,8 @@ section CopyDiscard
 
 variable [CopyDiscardCategory C]
 
-/-- The deterministic morphisms contain the identities and are closed under composition,
-whiskering and tensor products, and contain the associators, unitors and braidings
+/-- The deterministic morphisms contain the identities and are closed under composition
+and whiskering, and contain the associators, unitors and braidings
 together with their inverses (Fritz 2020, Lemma 10.12). -/
 instance : (MorphismProperty.deterministic C).IsStableUnderBraiding where
   id_mem X := show Deterministic (𝟙 X) from inferInstance
@@ -76,21 +78,17 @@ instance (c : C) : (MorphismProperty.deterministic C).IsStableUnderComonoid c wh
 
 end CopyDiscard
 
+end MorphismProperty
+
 /-- A wide subcategory of a Markov category, cut out by a morphism property stable under
 braiding and under the comonoid structure maps, is a Markov category. For
 `P = MorphismProperty.deterministic C` this is the Markov category of deterministic
 morphisms (Fritz 2020, Remark 10.13). -/
-instance markovCategory [MarkovCategory C] (P : MorphismProperty C)
+instance WideSubcategory.instMarkovCategory [MarkovCategory C] (P : MorphismProperty C)
     [P.IsStableUnderBraiding] [∀ c, P.IsStableUnderComonoid c] :
     MarkovCategory (WideSubcategory P) where
   discard_natural f := by
     ext
     exact MarkovCategory.discard_natural f.1
-
-example [MarkovCategory C] :
-    MarkovCategory (WideSubcategory (MorphismProperty.deterministic C)) :=
-  inferInstance
-
-end MorphismProperty
 
 end CategoryTheory

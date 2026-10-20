@@ -15,8 +15,7 @@ that instance, and the marginals of a morphism into a tensor product.
 ## Main definitions
 
 * `MarkovCategory.marginalFst`, `MarkovCategory.marginalSnd` - the marginals of
-  `f : A ⟶ X ⊗ Y` (Fritz 2020, Notation 2.8). The pushforward of `ψ` along `f`
-  (Fritz 2020, Notation 2.8) is the composite `ψ ≫ f` and gets no definition.
+  `f : A ⟶ X ⊗ Y` (Fritz 2020, Notation 2.8).
 
 ## Main results
 
@@ -26,6 +25,9 @@ that instance, and the marginals of a morphism into a tensor product.
   the tensor product comonoid structure.
 * `MarkovCategory.discard_tensorHom_natural` - the same statement in simp normal form,
   with discarding `X ⊗ Y` written as `(ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom`.
+* `MarkovCategory.comp_tensorHom_leftUnitor_hom_eq_discard` - every morphism into `X ⊗ Y`
+  followed by `(g ⊗ₘ h) ≫ (λ_ (𝟙_ C)).hom`, for any `g : X ⟶ 𝟙_ C` and `h : Y ⟶ 𝟙_ C`,
+  is discarding its domain.
 
 ## References
 
@@ -77,9 +79,16 @@ theorem MarkovCategory.discard_tensorHom_natural [MarkovCategory C] {A X Y : C}
     (f : A ⟶ X ⊗ Y) : f ≫ (ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom = ε[A] :=
   MarkovCategory.discard_natural_tensor f
 
-example [MarkovCategory C] {A B X Y : C} (k : B ⟶ A) (f : A ⟶ X ⊗ Y) :
-    k ≫ f ≫ ε[X ⊗ Y] = ε[B] := by
-  simp
+-- WITNESS: none (no engine meaning beyond Mathlib discard_natural)
+/-- In a Markov category, every morphism `f : A ⟶ X ⊗ Y` followed by
+`(g ⊗ₘ h) ≫ (λ_ (𝟙_ C)).hom`, for any `g : X ⟶ 𝟙_ C` and `h : Y ⟶ 𝟙_ C`, is
+discarding `A`. -/
+@[reassoc (attr := simp)]
+theorem MarkovCategory.comp_tensorHom_leftUnitor_hom_eq_discard [MarkovCategory C]
+    {A X Y : C} (f : A ⟶ X ⊗ Y) (g : X ⟶ 𝟙_ C) (h : Y ⟶ 𝟙_ C) :
+    f ≫ (g ⊗ₘ h) ≫ (λ_ (𝟙_ C)).hom = ε[A] := by
+  rw [MarkovCategory.eq_discard X g, MarkovCategory.eq_discard Y h]
+  exact MarkovCategory.discard_tensorHom_natural f
 
 namespace MarkovCategory
 
@@ -144,18 +153,6 @@ theorem marginalSnd_copy_comp_tensorHom (g : A ⟶ X) (h : A ⟶ Y) :
   rw [marginalSnd, Category.assoc, ← tensorHom_id, tensorHom_comp_tensorHom_assoc,
     Category.comp_id, MarkovCategory.discard_natural, counit_comul_hom_assoc, Iso.inv_hom_id,
     Category.comp_id]
-
-example (g : A ⟶ X) (h : A ⟶ Y) : marginalFst (Δ[A] ≫ (g ⊗ₘ h)) = g := by
-  simp
-
-example (g : A ⟶ X) (h : A ⟶ Y) : marginalSnd (Δ[A] ≫ (g ⊗ₘ h)) = h := by
-  simp
-
-example : marginalFst Δ[A] = 𝟙 A := by
-  simp
-
-example : marginalSnd Δ[A] = 𝟙 A := by
-  simp
 
 end Markov
 
