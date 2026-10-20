@@ -10,7 +10,8 @@ public import Peluang.Markov.Derived
 # Tests for `Peluang.Markov.Derived`
 
 `simp` closes discard naturality into binary and nested tensor products, and the marginals
-of copying and of `Δ[A] ≫ (g ⊗ₘ h)`.
+of copying and of `Δ[A] ≫ (g ⊗ₘ h)`; `simp [marginalFst_tensorHom]` and
+`simp [marginalSnd_tensorHom]` close the marginals of `f ⊗ₘ g`.
 -/
 
 public section
@@ -19,7 +20,7 @@ universe v u
 
 namespace CategoryTheory
 
-open MonoidalCategory ComonObj MarkovCategory
+open MonoidalCategory ComonObj CopyDiscardCategory MarkovCategory
 
 variable {C : Type u} [Category.{v} C] [MonoidalCategory.{v} C] [MarkovCategory C]
 
@@ -47,5 +48,13 @@ example {A : C} : marginalFst Δ[A] = 𝟙 A := by
 
 example {A : C} : marginalSnd Δ[A] = 𝟙 A := by
   simp
+
+example {A B X Y : C} (f : A ⟶ X) (g : B ⟶ Y) :
+    marginalFst (f ⊗ₘ g) = A ◁ ε[B] ≫ (ρ_ A).hom ≫ f := by
+  simp [marginalFst_tensorHom]
+
+example {A B X Y : C} (f : A ⟶ X) (g : B ⟶ Y) :
+    marginalSnd (f ⊗ₘ g) = ε[A] ▷ B ≫ (λ_ B).hom ≫ g := by
+  simp [marginalSnd_tensorHom]
 
 end CategoryTheory

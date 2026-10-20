@@ -14,8 +14,8 @@ that instance, and the marginals of a morphism into a tensor product.
 
 ## Main definitions
 
-* `MarkovCategory.marginalFst`, `MarkovCategory.marginalSnd` - the marginals of
-  `f : A ⟶ X ⊗ Y` (Fritz 2020, Notation 2.8).
+* `CopyDiscardCategory.marginalFst`, `CopyDiscardCategory.marginalSnd` - the marginals of
+  `f : A ⟶ X ⊗ Y` in a copy-discard category (Fritz 2020, Notation 2.8).
 
 ## Main results
 
@@ -28,6 +28,9 @@ that instance, and the marginals of a morphism into a tensor product.
 * `MarkovCategory.comp_tensorHom_leftUnitor_hom_eq_discard` - every morphism into `X ⊗ Y`
   followed by `(g ⊗ₘ h) ≫ (λ_ (𝟙_ C)).hom`, for any `g : X ⟶ 𝟙_ C` and `h : Y ⟶ 𝟙_ C`,
   is discarding its domain.
+* `MarkovCategory.marginalFst_tensorHom`, `MarkovCategory.marginalSnd_tensorHom` - in a
+  Markov category, the marginals of `f ⊗ₘ g` are `A ◁ ε[B] ≫ (ρ_ A).hom ≫ f` and
+  `ε[A] ▷ B ≫ (λ_ B).hom ≫ g`.
 
 ## References
 
@@ -74,7 +77,7 @@ theorem MarkovCategory.discard_natural_tensor [MarkovCategory C] {A X Y : C}
 -- WITNESS: none (Mathlib discard_natural at the tensor instance, simp normal form)
 /-- In a Markov category, every morphism `f : A ⟶ X ⊗ Y` followed by
 `(ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom` is discarding `A`. -/
-@[reassoc (attr := simp)]
+@[reassoc]
 theorem MarkovCategory.discard_tensorHom_natural [MarkovCategory C] {A X Y : C}
     (f : A ⟶ X ⊗ Y) : f ≫ (ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom = ε[A] :=
   MarkovCategory.discard_natural_tensor f
@@ -90,7 +93,7 @@ theorem MarkovCategory.comp_tensorHom_leftUnitor_hom_eq_discard [MarkovCategory 
   rw [MarkovCategory.eq_discard X g, MarkovCategory.eq_discard Y h]
   exact MarkovCategory.discard_tensorHom_natural f
 
-namespace MarkovCategory
+namespace CopyDiscardCategory
 
 /-- The first marginal of `f : A ⟶ X ⊗ Y`: discard the `Y` output
 (Fritz 2020, Notation 2.8). -/
@@ -101,8 +104,6 @@ def marginalFst [CopyDiscardCategory C] {A X Y : C} (f : A ⟶ X ⊗ Y) : A ⟶ 
 (Fritz 2020, Notation 2.8). -/
 def marginalSnd [CopyDiscardCategory C] {A X Y : C} (f : A ⟶ X ⊗ Y) : A ⟶ Y :=
   f ≫ ε[X] ▷ Y ≫ (λ_ Y).hom
-
-section CopyDiscard
 
 variable [CopyDiscardCategory C] {A B X Y : C}
 
@@ -130,11 +131,13 @@ theorem marginalFst_copy (X : C) : marginalFst Δ[X] = 𝟙 X := by
 theorem marginalSnd_copy (X : C) : marginalSnd Δ[X] = 𝟙 X := by
   simp [marginalSnd]
 
-end CopyDiscard
+end CopyDiscardCategory
 
-section Markov
+namespace MarkovCategory
 
-variable [MarkovCategory C] {A X Y : C}
+open CopyDiscardCategory
+
+variable [MarkovCategory C] {A B X Y : C}
 
 -- WITNESS: none (Phase 2R witness)
 /-- In a Markov category, the first marginal of `Δ[A] ≫ (g ⊗ₘ h)` is `g`. -/
@@ -154,7 +157,21 @@ theorem marginalSnd_copy_comp_tensorHom (g : A ⟶ X) (h : A ⟶ Y) :
     Category.comp_id, MarkovCategory.discard_natural, counit_comul_hom_assoc, Iso.inv_hom_id,
     Category.comp_id]
 
-end Markov
+-- WITNESS: none (Phase 2R witness)
+/-- In a Markov category, the first marginal of `f ⊗ₘ g`, for `f : A ⟶ X` and `g : B ⟶ Y`,
+is discarding `B` followed by `f`. -/
+theorem marginalFst_tensorHom (f : A ⟶ X) (g : B ⟶ Y) :
+    marginalFst (f ⊗ₘ g) = A ◁ ε[B] ≫ (ρ_ A).hom ≫ f := by
+  rw [marginalFst, tensorHom_def, Category.assoc, ← whiskerLeft_comp_assoc,
+    MarkovCategory.discard_natural, ← whisker_exchange_assoc, rightUnitor_naturality]
+
+-- WITNESS: none (Phase 2R witness)
+/-- In a Markov category, the second marginal of `f ⊗ₘ g`, for `f : A ⟶ X` and `g : B ⟶ Y`,
+is discarding `A` followed by `g`. -/
+theorem marginalSnd_tensorHom (f : A ⟶ X) (g : B ⟶ Y) :
+    marginalSnd (f ⊗ₘ g) = ε[A] ▷ B ≫ (λ_ B).hom ≫ g := by
+  rw [marginalSnd, tensorHom_def', Category.assoc, ← comp_whiskerRight_assoc,
+    MarkovCategory.discard_natural, whisker_exchange_assoc, leftUnitor_naturality]
 
 end MarkovCategory
 

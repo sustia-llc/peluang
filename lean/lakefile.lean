@@ -10,4 +10,5 @@ require "leanprover-community" / "mathlib" @ git "v4.35.0"
 lean_lib «Peluang»
 
 @[default_target]
-lean_lib «PeluangTest»
+lean_lib «PeluangTest» where
+  globs := #[.andSubmodules `PeluangTest]

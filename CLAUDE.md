@@ -90,5 +90,9 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 - `lean_lib Peluang` takes the default root; an `.andSubmodules` glob
   fails the build while `lean/Peluang/` does not exist. Every file under
   `lean/Peluang/` is reached through an import from `lean/Peluang.lean`.
+- `lean_lib PeluangTest` (second default target) builds every file under
+  `lean/PeluangTest/` through `globs := #[.andSubmodules `PeluangTest]`.
+  It holds `example`s only; `print_axioms.py` does not audit it, and
+  `check_lean_source.py` scans it.
 - Lean files use the module system (`module`, `public import`, theorems in
   a `public section`), matching the Mathlib files they import.
