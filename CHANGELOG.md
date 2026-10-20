@@ -10,7 +10,6 @@ git tag is the authoritative pin.
 
 - Lean `Peluang.Markov.Derived`: `CopyDiscardCategory.comonObj_tensor`,
   `MarkovCategory.discard_natural_tensor`,
-  `MarkovCategory.discard_tensorHom_natural`,
   `MarkovCategory.comp_tensorHom_leftUnitor_hom_eq_discard`;
   `CopyDiscardCategory.marginalFst`/`marginalSnd` with `_comp` and
   `@[simp]` `_copy` lemmas; `MarkovCategory.marginalFst`/`Snd` `_tensorHom`
@@ -19,14 +18,25 @@ git tag is the authoritative pin.
   (Remark 2.4).
 - Lean `Peluang.Deterministic.Lemmas`: `Deterministic` instances for `Δ`,
   `ε`, `⊗ₘ`, `▷`, `◁`, `α`, `λ`, `ρ`, `β` in any `CopyDiscardCategory`
-  (Def. 10.1, Remark 10.2, Lemma 10.12), and `IsComonHom` instances for
-  the same maps at the tensor-product comonoid structure;
-  `Deterministic.instIsComonHomOfTensorObjSource`/`…Target` (low priority);
-  `Comon.instIsComonHomTensorHom`.
+  (Def. 10.1, Remark 10.2, Lemma 10.12); `IsComonHom` instances at the
+  tensor-product comonoid structure for `Δ`, `▷`, `◁`, `α`, `λ`, `ρ`, `β`;
+  `Comon.instIsComonHomTensorHom` for `⊗ₘ` in a braided monoidal category;
+  `Deterministic.instIsComonHomOfTensorObjSource`/`…Target` (low priority).
 - Lean `Peluang.Deterministic.Wide`: `MorphismProperty.deterministic`, its
   braiding and comonoid stability, and
   `WideSubcategory.instMarkovCategory` (Remark 10.13).
-- Lean test library `PeluangTest` (a default target of `lean/lakefile.lean`).
+- Lean test library `PeluangTest` (a default target of `lean/lakefile.lean`),
+  including `PeluangTest/Lint.lean` (`#lint in Peluang`).
+
+### Changed
+
+- `lake build` runs Mathlib's style linters
+  (`weak.linter.mathlibStandardSet`, header linter off) and `#lint in
+  Peluang`; a lint finding fails the build.
+- `scripts/print_axioms.py` checks freshness with
+  `lake build --no-build Peluang`; `scripts/probe_selftest.py` builds the
+  `Peluang` target with its fixture and both default targets after
+  restoring.
 
 ## [0.1.1] - 2026-10-20
 

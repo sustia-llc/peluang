@@ -198,9 +198,9 @@ instance instIsComonHomBraiding (X Y : C) : IsComonHom (β_ X Y).hom := by
   rw [← comonObj_tensor, ← comonObj_tensor]
   exact instBraiding X Y
 
-/-- A deterministic morphism out of `X ⊗ Y` is a comonoid morphism for the tensor product
-comonoid structure on `X ⊗ Y`, at any comonoid structure on its codomain for which it is a
-comonoid morphism out of `CopyDiscardCategory.comonObj (X ⊗ Y)`. -/
+/-- A morphism out of `X ⊗ Y` that is a comonoid morphism out of
+`CopyDiscardCategory.comonObj (X ⊗ Y)` is a comonoid morphism for the tensor product comonoid
+structure on `X ⊗ Y`, at any comonoid structure on its codomain. -/
 instance (priority := low) instIsComonHomOfTensorObjSource {X Y Z : C} [N : ComonObj Z]
     (f : X ⊗ Y ⟶ Z) [@IsComonHom C _ _ _ _ (comonObj (X ⊗ Y)) N f] : IsComonHom f := by
   rwa [← comonObj_tensor]

@@ -98,8 +98,7 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   `lean/PeluangTest/` through `globs := #[.andSubmodules `PeluangTest]`.
   It holds `example`s and the `#lint` file only; `print_axioms.py` does
   not audit it, and `check_lean_source.py` scans it. `Lint.lean` is a
-  plain (non-`module`) file, so it is not imported from
-  `lean/PeluangTest.lean`; under `module` the linters see imported
-  theorems without their docstrings.
+  plain (non-`module`) file, reached through the glob and not imported
+  from `lean/PeluangTest.lean`.
 - Lean files use the module system (`module`, `public import`, theorems in
   a `public section`), matching the Mathlib files they import.

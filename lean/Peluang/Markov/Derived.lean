@@ -23,8 +23,6 @@ that instance, and the marginals of a morphism into a tensor product.
   category assigns to `X ⊗ Y` is the tensor product comonoid structure.
 * `MarkovCategory.discard_natural_tensor` - discard naturality into `X ⊗ Y` at
   the tensor product comonoid structure.
-* `MarkovCategory.discard_tensorHom_natural` - the same statement in simp normal form,
-  with discarding `X ⊗ Y` written as `(ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom`.
 * `MarkovCategory.comp_tensorHom_leftUnitor_hom_eq_discard` - every morphism into `X ⊗ Y`
   followed by `(g ⊗ₘ h) ≫ (λ_ (𝟙_ C)).hom`, for any `g : X ⟶ 𝟙_ C` and `h : Y ⟶ 𝟙_ C`,
   is discarding its domain.
@@ -74,14 +72,6 @@ theorem MarkovCategory.discard_natural_tensor [MarkovCategory C] {A X Y : C}
   have h := MarkovCategory.discard_natural f
   rwa [CopyDiscardCategory.comonObj_tensor] at h
 
--- WITNESS: none (Mathlib discard_natural at the tensor instance, simp normal form)
-/-- In a Markov category, every morphism `f : A ⟶ X ⊗ Y` followed by
-`(ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom` is discarding `A`. -/
-@[reassoc]
-theorem MarkovCategory.discard_tensorHom_natural [MarkovCategory C] {A X Y : C}
-    (f : A ⟶ X ⊗ Y) : f ≫ (ε[X] ⊗ₘ ε[Y]) ≫ (λ_ (𝟙_ C)).hom = ε[A] :=
-  MarkovCategory.discard_natural_tensor f
-
 -- WITNESS: none (no engine meaning beyond Mathlib discard_natural)
 /-- In a Markov category, every morphism `f : A ⟶ X ⊗ Y` followed by
 `(g ⊗ₘ h) ≫ (λ_ (𝟙_ C)).hom`, for any `g : X ⟶ 𝟙_ C` and `h : Y ⟶ 𝟙_ C`, is
@@ -91,7 +81,8 @@ theorem MarkovCategory.comp_tensorHom_leftUnitor_hom_eq_discard [MarkovCategory 
     {A X Y : C} (f : A ⟶ X ⊗ Y) (g : X ⟶ 𝟙_ C) (h : Y ⟶ 𝟙_ C) :
     f ≫ (g ⊗ₘ h) ≫ (λ_ (𝟙_ C)).hom = ε[A] := by
   rw [MarkovCategory.eq_discard X g, MarkovCategory.eq_discard Y h]
-  exact MarkovCategory.discard_tensorHom_natural f
+  rw [← Comon.tensorObj_counit]
+  exact MarkovCategory.discard_natural_tensor f
 
 namespace CopyDiscardCategory
 

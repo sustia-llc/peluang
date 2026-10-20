@@ -9,8 +9,7 @@ import Peluang
 # Lint
 
 Runs the Batteries declaration linters, `simpNF` among them, over every declaration of the
-`Peluang` modules; a linter failure is an error of this file. The file is outside the module
-system, so the linters see the imported declarations with their docstrings and bodies.
+`Peluang` modules; a linter failure is an error of this file.
 -/
 
 #lint in Peluang
