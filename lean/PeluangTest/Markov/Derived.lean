@@ -11,7 +11,8 @@ public import Peluang.Markov.Derived
 
 `simp` closes discard naturality into binary and nested tensor products, the marginals
 of copying and of `Δ[A] ≫ (g ⊗ₘ h)`, the marginals of `k ≫ f`, of `f ⊗ₘ g`, of `f ▷ B` and
-of `A ◁ g`, and the marginals of `f ⊗ₘ g` pre- and post-composed with arbitrary morphisms.
+of `A ◁ g`, and `k ≫ marginalFst (f ⊗ₘ g) ≫ h` and `k ≫ marginalSnd (f ⊗ₘ g) ≫ h` for
+arbitrary `k` and `h`.
 -/
 
 public section

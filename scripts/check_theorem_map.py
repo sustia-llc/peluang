@@ -8,10 +8,13 @@ declaration only by blank lines, comments, docstrings and attributes; and when
 every non-`mathlib:` row names a test file that holds
 exactly one `/// THEOREM_MAP: <id>` tag on a fn of the named name, and when
 every tag under tests/formalization_lean/ is placed as follows: the line after
-it is `#[test]` (a trailing `//` comment allowed), and the first line after
-that which is not blank, a `//`/`///` comment other than a tag, or a
-single-line `#[...]` attribute is the `fn`. Exit 1 otherwise, printing each
-failure (each misplaced tag with its file and line) on its own line.
+it is `#[test]` or `#[<path>::test]` / `#[<path>::test(...)]` (a trailing `//`
+comment allowed), the first line after that which is not blank, a `//`/`///`
+comment other than a tag, or a single-line `#[...]` attribute is the `fn`, and
+no attribute line in between is `#[ignore]`, `#[should_panic]` or a `cfg` that
+names `f64-prob` other than `not(feature = "f64-prob")`. Exit 1 otherwise,
+printing each failure (each misplaced tag with its file and line) on its own
+line.
 
 Usage: check_theorem_map.py [REPO_ROOT]
 """
@@ -41,11 +44,20 @@ ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<an
 TEST_REF_RE = re.compile(r"^tests/formalization_lean/(?P<file>[\w/]+\.rs)::(?P<fn>\w+)$")
 TAG_RE = re.compile(r"^\s*///\s*THEOREM_MAP:\s*(\S+)\s*$")
 TEST_FN_RE = re.compile(
-    r"^\s*(?:pub(?:\s*\([^)]*\)\s*|\s+))?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?(?:extern(?:\s+\"[^\"]*\")?\s+)?"
+    r"^\s*(?:pub(?:\s*\([^)]*\)\s*|\s+))?(?:const\s+)?(?:async\s+)?(?:extern(?:\s+\"[^\"]*\")?\s+)?"
     r"fn\s+(\w+)\s*[<(]"
 )
-TEST_ATTR_RE = re.compile(r"^\s*#\[test\]\s*(?://.*)?$")
+TEST_ATTR_RE = re.compile(r"^\s*#\[(?:test|(?:\w+::)+test(?:\(.*\))?)\]\s*(?://.*)?$")
 BETWEEN_RE = re.compile(r"^\s*(?:#\[.*\]\s*(?://.*)?|//.*)?$")
+NOT_RUN_RE = re.compile(r"^\s*#\[\s*(?:ignore|should_panic)\b")
+CFG_F64_RE = re.compile(r"^\s*#\[\s*cfg\b.*f64-prob")
+CFG_NOT_F64 = 'not(feature="f64-prob")'
+
+
+def blocking_attr(line: str) -> bool:
+    if NOT_RUN_RE.match(line):
+        return True
+    return bool(CFG_F64_RE.match(line)) and CFG_NOT_F64 not in line.replace(" ", "")
 
 
 @dataclass(frozen=True)
@@ -178,12 +190,20 @@ def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], l
             if not m:
                 continue
             fm = None
+            blocking: list[str] = []
             if i + 1 < len(lines) and TEST_ATTR_RE.match(lines[i + 1]):
                 j = i + 2
                 while j < len(lines) and BETWEEN_RE.match(lines[j]) and not TAG_RE.match(lines[j]):
+                    if blocking_attr(lines[j]):
+                        blocking.append(lines[j].strip())
                     j += 1
                 fm = TEST_FN_RE.match(lines[j]) if j < len(lines) else None
-            if fm:
+            if fm and blocking:
+                misplaced.append(
+                    f"{path}:{i + 1}: `/// THEOREM_MAP: {m.group(1)}` sits on a test that does not run in the exact "
+                    f"lane or does not assert: {', '.join(f'`{b}`' for b in blocking)}"
+                )
+            elif fm:
                 tags.setdefault(m.group(1), []).append((path, fm.group(1)))
             else:
                 misplaced.append(

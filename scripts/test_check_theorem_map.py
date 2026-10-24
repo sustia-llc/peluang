@@ -100,7 +100,7 @@ class CheckTheoremMap(unittest.TestCase):
     def test_lines_allowed_between_test_attr_and_fn_pass(self) -> None:
         for between in (
             "#[cfg(not(feature = \"f64-prob\"))]\n",
-            "#[ignore]\n/// doc\n#[allow(dead_code)]\n",
+            "#[cfg(not(feature = \"f64-prob\"))]\n/// doc\n#[allow(dead_code)]\n",
             "\n",
             "// note\n",
             "//// note\n",
@@ -113,15 +113,34 @@ class CheckTheoremMap(unittest.TestCase):
         for header in (
             "pub(crate) fn unique_as() {}",
             "async fn unique_as() {}",
-            "unsafe fn unique_as() {}",
             "fn unique_as<T>() {}",
             "extern fn unique_as() {}",
+            "extern \"C\" fn unique_as() {}",
             "pub (crate) fn unique_as() {}",
-            "pub(in crate::a)unsafe fn unique_as() {}",
+            "pub(in crate::a)fn unique_as() {}",
         ):
             with self.subTest(header=header):
                 test = TAG + "#[test]\n" + header + "\n"
                 self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [], f"fn form {header!r} rejected")
+
+    def test_unsafe_fn_is_reported(self) -> None:
+        self.assert_misplaced(TAG + "#[test]\nunsafe fn unique_as() {}\n", [1], "tag above a #[test] unsafe fn")
+
+    def test_path_test_attrs_pass(self) -> None:
+        for attr in ("#[tokio::test]", "#[tokio::test(flavor = \"multi_thread\")]"):
+            with self.subTest(attr=attr):
+                test = TAG + attr + "\nasync fn unique_as() {}\n"
+                self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [], f"{attr} rejected")
+
+    def test_blocking_attrs_are_reported(self) -> None:
+        for attr in ("#[ignore]", "#[should_panic]", "#[should_panic(expected = \"x\")]", "#[cfg(feature = \"f64-prob\")]"):
+            with self.subTest(attr=attr):
+                failures = self.run_case(lean=LEAN_FILE, row=ROW, test=TAG + "#[test]\n" + attr + "\nfn unique_as() {}\n")
+                self.assertTrue(any("does not run in the exact lane" in f for f in failures), f"{attr} passed: {failures}")
+
+    def test_exact_lane_cfg_passes(self) -> None:
+        test = TAG + "#[test]\n#[cfg(not(feature = \"f64-prob\"))]\nfn unique_as() {}\n"
+        self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [])
 
     def test_test_attr_with_trailing_comment_passes(self) -> None:
         test = TAG + "#[test] // exact lane\nfn unique_as() {}\n"

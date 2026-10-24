@@ -64,7 +64,6 @@ DECL_PLANTS = {
 }
 ESCAPES = {"n": "\n", "t": "\t", "r": "\r"}
 LEAN_OPTIONS_RE = re.compile(r"leanOptions\s*:=\s*#\[(?P<body>[^\]]*)\]")
-ENTRY_RE = re.compile(r"⟨")
 ENTRY_SPAN_RE = re.compile(r"⟨[^⟨⟩]*⟩")
 OTHER_OPTIONS_RE = re.compile(r"\b(?:moreLeanArgs|moreServerOptions|weakLeanArgs|moreServerArgs)\b")
 OPTION_RE = re.compile(r"⟨\s*`(?P<name>[\w.]+)\s*,\s*(?P<value>true|false|\d+|\"[^\"]*\")\s*⟩")
@@ -155,7 +154,7 @@ def lean_options(lakefile_text: str) -> list[str] | None:
         return None
     start, end = found[0].span("body")
     spans = list(ENTRY_SPAN_RE.finditer(code[start:end]))
-    if len(spans) != len(ENTRY_RE.findall(code[start:end])):
+    if len(spans) != code[start:end].count("⟨"):
         return None
     parsed = [OPTION_RE.fullmatch(lakefile_text[start + s.start() : start + s.end()]) for s in spans]
     if any(o is None for o in parsed):
@@ -202,6 +201,8 @@ def evaluate_examples(r: ExampleReport, label: str) -> list[str]:
     for n, axs in r.finals:
         failures.append(f"{label}: constant `{display_name(n)}` survives in the file's environment ({', '.join(axs) or 'no axioms'})")
     for h in r.hidden:
+        if EXAMPLE_NAME not in display_name(h.name).split("."):
+            failures.append(f"{label}:{h.line}: hidden constant `{display_name(h.name)}` is not an `{EXAMPLE_NAME}` or part of one")
         bad = sorted(a for a in h.axioms if a not in ALLOWED)
         if bad:
             failures.append(
@@ -246,7 +247,6 @@ def exit_failure(proc: subprocess.CompletedProcess[str], label: str) -> list[str
 @dataclass
 class Summary:
     examples: dict[str, int] = field(default_factory=dict)
-    constants: int = 0
     plant: bool = False
     decl_plant: bool = False
     failures: list[str] = field(default_factory=list)
@@ -303,7 +303,6 @@ def check(root: Path) -> Summary:
         proc, imports = run_import_check(lean_dir, script_dir, TEST_ROOT, modules)
         failures += exit_failure(proc, "import check")
         failures += evaluate_imports(imports, modules)
-        out.constants += len(imports.consts) + len(imports.extras)
         for path, module in zip(files, modules):
             label = str(path.relative_to(root))
             proc, report = run_example_check(lean_dir, script_dir, path, module, options)
@@ -340,7 +339,7 @@ def count_line(s: Summary) -> str:
     per_file = ", ".join(f"{k} {v}" for k, v in s.examples.items())
     return (
         f"check_peluangtest: {len(s.examples)} file(s), {sum(s.examples.values())} example(s), "
-        f"{s.constants} constant(s), plant {'reported' if s.plant else 'not reported'}, "
+        f"plant {'reported' if s.plant else 'not reported'}, "
         f"declaration plant {'reported' if s.decl_plant else 'not reported'} ({per_file})"
     )
 

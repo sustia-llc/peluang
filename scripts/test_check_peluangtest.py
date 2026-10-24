@@ -244,6 +244,19 @@ class EvaluateExamples(unittest.TestCase):
         r = example_report("EXAMPLES\tM\t1", "MSG\tM\terror\t5\tx._native.native_decide.ax_1", "DONE\tM")
         self.assertFalse(cp.plant_reported(r), "a message holding the axiom name counted as a plant report")
 
+    def test_hidden_non_example_fails(self) -> None:
+        r = example_report(
+            "HIDDEN\tM\t2\tX._example\t",
+            "HIDDEN\tM\t2\t_private.M.0.CategoryTheory._example._native.native_decide.ax_1\t",
+            "HIDDEN\tM\t4\t_private.M.0.CategoryTheory.t\t",
+            "EXAMPLES\tM\t1",
+            "DONE\tM",
+        )
+        self.assertEqual(
+            cp.evaluate_examples(r, "f.lean"),
+            ["f.lean:4: hidden constant `CategoryTheory.t` is not an `_example` or part of one"],
+        )
+
     def test_sorry_fails(self) -> None:
         r = example_report("HIDDEN\tM\t2\tX._example\tsorryAx", "EXAMPLES\tM\t1", "DONE\tM")
         self.assertEqual(cp.evaluate_examples(r, "f.lean"), ["f.lean:2: `X._example` depends on sorryAx (allowed: Classical.choice, Quot.sound, propext)"])
@@ -279,10 +292,10 @@ class DeclPlant(unittest.TestCase):
 
 class Reporting(unittest.TestCase):
     def test_count_line(self) -> None:
-        s = cp.Summary(examples={"lean/PeluangTest.lean": 0, "lean/PeluangTest/A.lean": 3}, constants=0, plant=True, decl_plant=True)
+        s = cp.Summary(examples={"lean/PeluangTest.lean": 0, "lean/PeluangTest/A.lean": 3}, plant=True, decl_plant=True)
         self.assertEqual(
             cp.count_line(s),
-            "check_peluangtest: 2 file(s), 3 example(s), 0 constant(s), plant reported, declaration plant reported "
+            "check_peluangtest: 2 file(s), 3 example(s), plant reported, declaration plant reported "
             "(lean/PeluangTest.lean 0, lean/PeluangTest/A.lean 3)",
         )
         s.plant = False
