@@ -103,19 +103,6 @@ class Scan(unittest.TestCase):
     def test_native_decide_in_comment_ignored(self) -> None:
         self.assertEqual(cls.scan("-- no native_decide, no decide +native\nexample : True := trivial\n"), [])
 
-    def test_declarations_hit_only_in_test_file(self) -> None:
-        kinds = ["theorem", "lemma", "def", "abbrev", "instance", "alias", "opaque", "structure", "class", "inductive"]
-        src = "".join(f"@[simp] {k} x{i} : True := trivial\n" for i, k in enumerate(kinds))
-        src += "scoped instance y : Inhabited Nat := ⟨0⟩\nnoncomputable def z := 0\n"
-        self.assertEqual(cls.scan(src), [])
-        self.assertEqual(
-            cls.scan(src, test_file=True),
-            [(i, "declaration in the test library") for i in range(1, len(kinds) + 3)],
-        )
-
-    def test_example_allowed_in_test_file(self) -> None:
-        self.assertEqual(cls.scan("example : True := trivial\n", test_file=True), [])
-
     def test_line_numbers_survive_block_comments(self) -> None:
         self.assertEqual(cls.scan("/-\n\n\n-/\nexample : False := sorry\n"), [(5, "sorry")])
 
@@ -144,21 +131,13 @@ class Check(unittest.TestCase):
             (root / "lean" / "Peluang" / "A.lean").write_text("\ntheorem t : False := sorry\n", encoding="utf-8")
             self.assertEqual(cls.check(root), ["lean/Peluang/A.lean:2: sorry"])
 
-    def test_theorem_reported_under_test_dir_only(self) -> None:
+    def test_test_library_scanned_for_terms_not_declarations(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "lean" / "Peluang").mkdir(parents=True)
             (root / "lean" / "PeluangTest").mkdir(parents=True)
-            (root / "lean" / "Peluang" / "A.lean").write_text("theorem a : True := trivial\n", encoding="utf-8")
-            (root / "lean" / "PeluangTest" / "B.lean").write_text("theorem b : True := trivial\n", encoding="utf-8")
-            (root / "lean" / "PeluangTest.lean").write_text("lemma c : True := trivial\n", encoding="utf-8")
-            self.assertEqual(
-                sorted(cls.check(root)),
-                [
-                    "lean/PeluangTest.lean:1: declaration in the test library",
-                    "lean/PeluangTest/B.lean:1: declaration in the test library",
-                ],
-            )
+            src = "theorem b : True := trivial\nexample : 1 < 2 := by native_decide\n"
+            (root / "lean" / "PeluangTest" / "B.lean").write_text(src, encoding="utf-8")
+            self.assertEqual(cls.check(root), ["lean/PeluangTest/B.lean:2: native_decide"])
 
 
 if __name__ == "__main__":

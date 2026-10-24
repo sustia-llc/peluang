@@ -21,6 +21,7 @@ Usage: print_axioms.py [REPO_ROOT]
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -101,8 +102,8 @@ def module_file(lean_dir: Path, module: str) -> Path:
     return lean_dir.joinpath(*module.split(".")).with_suffix(".lean")
 
 
-def module_names(lean_dir: Path) -> list[str]:
-    return [".".join(p.relative_to(lean_dir).with_suffix("").parts) for p in ctm.library_files(lean_dir)]
+def module_names(lean_dir: Path, name: str = "Peluang") -> list[str]:
+    return [".".join(p.relative_to(lean_dir).with_suffix("").parts) for p in ctm.library_files(lean_dir, name)]
 
 
 def text_between(lines: list[str], l1: int, c1: int, l2: int, c2: int) -> str:
@@ -153,9 +154,15 @@ def evaluate(result: ProbeResult, on_disk: list[str], scanned: list[str], source
     return failures
 
 
-def run_lake(args: list[str], lean_dir: Path) -> subprocess.CompletedProcess[str]:
+def run_lake(args: list[str], lean_dir: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["lake", *args], cwd=lean_dir, capture_output=True, text=True, check=False, timeout=TIMEOUT_S
+        ["lake", *args],
+        cwd=lean_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=TIMEOUT_S,
+        env=None if env is None else {**os.environ, **env},
     )
 
 

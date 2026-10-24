@@ -6,6 +6,21 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/check_peluangtest.py`, with `scripts/lean/ImportCheck.lean` and
+  `scripts/lean/ExampleCheck.lean`, checks `lean/PeluangTest` in Lean. An
+  import check finds constants and extension entries outside a baseline
+  set. A per-file re-elaboration check finds disallowed axioms in
+  examples. It also counts examples and reports a planted `native_decide`
+  example and a planted `theorem`.
+- `scripts/test_check_peluangtest.py`.
+
+### Changed
+
+- `scripts/check_lean_source.py` no longer scans `lean/PeluangTest` for
+  declarations.
+
 ## [0.2.0] - 2026-10-20
 
 ### Added

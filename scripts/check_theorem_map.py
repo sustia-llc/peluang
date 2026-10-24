@@ -47,9 +47,9 @@ class Decl:
     opted_out: bool
 
 
-def library_files(lean_dir: Path) -> list[Path]:
-    root = lean_dir / "Peluang.lean"
-    lib = lean_dir / "Peluang"
+def library_files(lean_dir: Path, name: str = "Peluang") -> list[Path]:
+    root = lean_dir / f"{name}.lean"
+    lib = lean_dir / name
     return ([root] if root.is_file() else []) + (sorted(lib.rglob("*.lean")) if lib.is_dir() else [])
 
 
