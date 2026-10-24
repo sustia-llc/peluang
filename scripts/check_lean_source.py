@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Find `sorry`/`admit`/`native_decide` terms, the word `native` (as in
 `decide +native` or `(config := { native := true })`) and `axiom`
-declarations in the Lean sources under lean/, and any `theorem`, `lemma`,
-`def`, `abbrev`, `instance`, `alias`, `axiom`, `opaque`, `structure`, `class`
-or `inductive` declaration under lean/PeluangTest/ and lean/PeluangTest.lean.
+declarations in the Lean sources under lean/.
 
 Scans every `*.lean` file under lean/ outside lean/.lake, after blanking line
 comments (`--`), nested block comments and docstrings (`/- … -/`), string
@@ -28,11 +26,6 @@ NATIVE_RE = re.compile(r"(?<![\w.'`«])native(?![\w'»])")
 CHAR_RE = re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|.)|[^\\'\n])'")
 RAW_RE = re.compile(r'r(#*)"')
 AXIOM_RE = re.compile(rf"^\s*{PREFIX}{MODIFIERS}axiom\b")
-TEST_DECL_RE = re.compile(
-    rf"^\s*{PREFIX}{MODIFIERS}"
-    r"(?:theorem|lemma|def|abbrev|instance|alias|axiom|opaque|structure|class|inductive)\b"
-)
-TEST_DIR = "PeluangTest"
 
 
 def strip_code(src: str) -> str:
@@ -110,7 +103,7 @@ def strip_code(src: str) -> str:
     return "".join(out)
 
 
-def scan(text: str, test_file: bool = False) -> list[tuple[int, str]]:
+def scan(text: str) -> list[tuple[int, str]]:
     hits: list[tuple[int, str]] = []
     for lineno, line in enumerate(strip_code(text).splitlines(), start=1):
         for m in SORRY_RE.finditer(line):
@@ -119,8 +112,6 @@ def scan(text: str, test_file: bool = False) -> list[tuple[int, str]]:
             hits.append((lineno, "native"))
         if AXIOM_RE.match(line):
             hits.append((lineno, "axiom declaration"))
-        if test_file and TEST_DECL_RE.match(line):
-            hits.append((lineno, "declaration in the test library"))
     return hits
 
 
@@ -136,8 +127,7 @@ def check(root: Path) -> list[str]:
     lean = root / "lean"
     failures: list[str] = []
     for path in lean_sources(lean) if lean.is_dir() else []:
-        test_file = path.relative_to(lean).parts[0] in (TEST_DIR, f"{TEST_DIR}.lean")
-        for lineno, kind in scan(path.read_text(encoding="utf-8"), test_file):
+        for lineno, kind in scan(path.read_text(encoding="utf-8")):
             failures.append(f"{path.relative_to(root)}:{lineno}: {kind}")
     return failures
 

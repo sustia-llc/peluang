@@ -30,6 +30,9 @@ arXiv:1908.07021; cited by definition and theorem number.
   of `sorry` and `native_decide` constants.
 - `scripts/check_lean_source.py` — `sorry`/`admit` terms and `axiom`
   declarations in `lean/` sources, outside comments and literals.
+- `scripts/check_peluangtest.py` — through Lean, the `PeluangTest` modules
+  define no constant and have entries only in four allowed environment
+  extensions, and their examples use only the allowlisted axioms.
 
 ## Features
 
@@ -68,6 +71,8 @@ cargo nextest run --all-features
 python3 -I scripts/test_check_theorem_map.py
 python3 -I scripts/test_print_axioms.py
 python3 -I scripts/test_check_lean_source.py
+python3 -I scripts/test_check_peluangtest.py
+python3 -I scripts/test_probe_selftest.py
 python3 -I scripts/check_lean_source.py
 python3 -I scripts/check_theorem_map.py
 # Lean (every lake command runs with lean/ as the working directory)
@@ -75,6 +80,7 @@ env -C lean lake exe cache get
 env -C lean lake build --no-build Mathlib
 env -C lean lake build
 python3 -I scripts/print_axioms.py
+python3 -I scripts/check_peluangtest.py
 python3 -I scripts/probe_selftest.py
 ```
 

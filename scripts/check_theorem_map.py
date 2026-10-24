@@ -6,8 +6,15 @@ when every `theorem`/`lemma` in it has a THEOREM_MAP row whose Rust test
 exists, or an opt-out `-- WITNESS: none (<reason>)` separated from the
 declaration only by blank lines, comments, docstrings and attributes; and when
 every non-`mathlib:` row names a test file that holds
-exactly one `/// THEOREM_MAP: <id>` tag directly above a `#[test]` fn of the
-named name. Exit 1 otherwise, printing each failure on its own line.
+exactly one `/// THEOREM_MAP: <id>` tag on a fn of the named name, and when
+every tag under tests/formalization_lean/ is placed as follows: the line after
+it is `#[test]` or `#[<path>::test]` / `#[<path>::test(...)]` (a trailing `//`
+comment allowed), the first line after that which is not blank, a `//`/`///`
+comment other than a tag, or a single-line `#[...]` attribute is the `fn`, and
+no attribute line in between is `#[ignore]`, `#[should_panic]` or a `cfg` that
+names `f64-prob` other than `not(feature = "f64-prob")`. Exit 1 otherwise,
+printing each failure (each misplaced tag with its file and line) on its own
+line.
 
 Usage: check_theorem_map.py [REPO_ROOT]
 """
@@ -36,7 +43,21 @@ OPT_OUT_RE = re.compile(r"^\s*--\s*WITNESS:\s*none\s*\(.+\)\s*$")
 ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<anchor>[^|]*?)\s*\|\s*$")
 TEST_REF_RE = re.compile(r"^tests/formalization_lean/(?P<file>[\w/]+\.rs)::(?P<fn>\w+)$")
 TAG_RE = re.compile(r"^\s*///\s*THEOREM_MAP:\s*(\S+)\s*$")
-TEST_FN_RE = re.compile(r"^\s*(?:pub\s+)?fn\s+(\w+)\s*\(")
+TEST_FN_RE = re.compile(
+    r"^\s*(?:pub(?:\s*\([^)]*\)\s*|\s+))?(?:const\s+)?(?:async\s+)?(?:extern(?:\s+\"[^\"]*\")?\s+)?"
+    r"fn\s+(\w+)\s*[<(]"
+)
+TEST_ATTR_RE = re.compile(r"^\s*#\[(?:test|(?:\w+::)+test(?:\(.*\))?)\]\s*(?://.*)?$")
+BETWEEN_RE = re.compile(r"^\s*(?:#\[.*\]\s*(?://.*)?|//.*)?$")
+NOT_RUN_RE = re.compile(r"^\s*#\[\s*(?:ignore|should_panic)\b")
+CFG_F64_RE = re.compile(r"^\s*#\[\s*cfg\b.*f64-prob")
+CFG_NOT_F64 = 'not(feature="f64-prob")'
+
+
+def blocking_attr(line: str) -> bool:
+    if NOT_RUN_RE.match(line):
+        return True
+    return bool(CFG_F64_RE.match(line)) and CFG_NOT_F64 not in line.replace(" ", "")
 
 
 @dataclass(frozen=True)
@@ -47,9 +68,9 @@ class Decl:
     opted_out: bool
 
 
-def library_files(lean_dir: Path) -> list[Path]:
-    root = lean_dir / "Peluang.lean"
-    lib = lean_dir / "Peluang"
+def library_files(lean_dir: Path, name: str = "Peluang") -> list[Path]:
+    root = lean_dir / f"{name}.lean"
+    lib = lean_dir / name
     return ([root] if root.is_file() else []) + (sorted(lib.rglob("*.lean")) if lib.is_dir() else [])
 
 
@@ -157,24 +178,39 @@ def map_rows(map_path: Path) -> tuple[dict[str, tuple[str, int]], list[str]]:
     return rows, duplicates
 
 
-def tagged_tests(tests_root: Path) -> dict[str, list[tuple[Path, str]]]:
+def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], list[str]]:
     tags: dict[str, list[tuple[Path, str]]] = {}
+    misplaced: list[str] = []
     if not tests_root.is_dir():
-        return tags
+        return tags, misplaced
     for path in sorted(tests_root.rglob("*.rs")):
         lines = path.read_text(encoding="utf-8").splitlines()
         for i, line in enumerate(lines):
             m = TAG_RE.match(line)
             if not m:
                 continue
-            fn_name = ""
-            for follow in lines[i + 1 : i + 6]:
-                fm = TEST_FN_RE.match(follow)
-                if fm:
-                    fn_name = fm.group(1)
-                    break
-            tags.setdefault(m.group(1), []).append((path, fn_name))
-    return tags
+            fm = None
+            blocking: list[str] = []
+            if i + 1 < len(lines) and TEST_ATTR_RE.match(lines[i + 1]):
+                j = i + 2
+                while j < len(lines) and BETWEEN_RE.match(lines[j]) and not TAG_RE.match(lines[j]):
+                    if blocking_attr(lines[j]):
+                        blocking.append(lines[j].strip())
+                    j += 1
+                fm = TEST_FN_RE.match(lines[j]) if j < len(lines) else None
+            if fm and blocking:
+                misplaced.append(
+                    f"{path}:{i + 1}: `/// THEOREM_MAP: {m.group(1)}` sits on a test that does not run in the exact "
+                    f"lane or does not assert: {', '.join(f'`{b}`' for b in blocking)}"
+                )
+            elif fm:
+                tags.setdefault(m.group(1), []).append((path, fm.group(1)))
+            else:
+                misplaced.append(
+                    f"{path}:{i + 1}: `/// THEOREM_MAP: {m.group(1)}` is not on the line directly above "
+                    "`#[test]` on a fn"
+                )
+    return tags, misplaced
 
 
 def check(root: Path) -> list[str]:
@@ -185,7 +221,8 @@ def check(root: Path) -> list[str]:
     rows, duplicates = map_rows(map_path)
     failures.extend(duplicates)
     tests_root = root / "tests" / "formalization_lean"
-    tags = tagged_tests(tests_root)
+    tags, misplaced = tagged_tests(tests_root)
+    failures.extend(misplaced)
 
     decls = library_decls(root / "lean")
     for d in decls:

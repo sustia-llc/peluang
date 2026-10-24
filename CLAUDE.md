@@ -24,7 +24,9 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   add wasm32-wasip1 wasm32-wasip1-threads wasm32-unknown-unknown`.
 - Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
   `python3 -I scripts/test_print_axioms.py`,
-  `python3 -I scripts/test_check_lean_source.py`, then
+  `python3 -I scripts/test_check_lean_source.py`,
+  `python3 -I scripts/test_check_peluangtest.py`,
+  `python3 -I scripts/test_probe_selftest.py`, then
   `python3 -I scripts/check_theorem_map.py`.
 - Lean gates, in order, each to a log file:
   1. `env -C lean lake exe cache get`, then `env -C lean lake build
@@ -37,15 +39,22 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      build errors.
   3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit`/
      `native_decide` term, no standalone `native` word and no `axiom`
-     declaration under `lean/` outside `lean/.lake`, and no declaration
-     other than `example` under `lean/PeluangTest`, with comments,
+     declaration under `lean/` outside `lean/.lake`, with comments,
      docstrings, string and char literals excluded.
   4. `python3 -I scripts/print_axioms.py` (needs step 2): every constant
      of the `Peluang` / `Peluang.*` modules depends only on `{propext,
      Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is
      imported from `lean/Peluang.lean`; the theorems `check_theorem_map.py`
-     scans equal the library's source theorems. Then
-     `python3 -I scripts/probe_selftest.py`: the probe reports exactly the
+     scans equal the library's source theorems.
+  5. `python3 -I scripts/check_peluangtest.py` (needs step 2): the
+     `PeluangTest` modules define no constant and add entries only to
+     `moduleDocExt`, `modPkgExt`, `extraModUses` and
+     `deprecatedModuleExt`. Re-elaborated under the lakefile
+     `leanOptions`, each test file has no error and no surviving constant.
+     It has one hidden `_example` constant per `example`. Its examples use
+     only `{propext, Classical.choice, Quot.sound}`. A planted `native_decide`
+     example and a planted `theorem` are reported.
+  6. `python3 -I scripts/probe_selftest.py` (after step 5): the probe reports exactly the
      constants of a planted `sorry`/`native_decide` module (the tree is
      restored afterwards).
 - Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`

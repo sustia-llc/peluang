@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import print_axioms as pa  # noqa: E402
@@ -120,18 +121,15 @@ class Freshness(unittest.TestCase):
     def test_stale_check_targets_peluang_only(self) -> None:
         calls: list[list[str]] = []
 
-        def fake_run_lake(args: list[str], lean_dir: Path) -> subprocess.CompletedProcess[str]:
+        def fake_run_lake(
+            args: list[str], lean_dir: Path, env: dict[str, str] | None = None
+        ) -> subprocess.CompletedProcess[str]:
             calls.append(args)
             return subprocess.CompletedProcess(["lake", *args], 1, "", "stale")
 
-        original = pa.run_lake
-        pa.run_lake = fake_run_lake
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                (Path(tmp) / "lean").mkdir()
-                _, failures = pa.check(Path(tmp))
-        finally:
-            pa.run_lake = original
+        with mock.patch.object(pa, "run_lake", fake_run_lake), tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "lean").mkdir()
+            _, failures = pa.check(Path(tmp))
         self.assertEqual(calls[:1], [["build", "--no-build", "Peluang"]], f"first lake call was {calls[:1]}")
         self.assertEqual(len(failures), 1, f"failures: {failures}")
         self.assertIn("stale", failures[0])
