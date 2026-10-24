@@ -4,6 +4,8 @@ import Lean
 Re-elaborates one Lean source file as module `<Module>`, with info trees enabled and with the
 options given as `name=value` arguments (parsed as the `-D` options of `lean`, a `weak.` prefix
 included), and prints tab-separated rows:
+* `OPTION`: each option argument, with `set` when its name (without a `weak.` prefix) is a
+  registered option after the file's imports, else `dropped`;
 * `FINAL`: each constant the file adds to its final environment, with its `collectAxioms`;
 * `HIDDEN`: each constant present in a command-context environment saved in a command's info tree
   but absent from the final environment, once per command tree, with the line of the command and
@@ -61,6 +63,10 @@ def processFile (path : System.FilePath) (mainModule : Name) (raw : Options) : I
   let inputCtx := Parser.mkInputContext input path.toString
   let (header, parserState, messages) ← Parser.parseHeader inputCtx
   let (env, messages) ← processHeader header raw messages inputCtx (mainModule := mainModule)
+  let decls ← getOptionDecls
+  for (name, _) in raw do
+    let known := (decls.find? (name.replacePrefix `weak Name.anonymous)).isSome
+    IO.println s!"OPTION\t{mainModule}\t{name.toString (escape := false)}\t{if known then "set" else "dropped"}"
   let opts ← Language.Lean.reparseOptions raw
   let cmdState := { Command.mkState env messages opts with infoState.enabled := true }
   let s ← IO.processCommands inputCtx parserState cmdState

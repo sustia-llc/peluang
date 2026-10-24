@@ -40,7 +40,10 @@ OPT_OUT_RE = re.compile(r"^\s*--\s*WITNESS:\s*none\s*\(.+\)\s*$")
 ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<anchor>[^|]*?)\s*\|\s*$")
 TEST_REF_RE = re.compile(r"^tests/formalization_lean/(?P<file>[\w/]+\.rs)::(?P<fn>\w+)$")
 TAG_RE = re.compile(r"^\s*///\s*THEOREM_MAP:\s*(\S+)\s*$")
-TEST_FN_RE = re.compile(r"^\s*(?:pub\s+)?fn\s+(\w+)\s*\(")
+TEST_FN_RE = re.compile(
+    r"^\s*(?:pub(?:\s*\([^)]*\)\s*|\s+))?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?(?:extern(?:\s+\"[^\"]*\")?\s+)?"
+    r"fn\s+(\w+)\s*[<(]"
+)
 TEST_ATTR_RE = re.compile(r"^\s*#\[test\]\s*(?://.*)?$")
 BETWEEN_RE = re.compile(r"^\s*(?:#\[.*\]\s*(?://.*)?|//.*)?$")
 

@@ -46,18 +46,15 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is
      imported from `lean/Peluang.lean`; the theorems `check_theorem_map.py`
      scans equal the library's source theorems.
-  5. `python3 -I scripts/check_peluangtest.py` (needs step 2, runs before
-     step 6). Imported
-     at private level, the `PeluangTest` modules define no constant. They
-     add entries only to `moduleDocExt`, `modPkgExt`, `extraModUses` and
-     `deprecatedModuleExt`. The check re-elaborates each test file with
-     the lakefile `leanOptions`. Each file has no error and no surviving
-     constant. It has one hidden `_example` constant per `example`
-     command. Its examples use only `{propext, Classical.choice,
-     Quot.sound}`. The check also reports a planted `native_decide`
-     example in a temporary file. It also compiles a planted `theorem`
-     in a temporary file, and both checks must report that constant.
-  6. `python3 -I scripts/probe_selftest.py`: the probe reports exactly the
+  5. `python3 -I scripts/check_peluangtest.py` (needs step 2): the
+     `PeluangTest` modules define no constant and add entries only to
+     `moduleDocExt`, `modPkgExt`, `extraModUses` and
+     `deprecatedModuleExt`. Re-elaborated under the lakefile
+     `leanOptions`, each test file has no error and no surviving constant.
+     It has one hidden `_example` constant per `example`. Its examples use
+     only `{propext, Classical.choice, Quot.sound}`. A planted `native_decide`
+     example and a planted `theorem` are reported.
+  6. `python3 -I scripts/probe_selftest.py` (after step 5): the probe reports exactly the
      constants of a planted `sorry`/`native_decide` module (the tree is
      restored afterwards).
 - Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`

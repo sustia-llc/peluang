@@ -6,7 +6,8 @@ Requires an up-to-date build of the `PeluangTest` target (checked with
 and every `*.lean` file under lean/PeluangTest/. The import check runs
 scripts/lean/ImportCheck.lean once over all of them: every loaded module named
 `PeluangTest` or `PeluangTest.*` has no `constNames`, no `extraConstNames` and
-no non-empty extension entries outside ALLOWED_EXTENSIONS, and every test module
+no non-empty entries in an extension whose name, without its
+`_private.<module>.0.` prefix, is outside ALLOWED_EXTENSIONS, and every test module
 is loaded. The example check runs scripts/lean/ExampleCheck.lean once per test
 module, under the `leanOptions` of lean/lakefile.lean, which must hold exactly
 one `leanOptions := #[…]` block outside comments, every entry of it a
@@ -14,14 +15,18 @@ one `leanOptions := #[…]` block outside comments, every entry of it a
 `moreLeanArgs`, `weakLeanArgs`, `moreServerOptions` or `moreServerArgs`
 outside comments: no constant survives
 in the file's environment, every constant seen only in a command's info tree
-depends on axioms in ALLOWED only, re-elaboration reports no error, and the
+depends on axioms in ALLOWED only, re-elaboration reports no error, every
+passed option is registered after the file's imports, and the
 number of hidden `_example` constants equals the number of `example` commands.
 The plant check runs the example check on a temporary file outside the repo
 holding an `example` proved by `native_decide`, and requires a zero exit and
-its `_native.native_decide.ax_*` axiom to be reported. The declaration plant
-check compiles a temporary file outside the repo holding one `theorem`, and
-requires the import check to report it as a constant and the example check to
-report it as a surviving constant. Every `lake` call runs with
+its `_native.native_decide.ax_*` axiom to be reported; that file has no
+imports, so when a `weak.` option is passed, at least one must be reported
+dropped. The declaration plant check compiles two temporary files outside the
+repo, a `module` file with one `theorem` in a `public section` and a plain file
+with one `theorem`, and for each requires the import check to report it as a
+constant and the example check to report it as a surviving constant. Every
+`lake` call runs with
 lean/ as the working directory. Exit 0 when every check passes; exit 1
 otherwise, printing each failure on its own line.
 
@@ -43,14 +48,7 @@ from check_theorem_map import library_files  # noqa: E402
 from print_axioms import ALLOWED, display_name, module_names, run_lake  # noqa: E402
 
 TEST_ROOT = "PeluangTest"
-ALLOWED_EXTENSIONS = frozenset(
-    {
-        "_private.Lean.DocString.Extension.0.Lean.moduleDocExt",
-        "_private.Lean.Compiler.ModPkgExt.0.Lean.modPkgExt",
-        "_private.Lean.ExtraModUses.0.Lean.extraModUses",
-        "Lean.deprecatedModuleExt",
-    }
-)
+ALLOWED_EXTENSIONS = frozenset({"Lean.moduleDocExt", "Lean.modPkgExt", "Lean.extraModUses", "Lean.deprecatedModuleExt"})
 EXAMPLE_NAME = "_example"
 PLANT_AXIOM = "._native.native_decide.ax_"
 PLANT_MODULE = "PeluangTestPlant"
@@ -60,10 +58,14 @@ example : 2 + 2 = 4 := by native_decide
 """
 DECL_PLANT_MODULE = "PeluangTestDeclPlant"
 DECL_PLANT_CONST = "peluangTestDeclPlant"
-DECL_PLANT = f"theorem {DECL_PLANT_CONST} : True := trivial\n"
+DECL_PLANTS = {
+    "module": f"module\n\npublic section\n\ntheorem {DECL_PLANT_CONST} : True := trivial\n\nend\n",
+    "plain": f"theorem {DECL_PLANT_CONST} : True := trivial\n",
+}
 ESCAPES = {"n": "\n", "t": "\t", "r": "\r"}
 LEAN_OPTIONS_RE = re.compile(r"leanOptions\s*:=\s*#\[(?P<body>[^\]]*)\]")
 ENTRY_RE = re.compile(r"⟨")
+ENTRY_SPAN_RE = re.compile(r"⟨[^⟨⟩]*⟩")
 OTHER_OPTIONS_RE = re.compile(r"\b(?:moreLeanArgs|moreServerOptions|weakLeanArgs|moreServerArgs)\b")
 OPTION_RE = re.compile(r"⟨\s*`(?P<name>[\w.]+)\s*,\s*(?P<value>true|false|\d+|\"[^\"]*\")\s*⟩")
 
@@ -90,6 +92,7 @@ class ExampleReport:
     hidden: list[Hidden] = field(default_factory=list)
     examples: int | None = None
     messages: list[tuple[str, int, str]] = field(default_factory=list)
+    options: list[tuple[str, str]] = field(default_factory=list)
     done: bool = False
 
 
@@ -132,6 +135,8 @@ def parse_example_output(output: str) -> ExampleReport:
             r.hidden.append(Hidden(int(parts[2]), parts[3], axioms_of(parts[4])))
         elif parts[0] == "EXAMPLES" and len(parts) == 3 and parts[2].isdigit():
             r.examples = int(parts[2])
+        elif parts[0] == "OPTION" and len(parts) == 4:
+            r.options.append((parts[2], parts[3]))
         elif parts[0] == "MSG" and len(parts) == 5 and parts[3].isdigit():
             r.messages.append((parts[2], int(parts[3]), unescape(parts[4])))
         elif parts[0] == "DONE" and len(parts) == 2:
@@ -149,10 +154,13 @@ def lean_options(lakefile_text: str) -> list[str] | None:
     if len(found) != 1 or OTHER_OPTIONS_RE.search(code):
         return None
     start, end = found[0].span("body")
-    parsed = list(OPTION_RE.finditer(lakefile_text[start:end]))
-    if len(parsed) != len(ENTRY_RE.findall(code[start:end])):
+    spans = list(ENTRY_SPAN_RE.finditer(code[start:end]))
+    if len(spans) != len(ENTRY_RE.findall(code[start:end])):
         return None
-    return [f"{o['name']}={o['value'].strip(chr(34))}" for o in parsed]
+    parsed = [OPTION_RE.fullmatch(lakefile_text[start + s.start() : start + s.end()]) for s in spans]
+    if any(o is None for o in parsed):
+        return None
+    return [f"{o['name']}={o['value'].strip(chr(34))}" for o in parsed if o is not None]
 
 
 def evaluate_imports(r: ImportReport, modules: list[str]) -> list[str]:
@@ -167,9 +175,24 @@ def evaluate_imports(r: ImportReport, modules: list[str]) -> list[str]:
     for m, n in r.extras:
         failures.append(f"`{m}`: defines extra constant `{display_name(n)}` ({n})")
     for m, ext, count in r.entries:
-        if ext not in ALLOWED_EXTENSIONS:
+        if display_name(ext) not in ALLOWED_EXTENSIONS:
             failures.append(f"`{m}`: adds {count} entr{'y' if count == 1 else 'ies'} to extension `{ext}`")
     return failures
+
+
+def evaluate_options(r: ExampleReport, label: str, options: list[str]) -> list[str]:
+    failures = [f"{label}: option `{n}` was dropped (not a registered option after the file's imports)" for n, s in r.options if s != "set"]
+    passed = sorted({o.split("=", 1)[0] for o in options})
+    reported = sorted(n for n, _ in r.options)
+    if reported != passed:
+        failures.append(f"{label}: example check reported options {reported}, passed {passed}")
+    return failures
+
+
+def weak_option_dropped(r: ExampleReport, options: list[str]) -> bool:
+    if not any(o.startswith("weak.") for o in options):
+        return True
+    return any(n.startswith("weak.") and s == "dropped" for n, s in r.options)
 
 
 def evaluate_examples(r: ExampleReport, label: str) -> list[str]:
@@ -235,13 +258,13 @@ def decl_plant_reported(imports: ImportReport, report: ExampleReport) -> bool:
     return imported and final
 
 
-def run_decl_plant(lean_dir: Path, script_dir: Path, options: list[str]) -> tuple[bool, str]:
+def run_decl_plant(lean_dir: Path, script_dir: Path, options: list[str], source: str) -> tuple[bool, str]:
     with tempfile.TemporaryDirectory() as tmp:
         src, olean_dir = Path(tmp) / "src", Path(tmp) / "out"
         src.mkdir()
         olean_dir.mkdir()
         plant = src / f"{DECL_PLANT_MODULE}.lean"
-        plant.write_text(DECL_PLANT, encoding="utf-8")
+        plant.write_text(source, encoding="utf-8")
         built = run_lake(["env", "lean", "-R", str(src), "-o", str(olean_dir / f"{DECL_PLANT_MODULE}.olean"), str(plant)], lean_dir)
         if built.returncode != 0:
             return False, (built.stdout + built.stderr).rstrip()
@@ -286,6 +309,7 @@ def check(root: Path) -> Summary:
             proc, report = run_example_check(lean_dir, script_dir, path, module, options)
             failures += exit_failure(proc, label)
             failures += evaluate_examples(report, label)
+            failures += evaluate_options(report, label, options)
             out.examples[label] = report.examples or 0
         with tempfile.TemporaryDirectory() as tmp:
             plant = Path(tmp) / f"{PLANT_MODULE}.lean"
@@ -296,12 +320,17 @@ def check(root: Path) -> Summary:
             failures.append(
                 f"plant: the `native_decide` example was not reported (example check output:\n{(proc.stdout + proc.stderr).rstrip()})"
             )
-        out.decl_plant, output = run_decl_plant(lean_dir, script_dir, options)
-        if not out.decl_plant:
-            failures.append(
-                f"declaration plant: `{DECL_PLANT_CONST}` was not reported by both the import and the example check "
-                f"(output:\n{output})"
-            )
+        if not weak_option_dropped(report, options):
+            failures.append(f"plant: no `weak.` option was reported dropped in a file with no imports (options: {report.options})")
+        out.decl_plant = True
+        for form, source in DECL_PLANTS.items():
+            ok, output = run_decl_plant(lean_dir, script_dir, options, source)
+            if not ok:
+                out.decl_plant = False
+                failures.append(
+                    f"declaration plant ({form} file): `{DECL_PLANT_CONST}` was not reported by both the import and "
+                    f"the example check (output:\n{output})"
+                )
     except (OSError, subprocess.TimeoutExpired) as e:
         failures.append(f"could not run `lake` in {lean_dir}: {e}")
     return out

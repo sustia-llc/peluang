@@ -109,6 +109,20 @@ class CheckTheoremMap(unittest.TestCase):
                 test = TAG + "#[test]\n" + between + "fn unique_as() {}\n"
                 self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [])
 
+    def test_fn_forms_pass(self) -> None:
+        for header in (
+            "pub(crate) fn unique_as() {}",
+            "async fn unique_as() {}",
+            "unsafe fn unique_as() {}",
+            "fn unique_as<T>() {}",
+            "extern fn unique_as() {}",
+            "pub (crate) fn unique_as() {}",
+            "pub(in crate::a)unsafe fn unique_as() {}",
+        ):
+            with self.subTest(header=header):
+                test = TAG + "#[test]\n" + header + "\n"
+                self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [], f"fn form {header!r} rejected")
+
     def test_test_attr_with_trailing_comment_passes(self) -> None:
         test = TAG + "#[test] // exact lane\nfn unique_as() {}\n"
         self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [])

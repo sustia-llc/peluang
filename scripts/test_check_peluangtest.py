@@ -128,6 +128,16 @@ class Layout(unittest.TestCase):
         text = 'package «P» where\n  leanOptions := #[⟨`pp.foo, "a]=b"⟩, ⟨`autoImplicit, false⟩]\n'
         self.assertEqual(cp.lean_options(text), ["pp.foo=a]=b", "autoImplicit=false"])
 
+    def test_commented_entry_inside_block_is_ignored(self) -> None:
+        text = "package «P» where\n  leanOptions := #[ -- ⟨`autoImplicit, true⟩,\n    ⟨`autoImplicit, false⟩]\n"
+        self.assertEqual(cp.lean_options(text), ["autoImplicit=false"])
+        text = "package «P» where\n  leanOptions := #[ /- ⟨`autoImplicit, true⟩, -/ ⟨`foo, someIdent⟩]\n"
+        self.assertIsNone(cp.lean_options(text), "a commented literal entry replaced an unparsed real entry")
+
+    def test_comment_straddling_entries_keeps_real_entry(self) -> None:
+        text = 'package «P» where\n  leanOptions := #[ /- ⟨`a, "-/ ⟨`b, "⟩"⟩]\n'
+        self.assertEqual(cp.lean_options(text), ["b=⟩"], "a match starting in the comment consumed the real entry")
+
     def test_other_option_fields_are_none(self) -> None:
         for field in ("moreLeanArgs", "weakLeanArgs", "moreServerOptions", "moreServerArgs"):
             with self.subTest(field=field):
@@ -142,7 +152,10 @@ class Layout(unittest.TestCase):
 
 class EvaluateImports(unittest.TestCase):
     def test_clean_passes(self) -> None:
-        r = cp.parse_import_output(lines("MODULE\tPeluangTest", f"ENTRIES\tPeluangTest\t{BASELINE}\t1", "DONE"))
+        moved = "_private.Lean.Moved.Path.0.Lean.modPkgExt"
+        r = cp.parse_import_output(
+            lines("MODULE\tPeluangTest", f"ENTRIES\tPeluangTest\t{BASELINE}\t1", f"ENTRIES\tPeluangTest\t{moved}\t1", "DONE")
+        )
         self.assertEqual(cp.evaluate_imports(r, ["PeluangTest"]), [])
 
     def test_constant_extra_and_extension_fail(self) -> None:
@@ -166,12 +179,49 @@ class EvaluateImports(unittest.TestCase):
             ],
         )
 
+    def test_foreign_extension_with_allowed_last_component_fails(self) -> None:
+        r = cp.parse_import_output(lines("MODULE\tPeluangTest", "ENTRIES\tPeluangTest\tMathlib.Foo.extraModUses\t1", "DONE"))
+        failures = cp.evaluate_imports(r, ["PeluangTest"])
+        self.assertEqual(len(failures), 1, f"failures: {failures}")
+        self.assertIn("Mathlib.Foo.extraModUses", failures[0])
+
     def test_unloaded_module_and_truncated_output_fail(self) -> None:
         r = cp.parse_import_output(lines("MODULE\tPeluangTest"))
         self.assertEqual(
             cp.evaluate_imports(r, ["PeluangTest", "PeluangTest.B"]),
             ["import check: output ended before DONE", "`PeluangTest.B`: not loaded by the import check"],
         )
+
+
+class EvaluateOptions(unittest.TestCase):
+    OPTS = ["autoImplicit=false", "weak.linter.mathlibStandardSet=true"]
+
+    def test_all_set_passes(self) -> None:
+        r = example_report("OPTION\tM\tweak.linter.mathlibStandardSet\tset", "OPTION\tM\tautoImplicit\tset", "DONE\tM")
+        self.assertEqual(cp.evaluate_options(r, "f.lean", self.OPTS), [])
+
+    def test_dropped_option_fails(self) -> None:
+        r = example_report("OPTION\tM\tautoImplicit\tset", "OPTION\tM\tweak.linter.mathlibStandardSet\tdropped", "DONE\tM")
+        failures = cp.evaluate_options(r, "f.lean", self.OPTS)
+        self.assertEqual(len(failures), 1, f"failures: {failures}")
+        self.assertIn("`weak.linter.mathlibStandardSet` was dropped", failures[0])
+
+    def test_repeated_option_passes(self) -> None:
+        r = example_report("OPTION\tM\tautoImplicit\tset", "DONE\tM")
+        self.assertEqual(cp.evaluate_options(r, "f.lean", ["autoImplicit=false", "autoImplicit=false"]), [])
+
+    def test_weak_option_dropped_control(self) -> None:
+        dropped = example_report("OPTION\tM\tautoImplicit\tset", "OPTION\tM\tweak.linter.mathlibStandardSet\tdropped")
+        all_set = example_report("OPTION\tM\tautoImplicit\tset", "OPTION\tM\tweak.linter.mathlibStandardSet\tset")
+        self.assertTrue(cp.weak_option_dropped(dropped, self.OPTS))
+        self.assertFalse(cp.weak_option_dropped(all_set, self.OPTS), "an all-set report passed the control")
+        self.assertTrue(cp.weak_option_dropped(all_set, ["autoImplicit=false"]))
+
+    def test_missing_option_row_fails(self) -> None:
+        r = example_report("OPTION\tM\tautoImplicit\tset", "DONE\tM")
+        failures = cp.evaluate_options(r, "f.lean", self.OPTS)
+        self.assertEqual(len(failures), 1, f"failures: {failures}")
+        self.assertIn("reported options", failures[0])
 
 
 class EvaluateExamples(unittest.TestCase):

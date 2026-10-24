@@ -12,8 +12,9 @@ git tag is the authoritative pin.
   `scripts/lean/ExampleCheck.lean`, checks `lean/PeluangTest` in Lean. An
   import check finds constants and extension entries outside a baseline
   set. A per-file re-elaboration check finds disallowed axioms in
-  examples. It also counts examples and reports a planted `native_decide`
-  example and a planted `theorem`.
+  examples and lakefile options that the file's imports do not register.
+  It also counts examples and reports a planted `native_decide` example
+  and a planted `theorem` in a `module` file.
 - `scripts/test_check_peluangtest.py`.
 - `scripts/test_probe_selftest.py`: a unit test that pins the build
   target of `scripts/probe_selftest.py`.
