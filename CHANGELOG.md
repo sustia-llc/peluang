@@ -15,11 +15,20 @@ git tag is the authoritative pin.
   examples. It also counts examples and reports a planted `native_decide`
   example and a planted `theorem`.
 - `scripts/test_check_peluangtest.py`.
+- `scripts/test_probe_selftest.py`: a unit test that pins the build
+  target of `scripts/probe_selftest.py`.
+- Lean `Peluang.Markov.Derived`: `@[simp]` lemmas
+  `CopyDiscardCategory.marginalFst_whiskerRight`, `marginalSnd_whiskerLeft`
+  and `MarkovCategory.marginalSnd_whiskerRight`, `marginalFst_whiskerLeft`
+  (Fritz 2020 Notation 2.8).
 
 ### Changed
 
 - `scripts/check_lean_source.py` no longer scans `lean/PeluangTest` for
   declarations.
+- Lean `Peluang.Markov.Derived`: `marginalFst_comp`, `marginalSnd_comp`,
+  `marginalFst_tensorHom` and `marginalSnd_tensorHom` are `@[simp]`. The
+  `_copy_comp_tensorHom` lemmas are no longer `@[simp]`.
 
 ## [0.2.0] - 2026-10-20
 

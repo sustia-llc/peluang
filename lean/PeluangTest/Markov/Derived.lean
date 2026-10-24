@@ -9,10 +9,9 @@ public import Peluang.Markov.Derived
 /-!
 # Tests for `Peluang.Markov.Derived`
 
-`simp` closes discard naturality into binary and nested tensor products, and the marginals
-of copying and of `Δ[A] ≫ (g ⊗ₘ h)`; `simp [marginalFst_tensorHom]` and
-`simp [marginalSnd_tensorHom]` close the marginals of `f ⊗ₘ g` pre- and post-composed with
-arbitrary morphisms.
+`simp` closes discard naturality into binary and nested tensor products, the marginals
+of copying and of `Δ[A] ≫ (g ⊗ₘ h)`, the marginals of `k ≫ f`, of `f ⊗ₘ g`, of `f ▷ B` and
+of `A ◁ g`, and the marginals of `f ⊗ₘ g` pre- and post-composed with arbitrary morphisms.
 -/
 
 public section
@@ -52,10 +51,38 @@ example {A : C} : marginalSnd Δ[A] = 𝟙 A := by
 
 example {W A B X Y Z : C} (k : W ⟶ A ⊗ B) (f : A ⟶ X) (g : B ⟶ Y) (h : X ⟶ Z) :
     k ≫ marginalFst (f ⊗ₘ g) ≫ h = k ≫ A ◁ ε[B] ≫ (ρ_ A).hom ≫ f ≫ h := by
-  simp [marginalFst_tensorHom]
+  simp
 
 example {W A B X Y Z : C} (k : W ⟶ A ⊗ B) (f : A ⟶ X) (g : B ⟶ Y) (h : Y ⟶ Z) :
     k ≫ marginalSnd (f ⊗ₘ g) ≫ h = k ≫ ε[A] ▷ B ≫ (λ_ B).hom ≫ g ≫ h := by
-  simp [marginalSnd_tensorHom]
+  simp
+
+example {A B X Y : C} (k : B ⟶ A) (f : A ⟶ X ⊗ Y) :
+    marginalFst (k ≫ f) = k ≫ marginalFst f := by
+  simp
+
+example {A B X Y : C} (k : B ⟶ A) (f : A ⟶ X ⊗ Y) :
+    marginalSnd (k ≫ f) = k ≫ marginalSnd f := by
+  simp
+
+example {A B X Y : C} (f : A ⟶ X) (g : B ⟶ Y) :
+    marginalFst (f ⊗ₘ g) = A ◁ ε[B] ≫ (ρ_ A).hom ≫ f := by
+  simp
+
+example {A B X Y : C} (f : A ⟶ X) (g : B ⟶ Y) :
+    marginalSnd (f ⊗ₘ g) = ε[A] ▷ B ≫ (λ_ B).hom ≫ g := by
+  simp
+
+example {A B X : C} (f : A ⟶ X) : marginalFst (f ▷ B) = A ◁ ε[B] ≫ (ρ_ A).hom ≫ f := by
+  simp
+
+example {A B X : C} (f : A ⟶ X) : marginalSnd (f ▷ B) = ε[A] ▷ B ≫ (λ_ B).hom := by
+  simp
+
+example {A B Y : C} (g : B ⟶ Y) : marginalFst (A ◁ g) = A ◁ ε[B] ≫ (ρ_ A).hom := by
+  simp
+
+example {A B Y : C} (g : B ⟶ Y) : marginalSnd (A ◁ g) = ε[A] ▷ B ≫ (λ_ B).hom ≫ g := by
+  simp
 
 end CategoryTheory

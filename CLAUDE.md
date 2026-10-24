@@ -25,7 +25,8 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 - Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
   `python3 -I scripts/test_print_axioms.py`,
   `python3 -I scripts/test_check_lean_source.py`,
-  `python3 -I scripts/test_check_peluangtest.py`, then
+  `python3 -I scripts/test_check_peluangtest.py`,
+  `python3 -I scripts/test_probe_selftest.py`, then
   `python3 -I scripts/check_theorem_map.py`.
 - Lean gates, in order, each to a log file:
   1. `env -C lean lake exe cache get`, then `env -C lean lake build

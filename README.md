@@ -72,6 +72,7 @@ python3 -I scripts/test_check_theorem_map.py
 python3 -I scripts/test_print_axioms.py
 python3 -I scripts/test_check_lean_source.py
 python3 -I scripts/test_check_peluangtest.py
+python3 -I scripts/test_probe_selftest.py
 python3 -I scripts/check_lean_source.py
 python3 -I scripts/check_theorem_map.py
 # Lean (every lake command runs with lean/ as the working directory)

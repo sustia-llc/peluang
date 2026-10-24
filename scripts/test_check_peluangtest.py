@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_peluangtest as cp  # noqa: E402
@@ -239,21 +240,18 @@ class Freshness(unittest.TestCase):
     def test_stale_build_refuses_before_any_lean_run(self) -> None:
         calls: list[list[str]] = []
 
-        def fake_run_lake(args: list[str], lean_dir: Path) -> subprocess.CompletedProcess[str]:
+        def fake_run_lake(
+            args: list[str], lean_dir: Path, env: dict[str, str] | None = None
+        ) -> subprocess.CompletedProcess[str]:
             calls.append(args)
             return subprocess.CompletedProcess(["lake", *args], 1, "", "stale")
 
-        original = cp.run_lake
-        cp.run_lake = fake_run_lake
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                lean = Path(tmp) / "lean"
-                lean.mkdir()
-                (lean / "lakefile.lean").write_text(LAKEFILE, encoding="utf-8")
-                (lean / "PeluangTest.lean").write_text("", encoding="utf-8")
-                s = cp.check(Path(tmp))
-        finally:
-            cp.run_lake = original
+        with mock.patch.object(cp, "run_lake", fake_run_lake), tempfile.TemporaryDirectory() as tmp:
+            lean = Path(tmp) / "lean"
+            lean.mkdir()
+            (lean / "lakefile.lean").write_text(LAKEFILE, encoding="utf-8")
+            (lean / "PeluangTest.lean").write_text("", encoding="utf-8")
+            s = cp.check(Path(tmp))
         self.assertEqual(calls, [["build", "--no-build", "PeluangTest"]], f"lake calls were {calls}")
         self.assertEqual(len(s.failures), 1, f"failures: {s.failures}")
         self.assertIn("stale", s.failures[0])
@@ -269,17 +267,16 @@ class Freshness(unittest.TestCase):
 
     def test_lakefile_without_options_refuses_before_any_lean_run(self) -> None:
         calls: list[list[str]] = []
-        original = cp.run_lake
-        cp.run_lake = lambda args, lean_dir: calls.append(args)  # type: ignore[assignment]
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                lean = Path(tmp) / "lean"
-                lean.mkdir()
-                (lean / "lakefile.lean").write_text("package «P» where\n", encoding="utf-8")
-                (lean / "PeluangTest.lean").write_text("", encoding="utf-8")
-                s = cp.check(Path(tmp))
-        finally:
-            cp.run_lake = original
+
+        def fake_run_lake(args: list[str], lean_dir: Path, env: dict[str, str] | None = None) -> None:
+            calls.append(args)
+
+        with mock.patch.object(cp, "run_lake", fake_run_lake), tempfile.TemporaryDirectory() as tmp:
+            lean = Path(tmp) / "lean"
+            lean.mkdir()
+            (lean / "lakefile.lean").write_text("package «P» where\n", encoding="utf-8")
+            (lean / "PeluangTest.lean").write_text("", encoding="utf-8")
+            s = cp.check(Path(tmp))
         self.assertEqual(calls, [], f"lake calls were {calls}")
         self.assertEqual(len(s.failures), 1, f"failures: {s.failures}")
         self.assertIn("leanOptions", s.failures[0])
