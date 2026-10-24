@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-24
+
 ### Added
 
 - `scripts/check_peluangtest.py`, with `scripts/lean/ImportCheck.lean` and
@@ -125,7 +127,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/sustia-llc/peluang/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/sustia-llc/peluang/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/sustia-llc/peluang/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sustia-llc/peluang/releases/tag/v0.1.0
