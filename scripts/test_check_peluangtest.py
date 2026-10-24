@@ -128,6 +128,13 @@ class Layout(unittest.TestCase):
         text = 'package «P» where\n  leanOptions := #[⟨`pp.foo, "a]=b"⟩, ⟨`autoImplicit, false⟩]\n'
         self.assertEqual(cp.lean_options(text), ["pp.foo=a]=b", "autoImplicit=false"])
 
+    def test_other_option_fields_are_none(self) -> None:
+        for field in ("moreLeanArgs", "weakLeanArgs", "moreServerOptions", "moreServerArgs"):
+            with self.subTest(field=field):
+                text = LAKEFILE + f'\nlean_lib «PeluangTest» where\n  {field} := #["-DautoImplicit=true"]\n'
+                self.assertIsNone(cp.lean_options(text), f"{field} was accepted")
+        self.assertIsNotNone(cp.lean_options(LAKEFILE + "-- moreLeanArgs := #[]\n"))
+
     def test_lean_options_unparsed_entry_is_none(self) -> None:
         text = "package «P» where\n  leanOptions := #[⟨`maxHeartbeats, .ofNat 400000⟩, ⟨`autoImplicit, false⟩]\n"
         self.assertIsNone(cp.lean_options(text))
@@ -177,11 +184,15 @@ class EvaluateExamples(unittest.TestCase):
         r = example_report(f"HIDDEN\tM\t5\t_private.M.0._example\t{ax}", "EXAMPLES\tM\t1", "DONE\tM")
         failures = cp.evaluate_examples(r, "plant")
         self.assertEqual(failures, [f"plant:5: `_example` depends on {ax} (allowed: Classical.choice, Quot.sound, propext)"])
-        self.assertTrue(cp.plant_reported(failures))
+        self.assertTrue(cp.plant_reported(r))
 
     def test_plant_not_reported_on_clean_output(self) -> None:
         r = example_report("HIDDEN\tM\t5\t_private.M.0._example\t", "EXAMPLES\tM\t1", "DONE\tM")
-        self.assertFalse(cp.plant_reported(cp.evaluate_examples(r, "plant")))
+        self.assertFalse(cp.plant_reported(r))
+
+    def test_plant_read_from_axioms_not_messages(self) -> None:
+        r = example_report("EXAMPLES\tM\t1", "MSG\tM\terror\t5\tx._native.native_decide.ax_1", "DONE\tM")
+        self.assertFalse(cp.plant_reported(r), "a message holding the axiom name counted as a plant report")
 
     def test_sorry_fails(self) -> None:
         r = example_report("HIDDEN\tM\t2\tX._example\tsorryAx", "EXAMPLES\tM\t1", "DONE\tM")

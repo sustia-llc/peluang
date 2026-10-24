@@ -10,7 +10,9 @@ no non-empty extension entries outside ALLOWED_EXTENSIONS, and every test module
 is loaded. The example check runs scripts/lean/ExampleCheck.lean once per test
 module, under the `leanOptions` of lean/lakefile.lean, which must hold exactly
 one `leanOptions := #[…]` block outside comments, every entry of it a
-⟨`name, value⟩ with a Bool, Nat or String literal value: no constant survives
+⟨`name, value⟩ with a Bool, Nat or String literal value, and no
+`moreLeanArgs`, `weakLeanArgs`, `moreServerOptions` or `moreServerArgs`
+outside comments: no constant survives
 in the file's environment, every constant seen only in a command's info tree
 depends on axioms in ALLOWED only, re-elaboration reports no error, and the
 number of hidden `_example` constants equals the number of `example` commands.
@@ -62,6 +64,7 @@ DECL_PLANT = f"theorem {DECL_PLANT_CONST} : True := trivial\n"
 ESCAPES = {"n": "\n", "t": "\t", "r": "\r"}
 LEAN_OPTIONS_RE = re.compile(r"leanOptions\s*:=\s*#\[(?P<body>[^\]]*)\]")
 ENTRY_RE = re.compile(r"⟨")
+OTHER_OPTIONS_RE = re.compile(r"\b(?:moreLeanArgs|moreServerOptions|weakLeanArgs|moreServerArgs)\b")
 OPTION_RE = re.compile(r"⟨\s*`(?P<name>[\w.]+)\s*,\s*(?P<value>true|false|\d+|\"[^\"]*\")\s*⟩")
 
 
@@ -143,7 +146,7 @@ def hidden_examples(r: ExampleReport) -> int:
 def lean_options(lakefile_text: str) -> list[str] | None:
     code = strip_code(lakefile_text)
     found = list(LEAN_OPTIONS_RE.finditer(code))
-    if len(found) != 1:
+    if len(found) != 1 or OTHER_OPTIONS_RE.search(code):
         return None
     start, end = found[0].span("body")
     parsed = list(OPTION_RE.finditer(lakefile_text[start:end]))
@@ -193,8 +196,8 @@ def evaluate_examples(r: ExampleReport, label: str) -> list[str]:
     return failures
 
 
-def plant_reported(failures: list[str]) -> bool:
-    return any(PLANT_AXIOM in f for f in failures)
+def plant_reported(r: ExampleReport) -> bool:
+    return any(PLANT_AXIOM in a and a not in ALLOWED for h in r.hidden for a in h.axioms)
 
 
 def run_import_check(
@@ -264,7 +267,8 @@ def check(root: Path) -> Summary:
         if options is None:
             failures.append(
                 f"{lakefile}: expected exactly one `leanOptions := #[…]` block, each entry ⟨`name, value⟩ "
-                "with a Bool, Nat or String literal value"
+                "with a Bool, Nat or String literal value, and no moreLeanArgs, weakLeanArgs, moreServerOptions "
+                "or moreServerArgs"
             )
             return out
         fresh = run_lake(["build", "--no-build", TEST_ROOT], lean_dir)
@@ -287,7 +291,7 @@ def check(root: Path) -> Summary:
             plant = Path(tmp) / f"{PLANT_MODULE}.lean"
             plant.write_text(PLANT, encoding="utf-8")
             proc, report = run_example_check(lean_dir, script_dir, plant, PLANT_MODULE, options)
-        out.plant = proc.returncode == 0 and plant_reported(evaluate_examples(report, "plant"))
+        out.plant = proc.returncode == 0 and plant_reported(report)
         if not out.plant:
             failures.append(
                 f"plant: the `native_decide` example was not reported (example check output:\n{(proc.stdout + proc.stderr).rstrip()})"

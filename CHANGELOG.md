@@ -26,6 +26,13 @@ git tag is the authoritative pin.
 
 - `scripts/check_lean_source.py` no longer scans `lean/PeluangTest` for
   declarations.
+- `scripts/check_theorem_map.py` accepts a `/// THEOREM_MAP:` tag only on
+  the line directly above `#[test]`. Between `#[test]` and the `fn`, only
+  blank lines, comments other than a tag, and single-line attributes are
+  allowed. Every other tag is reported with its file and line.
+- If the lakefile sets `moreLeanArgs`, `weakLeanArgs`,
+  `moreServerOptions` or `moreServerArgs`, `scripts/check_peluangtest.py`
+  fails.
 - Lean `Peluang.Markov.Derived`: `marginalFst_comp`, `marginalSnd_comp`,
   `marginalFst_tensorHom` and `marginalSnd_tensorHom` are `@[simp]`. The
   `_copy_comp_tensorHom` lemmas are no longer `@[simp]`.

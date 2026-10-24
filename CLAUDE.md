@@ -55,7 +55,8 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      constant. It has one hidden `_example` constant per `example`
      command. Its examples use only `{propext, Classical.choice,
      Quot.sound}`. The check also reports a planted `native_decide`
-     example in a temporary file.
+     example in a temporary file. It also compiles a planted `theorem`
+     in a temporary file, and both checks must report that constant.
   6. `python3 -I scripts/probe_selftest.py`: the probe reports exactly the
      constants of a planted `sorry`/`native_decide` module (the tree is
      restored afterwards).

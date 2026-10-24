@@ -12,8 +12,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_theorem_map as ctm  # noqa: E402
 
 MAP_HEAD = "# THEOREM_MAP\n\n| Lean id | Rust test | anchor |\n|---|---|---|\n"
-LEAN_FILE = "namespace Peluang.Conditional\n\ntheorem unique_as : True := trivial\n\nend Peluang.Conditional\n"
-TEST_FILE = "/// THEOREM_MAP: Peluang.Conditional.unique_as\n#[test]\nfn unique_as() {}\n"
+LEAN_FILE = "namespace CategoryTheory.Conditional\n\ntheorem unique_as : True := trivial\n\nend CategoryTheory.Conditional\n"
+TAG = "/// THEOREM_MAP: CategoryTheory.Conditional.unique_as\n"
+TEST_FILE = TAG + "#[test]\nfn unique_as() {}\n"
+ROW = "| CategoryTheory.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
+MISPLACED = "is not on the line directly above `#[test]` on a fn"
 
 
 def build(root: Path, *, lean: str | None, row: str | None, test: str | None) -> None:
@@ -38,13 +41,13 @@ class CheckTheoremMap(unittest.TestCase):
         self.assertEqual(self.run_case(lean=None, row=None, test=None), [])
 
     def test_covered_theorem_passes(self) -> None:
-        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | Fritz 2020 Prop. 13.7 |\n"
+        row = "| CategoryTheory.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | Fritz 2020 Prop. 13.7 |\n"
         self.assertEqual(self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE), [])
 
     def test_uncovered_theorem_fails(self) -> None:
         failures = self.run_case(lean=LEAN_FILE, row=None, test=None)
         self.assertEqual(len(failures), 1, failures)
-        self.assertIn("Peluang.Conditional.unique_as", failures[0])
+        self.assertIn("CategoryTheory.Conditional.unique_as", failures[0])
         self.assertIn("no THEOREM_MAP row", failures[0])
 
     def test_opt_out_passes(self) -> None:
@@ -52,59 +55,100 @@ class CheckTheoremMap(unittest.TestCase):
         self.assertEqual(self.run_case(lean=lean, row=None, test=None), [])
 
     def test_row_without_test_file_fails(self) -> None:
-        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
-        failures = self.run_case(lean=LEAN_FILE, row=row, test=None)
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=None)
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("does not exist", failures[0])
 
     def test_row_without_tag_fails(self) -> None:
-        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
-        failures = self.run_case(lean=LEAN_FILE, row=row, test="#[test]\nfn unique_as() {}\n")
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test="#[test]\nfn unique_as() {}\n")
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("carries 0", failures[0])
 
     def test_tag_on_wrong_fn_fails(self) -> None:
-        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
         test = TEST_FILE.replace("fn unique_as", "fn other_name")
-        failures = self.run_case(lean=LEAN_FILE, row=row, test=test)
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=test)
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("row names `unique_as`", failures[0])
 
     def test_duplicate_tag_fails(self) -> None:
-        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
-        failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE + TEST_FILE.replace("fn unique_as", "fn again"))
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=TEST_FILE + TEST_FILE.replace("fn unique_as", "fn again"))
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("carries 2", failures[0])
+
+    def assert_misplaced(self, test: str, lines: list[int], what: str) -> None:
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=test)
+        got = [f for f in failures if MISPLACED in f]
+        self.assertEqual(
+            [f.split(": `", 1)[0].rsplit(":", 1)[1] for f in got],
+            [str(n) for n in lines],
+            f"{what}: misplaced-tag lines; failures: {failures}",
+        )
+
+    def test_tag_directly_above_test_attr_passes(self) -> None:
+        self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=TEST_FILE), [])
+
+    def test_tag_above_fn_without_test_attr_is_reported(self) -> None:
+        test = TAG + "fn unique_as() {}\n"
+        self.assert_misplaced(test, [1], "tag above a fn with no #[test]")
+        self.assertIn("carries 0", self.run_case(lean=LEAN_FILE, row=ROW, test=test)[-1])
+
+    def test_tag_separated_from_test_attr_is_reported(self) -> None:
+        for between in ("\n", "// note\n", "#[cfg(not(feature = \"f64-prob\"))]\n", "/// doc\n"):
+            with self.subTest(between=between):
+                self.assert_misplaced(TAG + between + "#[test]\nfn unique_as() {}\n", [1], f"tag separated by {between!r}")
+
+    def test_lines_allowed_between_test_attr_and_fn_pass(self) -> None:
+        for between in (
+            "#[cfg(not(feature = \"f64-prob\"))]\n",
+            "#[ignore]\n/// doc\n#[allow(dead_code)]\n",
+            "\n",
+            "// note\n",
+            "//// note\n",
+        ):
+            with self.subTest(between=between):
+                test = TAG + "#[test]\n" + between + "fn unique_as() {}\n"
+                self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [])
+
+    def test_test_attr_with_trailing_comment_passes(self) -> None:
+        test = TAG + "#[test] // exact lane\nfn unique_as() {}\n"
+        self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [])
+
+    def test_second_tag_between_test_attr_and_fn_is_reported(self) -> None:
+        self.assert_misplaced(TAG + "#[test]\n" + TAG + "fn unique_as() {}\n", [1, 3], "tag inside the attribute block")
+
+    def test_tag_on_last_line_is_reported(self) -> None:
+        self.assert_misplaced(TEST_FILE + TAG.rstrip("\n"), [4], "tag at end of file")
+
+    def test_misplaced_duplicate_tag_is_reported(self) -> None:
+        test = TEST_FILE + TAG + "fn helper() {}\n"
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=test)
+        self.assertEqual(len(failures), 1, f"failures: {failures}")
+        self.assertIn(MISPLACED, failures[0], f"misplaced duplicate tag passed: {failures}")
 
     def test_mathlib_row_is_optional(self) -> None:
         row = "| mathlib:CategoryTheory.MarkovCategory.eq_discard | — | — |\n"
         self.assertEqual(self.run_case(lean=None, row=row, test=None), [])
 
     def test_section_end_keeps_namespace(self) -> None:
-        lean = "namespace Peluang.Conditional\n\nsection\nvariable (n : Nat)\nend\n\ntheorem unique_as : True := trivial\n\nend Peluang.Conditional\n"
-        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
-        self.assertEqual(self.run_case(lean=lean, row=row, test=TEST_FILE), [])
+        lean = "namespace CategoryTheory.Conditional\n\nsection\nvariable (n : Nat)\nend\n\ntheorem unique_as : True := trivial\n\nend CategoryTheory.Conditional\n"
+        self.assertEqual(self.run_case(lean=lean, row=ROW, test=TEST_FILE), [])
 
     def test_named_section_end_pops_section_only(self) -> None:
-        lean = "namespace A\nsection S\nend S\nend A\n\nnamespace Peluang.Conditional\ntheorem unique_as : True := trivial\nend Peluang.Conditional\n"
-        row = "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
-        self.assertEqual(self.run_case(lean=lean, row=row, test=TEST_FILE), [])
+        lean = "namespace A\nsection S\nend S\nend A\n\nnamespace CategoryTheory.Conditional\ntheorem unique_as : True := trivial\nend CategoryTheory.Conditional\n"
+        self.assertEqual(self.run_case(lean=lean, row=ROW, test=TEST_FILE), [])
 
     def test_multiline_theorem_header_detected(self) -> None:
-        lean = "namespace Peluang.Conditional\n\n@[simp]\ntheorem\n  unique_as : True := trivial\n\nend Peluang.Conditional\n"
+        lean = "namespace CategoryTheory.Conditional\n\n@[simp]\ntheorem\n  unique_as : True := trivial\n\nend CategoryTheory.Conditional\n"
         failures = self.run_case(lean=lean, row=None, test=None)
         self.assertEqual(len(failures), 1, failures)
-        self.assertIn("Peluang.Conditional.unique_as", failures[0])
+        self.assertIn("CategoryTheory.Conditional.unique_as", failures[0])
 
     def test_opt_out_above_attribute_passes(self) -> None:
         lean = LEAN_FILE.replace("theorem unique_as", "-- WITNESS: none (helper)\n@[simp]\ntheorem unique_as")
         self.assertEqual(self.run_case(lean=lean, row=None, test=None), [])
 
     def test_duplicate_row_fails(self) -> None:
-        row = (
-            "| Peluang.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
-            "| Peluang.Conditional.unique_as | tests/formalization_lean/other.rs::unique_as | — |\n"
-        )
+        row = ROW + "| CategoryTheory.Conditional.unique_as | tests/formalization_lean/other.rs::unique_as | — |\n"
         failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("duplicate row", failures[0])
@@ -203,7 +247,7 @@ class CheckTheoremMap(unittest.TestCase):
         self.assertEqual([(x.qualified, x.opted_out) for x in self.decls_in(lean)], [("Peluang.h", True)])
 
     def test_bad_test_column_fails(self) -> None:
-        row = "| Peluang.Conditional.unique_as | conditional_tests.rs::unique_as | — |\n"
+        row = "| CategoryTheory.Conditional.unique_as | conditional_tests.rs::unique_as | — |\n"
         failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("is not `tests/formalization_lean/", failures[0])
