@@ -62,9 +62,15 @@ jobs:
         working-directory: lean
         run: |
           set -o pipefail
+          rm -f .lake/build/lib/lean/PeluangTest/Audit.trace
           lake build 2>&1 | tee ../lake-build.log
           if grep -n 'warning:' ../lake-build.log; then
             echo "::error::lake build emitted warnings"
+            exit 1
+          fi
+          audits="$(grep -c 'peluangTest audit:' ../lake-build.log || true)"
+          if [ "$audits" != 1 ]; then
+            echo "::error::expected one peluangTest audit line, found $audits"
             exit 1
           fi
         shell: bash

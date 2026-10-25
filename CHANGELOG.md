@@ -9,19 +9,34 @@ git tag is the authoritative pin.
 ### Added
 
 - `lean/PeluangLint.lean` (`lean_lib PeluangLint`): command linters that
-  run in every file that imports the module. A hidden constant with an
-  axiom outside `{propext, Classical.choice, Quot.sound}` is an error. A
-  hidden constant without an `_example` name component is an error. A
-  command that adds a constant to the module is an error. The option
-  `linter.peluangTest.verbose` logs each inspected hidden constant.
+  run in every `PeluangTest` module that imports the module. A hidden
+  constant with an axiom outside `{propext, Classical.choice, Quot.sound}`
+  is an error. A hidden constant without an `_example` name component is
+  an error. A command that adds a constant to the module is an error. The
+  option `linter.peluangTest.verbose` logs each inspected hidden constant.
 - `#peluang_test_audit`, run by `lean/PeluangTest/Audit.lean`. Each
   `.lean` file of `PeluangTest` is imported and imports `PeluangLint`
   directly. Each test module holds no constant and has entries only in
-  four allowed environment extensions. The plant modules are the only
-  exception.
-- Plants under `lean/PeluangTest/Plant/`: a `sorryAx` example, and a
-  `theorem` in a `module` file and in a plain file. Each holds its linter
-  error under `#guard_msgs`.
+  four allowed environment extensions. The modules of the plant list are
+  the only exception, and each file under `lean/PeluangTest/Plant/` is a
+  listed plant. `Audit.lean` holds only its header, its module docstring
+  and one audit command.
+- In a `PeluangTest` module outside the plant list of `PeluangLint`,
+  `#guard_msgs` and `#guard_panic` are build errors.
+- Plants under `lean/PeluangTest/Plant/`: a `sorryAx` example in term form
+  and in tactic form, an `#eval`, and a `theorem` in a `module` file and
+  in a plain file. Each holds its linter error under `#guard_msgs`.
+
+### Changed
+
+- `scripts/print_axioms.py` reads the axiom allowlist from
+  `Peluang.Linter.allowedAxioms` through its probe, which imports
+  `PeluangLint`. It requires current builds of `Peluang` and
+  `PeluangLint`.
+- `scripts/probe_selftest.py` builds `PeluangLint` before it plants its
+  module.
+- Lean gate 2 removes `Audit.trace` before `lake build` and requires one
+  `peluangTest audit:` line in the build log.
 
 ### Removed
 

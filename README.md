@@ -30,12 +30,18 @@ arXiv:1908.07021; cited by definition and theorem number.
   of `sorry` and `native_decide` constants.
 - `scripts/check_lean_source.py` — `sorry`/`admit` terms and `axiom`
   declarations in `lean/` sources, outside comments and literals.
-- `lean/PeluangLint.lean` — build-time linter for `lean/PeluangTest`. The
-  examples use only the allowlisted axioms, and no test command adds a
-  constant. `lean/PeluangTest/Audit.lean` runs `#peluang_test_audit`. Each
-  test file is imported and imports the linter. Each test module holds no
-  constant and has entries only in four allowed environment extensions.
-  The plants under `lean/PeluangTest/Plant/` are the only exception.
+- `lean/PeluangLint.lean` — build-time linter for `lean/PeluangTest`. In a
+  `PeluangTest` module that imports it, an example with an axiom outside
+  the allowlist is a build error. A command that adds a constant is also
+  a build error. A hidden
+  constant without an `_example` name component, such as the auxiliary
+  definition of `#eval`, is also a build error.
+  `lean/PeluangTest/Audit.lean` runs `#peluang_test_audit`. It reports a
+  test file that is not imported or does not import the linter. It also
+  reports a test module with a constant or with entries outside four
+  allowed environment extensions. The plants under
+  `lean/PeluangTest/Plant/` hold these errors under `#guard_msgs`, and
+  the audit allows their constants and entries.
 
 ## Features
 
