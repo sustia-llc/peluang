@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-25
+
 ### Added
 
 - `lean/PeluangLint.lean` (`lean_lib PeluangLint`): command linters that
@@ -164,7 +166,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/sustia-llc/peluang/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/sustia-llc/peluang/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/sustia-llc/peluang/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/sustia-llc/peluang/compare/v0.1.0...v0.1.1
