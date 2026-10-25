@@ -12,6 +12,8 @@ require "leanprover-community" / "mathlib" @ git "v4.35.0"
 @[default_target]
 lean_lib «Peluang»
 
+lean_lib «PeluangLint»
+
 @[default_target]
 lean_lib «PeluangTest» where
   globs := #[.andSubmodules `PeluangTest]
