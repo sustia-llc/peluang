@@ -43,7 +43,7 @@ class Build(unittest.TestCase):
 
 
 class Run(unittest.TestCase):
-    def test_builds_peluang_twice_and_restores_the_tree(self) -> None:
+    def test_builds_linter_then_peluang_twice_and_restores_the_tree(self) -> None:
         lake = FakeLake(0)
         with tempfile.TemporaryDirectory() as tmp:
             lean = Path(tmp) / "lean"
@@ -54,7 +54,9 @@ class Run(unittest.TestCase):
                 ps.run(Path(tmp))
             restored = root_file.read_text(encoding="utf-8")
             leftovers = sorted(p.name for p in lean.iterdir())
-        self.assertEqual(lake.calls, [["build", "Peluang"], ["build", "Peluang"]], f"lake calls were {lake.calls}")
+        self.assertEqual(
+            lake.calls, [["build", "PeluangLint"], ["build", "Peluang"], ["build", "Peluang"]], f"lake calls were {lake.calls}"
+        )
         self.assertEqual(restored, ROOT_SOURCE, f"lean/Peluang.lean after run: {restored!r}")
         self.assertEqual(leftovers, ["Peluang.lean"], f"lean/ after run: {leftovers}")
 
