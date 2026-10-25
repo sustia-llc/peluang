@@ -6,6 +6,28 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- `lean/PeluangLint.lean` (`lean_lib PeluangLint`): command linters that
+  run in every file that imports the module. A hidden constant with an
+  axiom outside `{propext, Classical.choice, Quot.sound}` is an error. A
+  hidden constant without an `_example` name component is an error. A
+  command that adds a constant to the module is an error. The option
+  `linter.peluangTest.verbose` logs each inspected hidden constant.
+- `#peluang_test_audit`, run by `lean/PeluangTest/Audit.lean`. Each
+  `.lean` file of `PeluangTest` is imported and imports `PeluangLint`
+  directly. Each test module holds no constant and has entries only in
+  four allowed environment extensions. The plant modules are the only
+  exception.
+- Plants under `lean/PeluangTest/Plant/`: a `sorryAx` example, and a
+  `theorem` in a `module` file and in a plain file. Each holds its linter
+  error under `#guard_msgs`.
+
+### Removed
+
+- `scripts/check_peluangtest.py`, `scripts/test_check_peluangtest.py`,
+  `scripts/lean/ExampleCheck.lean` and `scripts/lean/ImportCheck.lean`.
+
 ## [0.2.1] - 2026-10-24
 
 ### Added

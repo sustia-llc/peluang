@@ -25,7 +25,6 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 - Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
   `python3 -I scripts/test_print_axioms.py`,
   `python3 -I scripts/test_check_lean_source.py`,
-  `python3 -I scripts/test_check_peluangtest.py`,
   `python3 -I scripts/test_probe_selftest.py`, then
   `python3 -I scripts/check_theorem_map.py`.
 - Lean gates, in order, each to a log file:
@@ -36,7 +35,18 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      The build runs Mathlib's style linters (`weak.linter.mathlibStandardSet`
      in `lean/lakefile.lean`, header linter off) and, through
      `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are
-     build errors.
+     build errors. The linter `lean/PeluangLint.lean` runs in every file
+     that imports it. A hidden constant (an `example`'s `_example`) with an
+     axiom outside `{propext, Classical.choice, Quot.sound}` is a build
+     error. A hidden constant without an `_example` name component is a
+     build error. A command that adds a constant to the module is a build
+     error. `lean/PeluangTest/Audit.lean` runs `#peluang_test_audit`. Each
+     `.lean` file of `PeluangTest` must be imported and must import
+     `PeluangLint` directly. Each test module holds no constant. Its only
+     extension entries are in `moduleDocExt`, `modPkgExt`, `extraModUses`
+     and `deprecatedModuleExt`. The plants under `lean/PeluangTest/Plant/`
+     are the only exception. Each plant holds its expected linter error
+     under `#guard_msgs`.
   3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit`/
      `native_decide` term, no standalone `native` word and no `axiom`
      declaration under `lean/` outside `lean/.lake`, with comments,
@@ -46,15 +56,7 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is
      imported from `lean/Peluang.lean`; the theorems `check_theorem_map.py`
      scans equal the library's source theorems.
-  5. `python3 -I scripts/check_peluangtest.py` (needs step 2): the
-     `PeluangTest` modules define no constant and add entries only to
-     `moduleDocExt`, `modPkgExt`, `extraModUses` and
-     `deprecatedModuleExt`. Re-elaborated under the lakefile
-     `leanOptions`, each test file has no error and no surviving constant.
-     It has one hidden `_example` constant per `example`. Its examples use
-     only `{propext, Classical.choice, Quot.sound}`. A planted `native_decide`
-     example and a planted `theorem` are reported.
-  6. `python3 -I scripts/probe_selftest.py` (after step 5): the probe reports exactly the
+  5. `python3 -I scripts/probe_selftest.py` (after step 4): the probe reports exactly the
      constants of a planted `sorry`/`native_decide` module (the tree is
      restored afterwards).
 - Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`
