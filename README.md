@@ -30,9 +30,18 @@ arXiv:1908.07021; cited by definition and theorem number.
   of `sorry` and `native_decide` constants.
 - `scripts/check_lean_source.py` — `sorry`/`admit` terms and `axiom`
   declarations in `lean/` sources, outside comments and literals.
-- `scripts/check_peluangtest.py` — through Lean, the `PeluangTest` modules
-  define no constant and have entries only in four allowed environment
-  extensions, and their examples use only the allowlisted axioms.
+- `lean/PeluangLint.lean` — build-time linter for `lean/PeluangTest`. In a
+  `PeluangTest` module that imports it, an example with an axiom outside
+  the allowlist is a build error. A command that adds a constant is also
+  a build error. A hidden
+  constant without an `_example` name component, such as the auxiliary
+  definition of `#eval`, is also a build error.
+  `lean/PeluangTest/Audit.lean` runs `#peluang_test_audit`. It reports a
+  test file that is not imported or does not import the linter. It also
+  reports a test module with a constant or with entries outside four
+  allowed environment extensions. The plants under
+  `lean/PeluangTest/Plant/` hold these errors under `#guard_msgs`, and
+  the audit allows their constants and entries.
 
 ## Features
 
@@ -71,16 +80,16 @@ cargo nextest run --all-features
 python3 -I scripts/test_check_theorem_map.py
 python3 -I scripts/test_print_axioms.py
 python3 -I scripts/test_check_lean_source.py
-python3 -I scripts/test_check_peluangtest.py
 python3 -I scripts/test_probe_selftest.py
 python3 -I scripts/check_lean_source.py
 python3 -I scripts/check_theorem_map.py
 # Lean (every lake command runs with lean/ as the working directory)
 env -C lean lake exe cache get
 env -C lean lake build --no-build Mathlib
-env -C lean lake build
+rm -f lean/.lake/build/lib/lean/PeluangTest/Audit.trace
+env -C lean lake build > /tmp/lake-build.log 2>&1
+rg -c 'peluangTest audit: [0-9]+ files' /tmp/lake-build.log   # must print 1
 python3 -I scripts/print_axioms.py
-python3 -I scripts/check_peluangtest.py
 python3 -I scripts/probe_selftest.py
 ```
 

@@ -4,6 +4,7 @@ Released under the MIT license as described in the file LICENSE.
 -/
 import Batteries.Tactic.Lint
 import Peluang
+import PeluangLint
 
 /-!
 # Lint

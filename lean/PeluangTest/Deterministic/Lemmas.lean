@@ -5,6 +5,7 @@ Released under the MIT license as described in the file LICENSE.
 module
 
 public import Peluang.Deterministic.Lemmas
+import PeluangLint
 
 /-!
 # Tests for `Peluang.Deterministic.Lemmas`

@@ -29,8 +29,11 @@ def const(name: str, ranges: tuple[int, int, int, int, int, int] | None, theorem
     return pa.Const(name, "Peluang", theorem, ranges, axioms)
 
 
-def probe(*lines: str) -> pa.ProbeResult:
-    return pa.parse_output("".join(f"{line}\n" for line in lines))
+ALLOWED_ROW = "ALLOWED\tQuot.sound,Classical.choice,propext"
+
+
+def probe(*lines: str, allowed: bool = True) -> pa.ProbeResult:
+    return pa.parse_output("".join(f"{line}\n" for line in ((ALLOWED_ROW,) if allowed else ()) + lines))
 
 
 class ParseOutput(unittest.TestCase):
@@ -46,7 +49,10 @@ class ParseOutput(unittest.TestCase):
 
     def test_unrelated_lines_ignored(self) -> None:
         r = pa.parse_output("warning: something\nCONST\ttoo\tfew\n")
-        self.assertEqual((r.modules, r.consts), (set(), []))
+        self.assertEqual((r.modules, r.consts, r.allowed), (set(), [], None))
+
+    def test_allowed_row(self) -> None:
+        self.assertEqual(probe().allowed, frozenset({"propext", "Classical.choice", "Quot.sound"}))
 
 
 class SourceTheorem(unittest.TestCase):
@@ -97,6 +103,16 @@ class Evaluate(unittest.TestCase):
         failures = pa.evaluate(probe("MODULE\tPeluang"), ["Peluang"], ["Peluang.a"], {"Peluang.a", "Peluang.missed"})
         self.assertEqual(failures, ["`Peluang.missed`: source theorem of the library that check_theorem_map does not scan"])
 
+    def test_missing_allowed_row_fails(self) -> None:
+        r = probe("MODULE\tPeluang", "CONST\tPeluang.a\tPeluang\ttrue\t-\tpropext", allowed=False)
+        failures = pa.evaluate(r, ["Peluang"], ["Peluang.a"], {"Peluang.a"})
+        self.assertEqual(failures[0], "probe printed no ALLOWED row (Peluang.Linter.allowedAxioms)", failures)
+        self.assertEqual(len(failures), 2, failures)
+
+    def test_empty_allowed_row_fails(self) -> None:
+        r = pa.parse_output("ALLOWED\t\nMODULE\tPeluang\n")
+        self.assertEqual(pa.evaluate(r, ["Peluang"], [], set()), ["Peluang.Linter.allowedAxioms is empty"])
+
     def test_clean_probe_passes(self) -> None:
         r = probe("MODULE\tPeluang", "MODULE\tPeluang.X", "CONST\tPeluang.a\tPeluang.X\ttrue\t-\tpropext")
         self.assertEqual(pa.evaluate(r, ["Peluang", "Peluang.X"], ["Peluang.a"], {"Peluang.a"}), [])
@@ -118,7 +134,7 @@ class Layout(unittest.TestCase):
 
 
 class Freshness(unittest.TestCase):
-    def test_stale_check_targets_peluang_only(self) -> None:
+    def test_stale_check_targets_peluang_and_peluanglint(self) -> None:
         calls: list[list[str]] = []
 
         def fake_run_lake(
@@ -130,7 +146,7 @@ class Freshness(unittest.TestCase):
         with mock.patch.object(pa, "run_lake", fake_run_lake), tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "lean").mkdir()
             _, failures = pa.check(Path(tmp))
-        self.assertEqual(calls[:1], [["build", "--no-build", "Peluang"]], f"first lake call was {calls[:1]}")
+        self.assertEqual(calls, [["build", "--no-build", "Peluang", "PeluangLint"]], f"lake calls were {calls}")
         self.assertEqual(len(failures), 1, f"failures: {failures}")
         self.assertIn("stale", failures[0])
 

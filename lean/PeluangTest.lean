@@ -8,6 +8,7 @@ public import PeluangTest.Deterministic.Lemmas
 public import PeluangTest.Deterministic.Wide
 public import PeluangTest.Markov.Cartesian
 public import PeluangTest.Markov.Derived
+import PeluangLint
 
 /-!
 # PeluangTest

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Audit the axioms of every constant defined in the `Peluang` library.
 
-Requires an up-to-date build of the `Peluang` target (checked with
-`lake build --no-build Peluang`).
-Elaborates a probe that imports `Peluang` and, for every constant of a
-`Peluang` / `Peluang.*` module (theorems, definitions, instances, private and
+Requires up-to-date builds of the `Peluang` and `PeluangLint` targets (checked
+with `lake build --no-build Peluang PeluangLint`).
+Elaborates a probe that imports `Peluang` and `PeluangLint`, prints the axiom
+allowlist `Peluang.Linter.allowedAxioms` and, for every constant of a
+`Peluang` / `Peluang.*` module and of `PeluangLint` (theorems, definitions, instances, private and
 auxiliary declarations alike), prints the axioms `Lean.collectAxioms` reports
 and its declaration ranges. Every `lake` call runs with lean/ as the working
 directory, so elan selects the toolchain in lean/lean-toolchain. Exit 0 when
-the build is current, the probe elaborates, every constant depends only on
-axioms in ALLOWED, every library file is among the loaded modules, and the
+the builds are current, the probe elaborates and prints the allowlist, every
+constant depends only on axioms in it, every library file is among the loaded modules, and the
 theorems check_theorem_map scans equal the library's source theorems; exit 1
 otherwise, printing each failure on its own line. A source theorem is a
 non-internal theorem constant whose declaration range holds a `theorem` /
@@ -33,7 +34,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_theorem_map as ctm  # noqa: E402
 from check_lean_source import strip_code  # noqa: E402
 
-ALLOWED = frozenset({"propext", "Classical.choice", "Quot.sound"})
 TIMEOUT_S = 900
 PRIVATE_PREFIX = "_private."
 KEYWORD_RE = re.compile(r"(?<![\w.'])(?:theorem|lemma)(?![\w'])")
@@ -41,14 +41,16 @@ KEYWORD_RE = re.compile(r"(?<![\w.'])(?:theorem|lemma)(?![\w'])")
 PROBE = """import Lean.Util.CollectAxioms
 import Lean.DeclarationRange
 import Peluang
+import PeluangLint
 
 open Lean Elab Command in
 run_cmd do
+  IO.println s!"ALLOWED\\t{String.intercalate "," (Peluang.Linter.allowedAxioms.toList.map toString)}"
   let env ← getEnv
   let mods := env.header.moduleNames
   for i in [:mods.size] do
     let m := mods[i]!
-    if (`Peluang).isPrefixOf m then
+    if (`Peluang).isPrefixOf m || m == `PeluangLint then
       IO.println s!"MODULE\\t{m}"
       for n in env.header.moduleData[i]!.constNames do
         let some ci := env.find? n | continue
@@ -75,6 +77,7 @@ class Const:
 class ProbeResult:
     modules: set[str] = field(default_factory=set)
     consts: list[Const] = field(default_factory=list)
+    allowed: frozenset[str] | None = None
 
 
 def display_name(name: str) -> str:
@@ -87,7 +90,9 @@ def parse_output(output: str) -> ProbeResult:
     result = ProbeResult()
     for line in output.splitlines():
         parts = line.split("\t")
-        if parts[0] == "MODULE" and len(parts) == 2:
+        if parts[0] == "ALLOWED" and len(parts) == 2:
+            result.allowed = frozenset(a for a in parts[1].split(",") if a)
+        elif parts[0] == "MODULE" and len(parts) == 2:
             result.modules.add(parts[1])
         elif parts[0] == "CONST" and len(parts) == 6:
             nums = parts[4].split(":")
@@ -137,14 +142,19 @@ def source_theorems(result: ProbeResult, read_lines) -> set[str]:
 
 def evaluate(result: ProbeResult, on_disk: list[str], scanned: list[str], sources: set[str]) -> list[str]:
     failures: list[str] = []
+    if result.allowed is None:
+        failures.append("probe printed no ALLOWED row (Peluang.Linter.allowedAxioms)")
+    elif not result.allowed:
+        failures.append("Peluang.Linter.allowedAxioms is empty")
+    allowed = result.allowed or frozenset()
     for m in on_disk:
         if m not in result.modules:
             failures.append(f"`{m}`: library file is not imported (transitively) by lean/Peluang.lean")
     for c in sorted(result.consts, key=lambda c: c.name):
-        bad = sorted(a for a in c.axioms if a not in ALLOWED)
+        bad = sorted(a for a in c.axioms if a not in allowed)
         if bad:
             failures.append(
-                f"`{display_name(c.name)}`: depends on {', '.join(bad)} (allowed: {', '.join(sorted(ALLOWED))})"
+                f"`{display_name(c.name)}`: depends on {', '.join(bad)} (allowed: {', '.join(sorted(allowed))})"
             )
     scanned_set = {display_name(n) for n in scanned}
     for n in sorted(scanned_set - sources):
@@ -170,9 +180,11 @@ def check(root: Path) -> tuple[int, list[str]]:
     lean_dir = root / "lean"
     scanned = [d.qualified for d in ctm.library_decls(lean_dir)]
     try:
-        fresh = run_lake(["build", "--no-build", "Peluang"], lean_dir)
+        fresh = run_lake(["build", "--no-build", "Peluang", "PeluangLint"], lean_dir)
         if fresh.returncode != 0:
-            return 0, [f"lean build is stale or missing; run `env -C lean lake build Peluang`:\n{(fresh.stdout + fresh.stderr).rstrip()}"]
+            return 0, [
+                f"lean build is stale or missing; run `env -C lean lake build Peluang PeluangLint`:\n{(fresh.stdout + fresh.stderr).rstrip()}"
+            ]
         with tempfile.TemporaryDirectory() as tmp:
             probe = Path(tmp) / "Probe.lean"
             probe.write_text(PROBE, encoding="utf-8")

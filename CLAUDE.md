@@ -25,38 +25,49 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 - Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
   `python3 -I scripts/test_print_axioms.py`,
   `python3 -I scripts/test_check_lean_source.py`,
-  `python3 -I scripts/test_check_peluangtest.py`,
   `python3 -I scripts/test_probe_selftest.py`, then
   `python3 -I scripts/check_theorem_map.py`.
 - Lean gates, in order, each to a log file:
   1. `env -C lean lake exe cache get`, then `env -C lean lake build
      --no-build Mathlib` (fail closed: a non-zero exit from either stops the
      gate; never fall through to a cold build).
-  2. `env -C lean lake build` — `rg -c 'warning:' <log>` must print nothing.
+  2. `rm -f lean/.lake/build/lib/lean/PeluangTest/Audit.trace`, then
+     `env -C lean lake build`. `rg -c 'warning:' <log>` must print
+     nothing. `rg -c 'peluangTest audit: [0-9]+ files' <log>` must print
+     `1`.
      The build runs Mathlib's style linters (`weak.linter.mathlibStandardSet`
      in `lean/lakefile.lean`, header linter off) and, through
      `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are
-     build errors.
+     build errors. The linter `lean/PeluangLint.lean` runs in every
+     `PeluangTest` module that imports it. A hidden constant (an
+     `example`'s `_example`) with an axiom outside `{propext,
+     Classical.choice, Quot.sound}` is a build error. A hidden constant
+     without an `_example` name component is a build error. A command that
+     adds a constant to the module is a build error.
+     `lean/PeluangTest/Audit.lean` runs `#peluang_test_audit`. Each `.lean`
+     file of `PeluangTest` must be imported and must import `PeluangLint`
+     directly. Each test module holds no constant. Its only extension
+     entries are in `moduleDocExt`, `modPkgExt`, `extraModUses` and
+     `deprecatedModuleExt`. The modules of the plant list in
+     `PeluangLint.lean` are the only exception. Each file under
+     `lean/PeluangTest/Plant/` must be a listed plant. In a `PeluangTest`
+     module outside the plant list, `#guard_msgs` and `#guard_panic` are
+     build errors. `Audit.lean` holds only its header, its module
+     docstring and one `#peluang_test_audit`.
   3. `python3 -I scripts/check_lean_source.py`: no `sorry`/`admit`/
      `native_decide` term, no standalone `native` word and no `axiom`
      declaration under `lean/` outside `lean/.lake`, with comments,
      docstrings, string and char literals excluded.
   4. `python3 -I scripts/print_axioms.py` (needs step 2): every constant
-     of the `Peluang` / `Peluang.*` modules depends only on `{propext,
-     Classical.choice, Quot.sound}`; every file under `lean/Peluang/` is
-     imported from `lean/Peluang.lean`; the theorems `check_theorem_map.py`
-     scans equal the library's source theorems.
-  5. `python3 -I scripts/check_peluangtest.py` (needs step 2): the
-     `PeluangTest` modules define no constant and add entries only to
-     `moduleDocExt`, `modPkgExt`, `extraModUses` and
-     `deprecatedModuleExt`. Re-elaborated under the lakefile
-     `leanOptions`, each test file has no error and no surviving constant.
-     It has one hidden `_example` constant per `example`. Its examples use
-     only `{propext, Classical.choice, Quot.sound}`. A planted `native_decide`
-     example and a planted `theorem` are reported.
-  6. `python3 -I scripts/probe_selftest.py` (after step 5): the probe reports exactly the
-     constants of a planted `sorry`/`native_decide` module (the tree is
-     restored afterwards).
+     of the `Peluang` / `Peluang.*` modules depends only on the axioms of
+     `Peluang.Linter.allowedAxioms` (`{propext, Classical.choice,
+     Quot.sound}`), which its probe reads from `PeluangLint`; every file
+     under `lean/Peluang/` is imported from `lean/Peluang.lean`; the
+     theorems `check_theorem_map.py` scans equal the library's source
+     theorems.
+  5. `python3 -I scripts/probe_selftest.py` (after step 4): the probe
+     reports exactly the constants of a planted `sorry`/`native_decide`
+     module (the tree is restored afterwards).
 - Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`
   Mathlib `@ git "v4.35.0"`; `lean/lake-manifest.json` Mathlib rev
   `56a005855ea17e0b0958f73ec801ae140b0a1679`.
@@ -100,16 +111,22 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   olean is missing; `lake build --no-build Mathlib` exits 3 on it, and
   `lake exe cache get!` restores it.
 - `scripts/print_axioms.py` audits the oleans on disk; it refuses to run
-  when `lake build --no-build Peluang` reports the build stale (a probe on
-  a stale build audits deleted or edited sources).
+  when `lake build --no-build Peluang PeluangLint` reports the build stale
+  (a probe on a stale build audits deleted or edited sources).
+  `scripts/probe_selftest.py` builds `PeluangLint` before it plants its
+  module.
 - `lean_lib Peluang` takes the default root; an `.andSubmodules` glob
   fails the build while `lean/Peluang/` does not exist. Every file under
   `lean/Peluang/` is reached through an import from `lean/Peluang.lean`.
 - `lean_lib PeluangTest` (second default target) builds every file under
   `lean/PeluangTest/` through `globs := #[.andSubmodules `PeluangTest]`.
-  It holds `example`s and the `#lint` file only; `print_axioms.py` does
-  not audit it, and `check_lean_source.py` scans it. `Lint.lean` is a
-  plain (non-`module`) file, reached through the glob and not imported
-  from `lean/PeluangTest.lean`.
+  It holds `example`s, the `#lint` file `Lint.lean`, the audit file
+  `Audit.lean` and the plants under `Plant/`. The two declaration plants
+  define the constants `PeluangTest.Plant.moduleTheorem` and
+  `PeluangTest.Plant.plainTheorem`. `print_axioms.py` does not audit it,
+  and `check_lean_source.py` scans it. `Lint.lean` and `Audit.lean` are
+  plain (non-`module`) files, reached through the glob and not imported
+  from `lean/PeluangTest.lean`. `lean_lib PeluangLint` is not a default
+  target. The `PeluangTest` imports build it.
 - Lean files use the module system (`module`, `public import`, theorems in
   a `public section`), matching the Mathlib files they import.

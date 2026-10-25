@@ -5,6 +5,7 @@ Released under the MIT license as described in the file LICENSE.
 module
 
 public import Peluang.Markov.Cartesian
+import PeluangLint
 
 /-!
 # Tests for `Peluang.Markov.Cartesian`

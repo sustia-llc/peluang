@@ -5,6 +5,7 @@ Released under the MIT license as described in the file LICENSE.
 module
 
 public import Peluang.Deterministic.Wide
+import PeluangLint
 
 /-!
 # Tests for `Peluang.Deterministic.Wide`
