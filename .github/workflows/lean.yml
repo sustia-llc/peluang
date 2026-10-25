@@ -68,7 +68,7 @@ jobs:
             echo "::error::lake build emitted warnings"
             exit 1
           fi
-          audits="$(grep -c 'peluangTest audit:' ../lake-build.log || true)"
+          audits="$(grep -cE 'peluangTest audit: [0-9]+ files' ../lake-build.log || true)"
           if [ "$audits" != 1 ]; then
             echo "::error::expected one peluangTest audit line, found $audits"
             exit 1

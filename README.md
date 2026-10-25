@@ -86,7 +86,9 @@ python3 -I scripts/check_theorem_map.py
 # Lean (every lake command runs with lean/ as the working directory)
 env -C lean lake exe cache get
 env -C lean lake build --no-build Mathlib
-env -C lean lake build
+rm -f lean/.lake/build/lib/lean/PeluangTest/Audit.trace
+env -C lean lake build > /tmp/lake-build.log 2>&1
+rg -c 'peluangTest audit: [0-9]+ files' /tmp/lake-build.log   # must print 1
 python3 -I scripts/print_axioms.py
 python3 -I scripts/probe_selftest.py
 ```

@@ -33,7 +33,8 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      gate; never fall through to a cold build).
   2. `rm -f lean/.lake/build/lib/lean/PeluangTest/Audit.trace`, then
      `env -C lean lake build`. `rg -c 'warning:' <log>` must print
-     nothing. `rg -c 'peluangTest audit:' <log>` must print `1`.
+     nothing. `rg -c 'peluangTest audit: [0-9]+ files' <log>` must print
+     `1`.
      The build runs Mathlib's style linters (`weak.linter.mathlibStandardSet`
      in `lean/lakefile.lean`, header linter off) and, through
      `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are
