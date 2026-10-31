@@ -7,6 +7,7 @@ use crate::error::{Error, Result};
 
 /// A rayon thread pool with threads named `peluang-exec-{i}`, running each
 /// submitted closure on the pool and resolving to its value.
+#[derive(Debug)]
 pub struct Executor {
     pool: rayon::ThreadPool,
 }
