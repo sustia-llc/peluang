@@ -121,10 +121,11 @@ pub const PAR_THRESHOLD: usize = 1024;
 
 /// Sum of `terms` under `Prob::add`, `Self::zero()` on an empty slice; under
 /// the `parallel` feature, parallel exactly when `terms.len()` is at least
-/// `PAR_THRESHOLD`. A parallel run uses the rayon pool of the calling thread:
-/// the `exec::Executor` pool inside `Executor::run`, the global pool on a
-/// thread outside any rayon pool. On such a thread, the caller blocks until
-/// the pool finishes and then runs the last combining `add`.
+/// `PAR_THRESHOLD`. On a target with threads, a parallel run uses the rayon
+/// pool of the calling thread: the `exec::Executor` pool inside
+/// `Executor::run`, the global pool on a thread outside any rayon pool. On
+/// such a thread, the caller blocks until the workers finish and then runs the
+/// last combining `add`.
 pub fn sum<P: Prob>(terms: &[P]) -> P {
     #[cfg(feature = "parallel")]
     {
@@ -138,12 +139,12 @@ pub fn sum<P: Prob>(terms: &[P]) -> P {
 
 /// Sum of `terms` under `Prob::add`, `Self::zero()` on an empty slice,
 /// computed by a rayon reduction when `parallel` is true and by a sequential
-/// fold otherwise. With at least two terms, the rayon reduction uses the rayon
-/// pool of the calling thread: the `exec::Executor` pool inside
-/// `Executor::run`, the global pool on a thread outside any rayon pool. On
-/// such a thread, the caller blocks until the pool finishes and then runs the
-/// last combining `add`. With fewer than two terms, the rayon reduction runs
-/// on the calling thread.
+/// fold otherwise. On a target with threads and with at least two terms, the
+/// rayon reduction uses the rayon pool of the calling thread: the
+/// `exec::Executor` pool inside `Executor::run`, the global pool on a thread
+/// outside any rayon pool. On such a thread, the caller blocks until the
+/// workers finish and then runs the last combining `add`. With fewer than two
+/// terms, the rayon reduction runs on the calling thread.
 #[cfg(feature = "parallel")]
 pub fn sum_with<P: Prob>(terms: &[P], parallel: bool) -> P {
     rayon_cond::CondIterator::new(terms, parallel)

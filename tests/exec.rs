@@ -4,9 +4,10 @@
 //! `PAR_THRESHOLD` unit terms inside `Executor::run`, `prob::sum` and
 //! `prob::sum_with(_, true)` record more adds than a sequential run, each on
 //! a `peluang-exec-*` thread that reports the executor's pool size. Over the
-//! same terms outside it, they run no add on `peluang-exec-*`, one add on the
-//! calling thread, and every other add on a worker that reports the global
-//! pool size. `Executor` supports `#[derive(Debug)]` on a struct that holds
+//! same terms outside it, they run no add on `peluang-exec-*`, the last add on
+//! the calling thread, and every other add on a worker that reports the global
+//! pool size. Inside `Executor::run`, `prob::sum_with(_, true)` over 1 and 2
+//! terms runs every add on `peluang-exec-*`. `Executor` supports `#[derive(Debug)]` on a struct that holds
 //! it.
 
 #![cfg(feature = "async")]
@@ -18,13 +19,9 @@ use std::sync::Arc;
 
 use peluang::error::Result;
 use peluang::exec::Executor;
-use peluang::prob::{PAR_THRESHOLD, sum, sum_with};
-use probe::{AddLog, Probe, names, thread_name, unit_terms};
+use peluang::prob::{PAR_THRESHOLD, sum_with};
+use probe::{AddLog, ROUTES, add_sites, names, off_worker, thread_name, unit_terms};
 use tokio_rayon::rayon;
-
-type Route = fn(&[Probe]) -> Probe;
-
-const ROUTES: [(&str, Route); 2] = [("sum", sum), ("sum_with", |terms| sum_with(terms, true))];
 
 fn on_exec_thread(name: Option<&str>) -> bool {
     name.is_some_and(|n| n.starts_with("peluang-exec-"))
@@ -86,7 +83,6 @@ async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
         let off_pool = names(&sites, |site| !on_exec_thread(site.name.as_deref()));
         let sizes: BTreeSet<usize> = sites.iter().map(|site| site.pool_size).collect();
         let held = total == want
-            && !sites.is_empty()
             && sites.len() > PAR_THRESHOLD + 1
             && off_pool.is_empty()
             && sizes == BTreeSet::from([exec_size]);
@@ -100,30 +96,39 @@ async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
     Ok(())
 }
 
+#[tokio::test]
+async fn sum_with_short_slices_inside_run_stay_on_executor_pool() -> Result<()> {
+    let exec = Executor::new()?;
+    for len in [1, 2] {
+        let sites = exec
+            .run(move || add_sites(len, |terms| sum_with(terms, true)))
+            .await;
+        let off_pool = names(&sites, |site| !on_exec_thread(site.name.as_deref()));
+        assert!(
+            !sites.is_empty(),
+            "sum_with over {len} terms inside run: expected a non-empty record, observed {sites:?}"
+        );
+        assert!(
+            off_pool.is_empty(),
+            "sum_with over {len} terms inside run: expected every add on peluang-exec-*, observed adds on {off_pool:?}"
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn sum_outside_run_uses_global_pool() -> Result<()> {
     let global_size = rayon::current_num_threads();
     let exec_size = global_size + 1;
     let _exec = Executor::with_num_threads(exec_size)?;
     for (route, reduce) in ROUTES {
-        let log = AddLog::default();
-        let (terms, want) = unit_terms(&log, PAR_THRESHOLD);
-        let total = reduce(&terms).n;
-        let sites = log.lock().unwrap();
-        let off_worker = sites.iter().filter(|site| !site.on_worker).count();
-        let off_worker_names = names(&sites, |site| !site.on_worker);
+        let sites = add_sites(PAR_THRESHOLD, reduce);
         let on_exec = names(&sites, |site| on_exec_thread(site.name.as_deref()));
         let worker_sizes: BTreeSet<usize> = sites
             .iter()
             .filter(|site| site.on_worker)
             .map(|site| site.pool_size)
             .collect();
-        assert_eq!(total, want, "{route}: sum of {want} unit terms = {total}");
-        assert!(
-            sites.len() > 1,
-            "{route}: expected adds beyond the top-level combine, observed {} records",
-            sites.len()
-        );
         assert!(
             on_exec.is_empty(),
             "{route}: expected no add on peluang-exec-*, observed adds on {on_exec:?}"
@@ -134,9 +139,9 @@ fn sum_outside_run_uses_global_pool() -> Result<()> {
             "{route}: expected every worker add to see the global size {global_size}, not the executor size {exec_size}, observed worker pool sizes on the left"
         );
         assert_eq!(
-            (off_worker, off_worker_names),
-            (1, BTreeSet::from([thread_name()])),
-            "{route}: expected every add on a rayon worker except the one top-level combine on the calling thread, observed (adds off a worker, their thread names) on the left"
+            off_worker(&sites),
+            (1, BTreeSet::from([thread_name()]), true),
+            "{route}: expected every add on a rayon worker except the one top-level combine on the calling thread, as the last record, observed (adds off a worker, their thread names, last record off a worker) on the left"
         );
     }
     Ok(())

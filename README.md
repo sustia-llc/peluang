@@ -50,10 +50,11 @@ All off by default.
 - `f64-prob` — `Prob` for `f64` with a declared tolerance; witness tests do
   not compile in this lane.
 - `parallel` — `prob::sum` runs on rayon (via `rayon-cond`) at or above
-  `prob::PAR_THRESHOLD` terms. It uses the rayon pool of the calling thread:
-  the `exec::Executor` pool inside `Executor::run`, the global pool on a
-  thread outside any rayon pool. On such a thread, the caller blocks until
-  the pool finishes and then runs the last combining `add`.
+  `prob::PAR_THRESHOLD` terms. On a target with threads, it uses the rayon
+  pool of the calling thread: the `exec::Executor` pool inside
+  `Executor::run`, the global pool on a thread outside any rayon pool. On
+  such a thread, the caller blocks until the workers finish and then runs the
+  last combining `add`.
 - `async` — implies `parallel`; `exec::Executor` owns a rayon pool and
   `Executor::run` awaits a closure on it (`tokio-rayon`). The crate creates
   no async runtime.

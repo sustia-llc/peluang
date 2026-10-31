@@ -3,7 +3,11 @@
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
-use peluang::prob::Prob;
+use peluang::prob::{Prob, sum, sum_with};
+
+pub type Route = fn(&[Probe]) -> Probe;
+
+pub const ROUTES: [(&str, Route); 2] = [("sum", sum), ("sum_with", |terms| sum_with(terms, true))];
 
 /// The name of the current thread.
 pub fn thread_name() -> Option<String> {
@@ -99,4 +103,21 @@ pub fn names(sites: &[AddSite], keep: impl Fn(&AddSite) -> bool) -> BTreeSet<Opt
         .filter(|site| keep(site))
         .map(|site| site.name.clone())
         .collect()
+}
+
+/// Runs `reduce` over `len` unit terms; the recorded `AddSite`s.
+pub fn add_sites(len: usize, reduce: impl Fn(&[Probe]) -> Probe) -> Vec<AddSite> {
+    let log = AddLog::default();
+    let (terms, want) = unit_terms(&log, len);
+    let total = reduce(&terms).n;
+    assert_eq!(total, want, "sum of {len} unit terms = {total}");
+    log.lock().unwrap().clone()
+}
+
+/// The count and the distinct thread names of the adds off a rayon worker,
+/// and whether the last record is one of those adds.
+pub fn off_worker(sites: &[AddSite]) -> (usize, BTreeSet<Option<String>>, bool) {
+    let count = sites.iter().filter(|site| !site.on_worker).count();
+    let last_off_worker = sites.last().is_some_and(|site| !site.on_worker);
+    (count, names(sites, |site| !site.on_worker), last_off_worker)
 }

@@ -3,9 +3,9 @@
 //! over unit terms runs no add on a rayon worker at `PAR_THRESHOLD - 1` terms
 //! and at least one at `PAR_THRESHOLD`. Outside a rayon pool, `prob::sum` and
 //! `prob::sum_with(_, true)` at `PAR_THRESHOLD` terms and
-//! `prob::sum_with(_, true)` at 2 terms run exactly one add off a worker, on
-//! the calling thread; `prob::sum_with(_, true)` at 1 term runs every add on
-//! the calling thread.
+//! `prob::sum_with(_, true)` at 2 terms run exactly one add off a worker, the
+//! last add, on the calling thread; `prob::sum_with(_, true)` at 1 term runs
+//! every add on the calling thread.
 
 #![cfg(feature = "parallel")]
 
@@ -55,22 +55,7 @@ mod dispatch {
 
     use peluang::prob::{PAR_THRESHOLD, sum, sum_with};
 
-    use crate::probe::{AddLog, AddSite, Probe, names, thread_name, unit_terms};
-
-    /// Runs `reduce` over `len` unit terms; the recorded `AddSite`s.
-    fn add_sites(len: usize, reduce: impl Fn(&[Probe]) -> Probe) -> Vec<AddSite> {
-        let log = AddLog::default();
-        let (terms, want) = unit_terms(&log, len);
-        let total = reduce(&terms).n;
-        assert_eq!(total, want, "sum of {len} unit terms = {total}");
-        log.lock().unwrap().clone()
-    }
-
-    /// The count and the distinct thread names of the adds off a rayon worker.
-    fn off_worker(sites: &[AddSite]) -> (usize, BTreeSet<Option<String>>) {
-        let count = sites.iter().filter(|site| !site.on_worker).count();
-        (count, names(sites, |site| !site.on_worker))
-    }
+    use crate::probe::{ROUTES, add_sites, names, off_worker, thread_name};
 
     /// Runs `sum` over `len` unit terms; whether any `add` ran on a rayon
     /// worker.
@@ -100,26 +85,27 @@ mod dispatch {
 
     #[test]
     fn sum_outside_pool_combines_on_caller() {
-        type Route = fn(&[Probe]) -> Probe;
-        let routes: [(&str, Route); 2] =
-            [("sum", sum), ("sum_with", |terms| sum_with(terms, true))];
-        for (route, reduce) in routes {
+        for (route, reduce) in ROUTES {
             let observed = off_worker(&add_sites(PAR_THRESHOLD, reduce));
             assert_eq!(
                 observed,
-                (1, BTreeSet::from([thread_name()])),
-                "{route} over {PAR_THRESHOLD} terms: expected one add off a worker, on the calling thread, observed (adds off a worker, their thread names) on the left"
+                (1, BTreeSet::from([thread_name()]), true),
+                "{route} over {PAR_THRESHOLD} terms: expected one add off a worker, on the calling thread, as the last record, observed (adds off a worker, their thread names, last record off a worker) on the left"
             );
         }
     }
 
     #[test]
     fn sum_with_two_terms_combines_on_caller() {
-        let observed = off_worker(&add_sites(2, |terms| sum_with(terms, true)));
+        let sites = add_sites(2, |terms| sum_with(terms, true));
+        assert!(
+            sites.iter().any(|site| site.on_worker),
+            "sum_with over 2 terms: expected at least one add on a worker, observed {sites:?}"
+        );
         assert_eq!(
-            observed,
-            (1, BTreeSet::from([thread_name()])),
-            "sum_with over 2 terms: expected one add off a worker, on the calling thread, observed (adds off a worker, their thread names) on the left"
+            off_worker(&sites),
+            (1, BTreeSet::from([thread_name()]), true),
+            "sum_with over 2 terms: expected one add off a worker, on the calling thread, as the last record, observed (adds off a worker, their thread names, last record off a worker) on the left"
         );
     }
 
