@@ -6,6 +6,15 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- `exec::Executor` implements `Debug`.
+
+### Documentation
+
+- `prob::sum`, `prob::sum_with` and the README `parallel` entry state which
+  rayon pool a parallel run uses. Tests in `tests/exec.rs` pin both cases.
+
 ## [0.2.2] - 2026-10-25
 
 ### Added
