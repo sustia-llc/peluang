@@ -1,114 +1,33 @@
 //! `exec::Executor`: closures resolve to their value, run on threads named
 //! `peluang-exec-*`, run on a pool of the configured size (rayon's default
-//! for `0`), and resume their panics on the awaiting task. `prob::sum` and
-//! `prob::sum_with` stay on the executor pool inside `Executor::run`, and
-//! `prob::sum` uses the global pool outside it, except for the last combining
-//! `add` on the calling thread. `Executor` supports `#[derive(Debug)]` on a
-//! struct that holds it.
+//! for `0`), and resume their panics on the awaiting task. Over
+//! `PAR_THRESHOLD` unit terms inside `Executor::run`, `prob::sum` and
+//! `prob::sum_with(_, true)` record more adds than a sequential run, each on
+//! a `peluang-exec-*` thread that reports the executor's pool size. Over the
+//! same terms outside it, they run no add on `peluang-exec-*`, one add on the
+//! calling thread, and every other add on a worker that reports the global
+//! pool size. `Executor` supports `#[derive(Debug)]` on a struct that holds
+//! it.
 
 #![cfg(feature = "async")]
 
+mod probe;
+
 use std::collections::BTreeSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use peluang::error::Result;
 use peluang::exec::Executor;
-use peluang::prob::{PAR_THRESHOLD, Prob, sum, sum_with};
+use peluang::prob::{PAR_THRESHOLD, sum, sum_with};
+use probe::{AddLog, Probe, names, thread_name, unit_terms};
 use tokio_rayon::rayon;
 
-fn thread_name() -> Option<String> {
-    std::thread::current().name().map(str::to_owned)
-}
+type Route = fn(&[Probe]) -> Probe;
+
+const ROUTES: [(&str, Route); 2] = [("sum", sum), ("sum_with", |terms| sum_with(terms, true))];
 
 fn on_exec_thread(name: Option<&str>) -> bool {
     name.is_some_and(|n| n.starts_with("peluang-exec-"))
-}
-
-/// The thread that ran one `Probe::add`.
-#[derive(Clone, Debug)]
-struct AddSite {
-    name: Option<String>,
-    on_worker: bool,
-}
-
-type AddLog = Arc<Mutex<Vec<AddSite>>>;
-
-/// Natural-number weights whose `add` appends its `AddSite` to `log`.
-#[derive(Clone, Debug)]
-struct Probe {
-    n: u64,
-    log: Option<AddLog>,
-}
-
-impl Probe {
-    fn merge(&self, other: &Self, n: u64) -> Self {
-        Probe {
-            n,
-            log: self.log.clone().or_else(|| other.log.clone()),
-        }
-    }
-}
-
-impl PartialEq for Probe {
-    fn eq(&self, other: &Self) -> bool {
-        self.n == other.n
-    }
-}
-
-impl Prob for Probe {
-    fn zero() -> Self {
-        Probe { n: 0, log: None }
-    }
-
-    fn one() -> Self {
-        Probe { n: 1, log: None }
-    }
-
-    fn add(&self, other: &Self) -> Self {
-        let out = self.merge(other, self.n + other.n);
-        if let Some(log) = &out.log {
-            log.lock().unwrap().push(AddSite {
-                name: thread_name(),
-                on_worker: rayon::current_thread_index().is_some(),
-            });
-        }
-        out
-    }
-
-    fn mul(&self, other: &Self) -> Self {
-        self.merge(other, self.n * other.n)
-    }
-
-    fn div_checked(&self, other: &Self) -> Option<Self> {
-        self.n.checked_div(other.n).map(|n| self.merge(other, n))
-    }
-
-    fn is_nonneg(&self) -> bool {
-        true
-    }
-
-    fn approx_eq(&self, other: &Self) -> bool {
-        self == other
-    }
-}
-
-/// `PAR_THRESHOLD` unit terms that record into `log`, and their sum.
-fn unit_terms(log: &AddLog) -> (Vec<Probe>, u64) {
-    let term = Probe {
-        n: 1,
-        log: Some(Arc::clone(log)),
-    };
-    let want = u64::try_from(PAR_THRESHOLD).expect("invariant: PAR_THRESHOLD fits in u64");
-    (vec![term; PAR_THRESHOLD], want)
-}
-
-/// The distinct thread names in `sites` that `keep` selects.
-fn names(sites: &[AddSite], keep: impl Fn(&AddSite) -> bool) -> BTreeSet<Option<String>> {
-    sites
-        .iter()
-        .filter(|site| keep(site))
-        .map(|site| site.name.clone())
-        .collect()
 }
 
 #[tokio::test]
@@ -156,51 +75,70 @@ async fn run_resumes_panic_on_awaiting_task() {
 
 #[tokio::test]
 async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
-    type Route = fn(&[Probe]) -> Probe;
-    let routes: [(&str, Route); 2] = [("sum", sum), ("sum_with", |terms| sum_with(terms, true))];
-    let exec = Executor::with_num_threads(2)?;
+    let exec_size = rayon::current_num_threads() + 1;
+    let exec = Executor::with_num_threads(exec_size)?;
     let mut observed = Vec::new();
-    for (route, reduce) in routes {
+    for (route, reduce) in ROUTES {
         let log = AddLog::default();
-        let (terms, want) = unit_terms(&log);
+        let (terms, want) = unit_terms(&log, PAR_THRESHOLD);
         let total = exec.run(move || reduce(&terms).n).await;
         let sites = log.lock().unwrap();
         let off_pool = names(&sites, |site| !on_exec_thread(site.name.as_deref()));
-        let held = total == want && !sites.is_empty() && off_pool.is_empty();
-        observed.push((held, route, total, sites.len(), off_pool));
+        let sizes: BTreeSet<usize> = sites.iter().map(|site| site.pool_size).collect();
+        let held = total == want
+            && !sites.is_empty()
+            && sites.len() > PAR_THRESHOLD + 1
+            && off_pool.is_empty()
+            && sizes == BTreeSet::from([exec_size]);
+        observed.push((held, route, total, sites.len(), off_pool, sizes));
     }
     assert!(
         observed.iter().all(|(held, ..)| *held),
-        "expected total = {PAR_THRESHOLD}, a non-empty record and every add on peluang-exec-*, observed (held, route, total, records, off-pool names): {observed:?}"
+        "expected total = {PAR_THRESHOLD}, more than {} records (a sequential run records exactly that many), every add on peluang-exec-* and every add seeing the executor size {exec_size}, observed (held, route, total, records, off-pool names, pool sizes): {observed:?}",
+        PAR_THRESHOLD + 1
     );
     Ok(())
 }
 
 #[test]
 fn sum_outside_run_uses_global_pool() -> Result<()> {
-    let _exec = Executor::with_num_threads(2)?;
-    let log = AddLog::default();
-    let (terms, want) = unit_terms(&log);
-    let total = sum(&terms).n;
-    let sites = log.lock().unwrap();
-    let off_worker = sites.iter().filter(|site| !site.on_worker).count();
-    let off_worker_names = names(&sites, |site| !site.on_worker);
-    let on_exec = names(&sites, |site| on_exec_thread(site.name.as_deref()));
-    assert_eq!(total, want, "sum of {want} unit terms = {total}");
-    assert!(
-        sites.len() > 1,
-        "expected adds beyond the top-level combine, observed {} records",
-        sites.len()
-    );
-    assert!(
-        on_exec.is_empty(),
-        "expected no add on peluang-exec-*, observed adds on {on_exec:?}"
-    );
-    assert_eq!(
-        (off_worker, off_worker_names),
-        (1, BTreeSet::from([thread_name()])),
-        "expected every add on a rayon worker except the one top-level combine on the calling thread, observed (adds off a worker, their thread names) on the left"
-    );
+    let global_size = rayon::current_num_threads();
+    let exec_size = global_size + 1;
+    let _exec = Executor::with_num_threads(exec_size)?;
+    for (route, reduce) in ROUTES {
+        let log = AddLog::default();
+        let (terms, want) = unit_terms(&log, PAR_THRESHOLD);
+        let total = reduce(&terms).n;
+        let sites = log.lock().unwrap();
+        let off_worker = sites.iter().filter(|site| !site.on_worker).count();
+        let off_worker_names = names(&sites, |site| !site.on_worker);
+        let on_exec = names(&sites, |site| on_exec_thread(site.name.as_deref()));
+        let worker_sizes: BTreeSet<usize> = sites
+            .iter()
+            .filter(|site| site.on_worker)
+            .map(|site| site.pool_size)
+            .collect();
+        assert_eq!(total, want, "{route}: sum of {want} unit terms = {total}");
+        assert!(
+            sites.len() > 1,
+            "{route}: expected adds beyond the top-level combine, observed {} records",
+            sites.len()
+        );
+        assert!(
+            on_exec.is_empty(),
+            "{route}: expected no add on peluang-exec-*, observed adds on {on_exec:?}"
+        );
+        assert_eq!(
+            worker_sizes,
+            BTreeSet::from([global_size]),
+            "{route}: expected every worker add to see the global size {global_size}, not the executor size {exec_size}, observed worker pool sizes on the left"
+        );
+        assert_eq!(
+            (off_worker, off_worker_names),
+            (1, BTreeSet::from([thread_name()])),
+            "{route}: expected every add on a rayon worker except the one top-level combine on the calling thread, observed (adds off a worker, their thread names) on the left"
+        );
+    }
     Ok(())
 }
 

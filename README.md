@@ -52,8 +52,8 @@ All off by default.
 - `parallel` — `prob::sum` runs on rayon (via `rayon-cond`) at or above
   `prob::PAR_THRESHOLD` terms. It uses the rayon pool of the calling thread:
   the `exec::Executor` pool inside `Executor::run`, the global pool on a
-  thread outside any rayon pool. On that thread, the last combining `add`
-  runs on the calling thread.
+  thread outside any rayon pool. On such a thread, the caller blocks until
+  the pool finishes and then runs the last combining `add`.
 - `async` — implies `parallel`; `exec::Executor` owns a rayon pool and
   `Executor::run` awaits a closure on it (`tokio-rayon`). The crate creates
   no async runtime.
