@@ -59,13 +59,14 @@ impl Prob for Probe {
 
     fn add(&self, other: &Self) -> Self {
         let out = self.merge(other, self.n + other.n);
-        if let Some(log) = &out.log {
-            log.lock().unwrap().push(AddSite {
-                name: thread_name(),
-                on_worker: rayon::current_thread_index().is_some(),
-                pool_size: rayon::current_num_threads(),
-            });
-        }
+        let Some(log) = &out.log else {
+            panic!("Probe::add with no logged operand: this add is unrecorded");
+        };
+        log.lock().unwrap().push(AddSite {
+            name: thread_name(),
+            on_worker: rayon::current_thread_index().is_some(),
+            pool_size: rayon::current_num_threads(),
+        });
         out
     }
 
