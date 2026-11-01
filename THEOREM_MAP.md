@@ -13,9 +13,9 @@ blank lines, comments, docstrings and attributes.
 Comparison rule: a theorem stated up to almost-sure equality is witnessed with
 `as_equal`; an equality theorem with `==` on the exact carrier. Witness tests
 use `Exact` weights and run in every feature lane.
-`scripts/check_theorem_map.py` rejects a tag on a test whose `cfg` names
-`f64-prob`, other than `not(feature = "f64-prob")`. Rows for Mathlib-owned
-theorems are prefixed `mathlib:` and are optional.
+If a file under `tests/formalization_lean/` contains the text `f64-prob`,
+`scripts/check_theorem_map.py` fails. Rows for Mathlib-owned theorems are
+prefixed `mathlib:` and are optional.
 
 Anchor format: `Fritz 2020 Def./Prop./Thm./Lemma/Remark/Notation N.M`
 (arXiv:1908.07021) and/or the Café post's `D`/`T` id. A row can name an

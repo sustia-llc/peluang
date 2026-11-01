@@ -1,6 +1,6 @@
 //! The running example as exact literals built with `Kernel::new`: the objects
-//! `W`, `T`, `S`, the kernels `psi_t`, `c`, `s`, `h`, `f`, `j`, `d`, `e`, and
-//! the comparison that reports observed and expected values.
+//! `W`, `T`, `S`, the kernels `psi_t`, `c`, `s`, `h`, `f`, `j`, `d`, `e`,
+//! `c_tensor_s`, and the comparison that reports observed and expected values.
 
 #![allow(dead_code)]
 
@@ -122,6 +122,22 @@ pub fn d() -> Result<Kernel<Exact>> {
 /// `e : S → T`: on to hot, off to cold.
 pub fn e() -> Result<Kernel<Exact>> {
     points(obj_s()?, obj_t()?, &[0, 1])
+}
+
+/// `c ⊗ₘ s : T ⊗ W → W ⊗ S`, the literal.
+pub fn c_tensor_s() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?.tensor(&obj_w()?)?,
+        obj_w()?.tensor(&obj_s()?)?,
+        &[
+            &[r(1, 6), r(1, 3), r(1, 6), r(1, 3), r(0, 1), r(0, 1)],
+            &[r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 12), r(1, 6), r(1, 4), r(1, 2)],
+            &[r(0, 1), r(0, 1), r(1, 4), r(0, 1), r(3, 4), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(1, 4), r(0, 1), r(3, 4)],
+        ],
+    )
 }
 
 fn show_obj(x: &FinObj) -> String {

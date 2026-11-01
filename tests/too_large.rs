@@ -1,11 +1,13 @@
 //! `Compose::compose`, `Tensor::tensor`, `FinObj::tensor`,
-//! `Kernel::marginal_fst` and `Kernel::marginal_snd` under an allocator that
-//! refuses the reservation of 64 weights: each returns `Error::TooLarge` with
-//! the sizes of that reservation and a `TryReserveError` source, for the buffer
-//! of the result, the buffer of the terms of `compose` and `marginal_snd`, the
-//! factor list of `FinObj::tensor`, and the domain factor list of
-//! `Tensor::tensor`. `compose` on an empty domain and `marginal_fst` reserve no
-//! terms under it. `refusing` restores the limit when `op` panics.
+//! `Kernel::marginal_fst` and `Kernel::marginal_snd`, on `Exact` weights, under
+//! an allocator that refuses allocations of at least the bytes of 64 `Exact`
+//! weights: each returns `Error::TooLarge` with the sizes of the refused
+//! reservation and a `TryReserveError` source, for the buffer of the result,
+//! the buffer of the terms of `compose` and `marginal_snd`, and the two factor
+//! list routes, the factor list of `FinObj::tensor` and the domain factor list
+//! of `Tensor::tensor`, which reserve `Factor`s of that byte size. `compose` on
+//! an empty domain and `marginal_fst` reserve no terms under it. `refusing`
+//! restores the limit when `op` panics.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;

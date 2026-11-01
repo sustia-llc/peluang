@@ -243,7 +243,8 @@ mod kernels {
 
     use crate::common::{closed_form, telescoping};
     use crate::fixtures::{
-        assert_kernel, c, d, e, h, labels, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
+        assert_kernel, c, c_tensor_s, d, e, h, labels, lit, obj_s, obj_t, obj_w, points, psi_t, r,
+        s, show,
     };
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
@@ -442,18 +443,7 @@ mod kernels {
         )?;
         assert_kernel("c ⊗ₘ psi_t", &mixed, &expected);
 
-        let unequal_domains = c()?.tensor(&e()?)?;
-        let expected = lit(
-            obj_t()?.tensor(&obj_s()?)?,
-            obj_w()?.tensor(&obj_t()?)?,
-            &[
-                &[r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1), r(0, 1)],
-                &[r(0, 1), r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1)],
-                &[r(0, 1), r(0, 1), r(1, 4), r(0, 1), r(3, 4), r(0, 1)],
-                &[r(0, 1), r(0, 1), r(0, 1), r(1, 4), r(0, 1), r(3, 4)],
-            ],
-        )?;
-        assert_kernel("c ⊗ₘ e", &unequal_domains, &expected);
+        assert_kernel("c ⊗ₘ s", &c()?.tensor(&s()?)?, &c_tensor_s()?);
         Ok(())
     }
 
@@ -802,7 +792,7 @@ mod kernels {
 
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
-    use crate::fixtures::{c, d, e, f, h, obj_s, obj_t, obj_w, s};
+    use crate::fixtures::{c, c_tensor_s, d, f, h, obj_s, obj_t, obj_w, s};
     use num_traits::ToPrimitive;
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
@@ -865,21 +855,10 @@ mod float_kernels {
 
     #[test]
     fn tensor_has_the_first_factor_major() -> Result<()> {
-        let columns = vec![
-            0.5, 0.0, 0.5, 0.0, 0.0, 0.0, // (hot, on)
-            0.0, 0.5, 0.0, 0.5, 0.0, 0.0, // (hot, off)
-            0.0, 0.0, 0.25, 0.0, 0.75, 0.0, // (cold, on)
-            0.0, 0.0, 0.0, 0.25, 0.0, 0.75, // (cold, off)
-        ];
-        let expected = Kernel::new(
-            obj_t()?.tensor(&obj_s()?)?,
-            obj_w()?.tensor(&obj_t()?)?,
-            columns,
-        )?;
         assert_approx(
-            "c ⊗ₘ e",
-            &floats(&c()?)?.tensor(&floats(&e()?)?)?,
-            &expected,
+            "c ⊗ₘ s",
+            &floats(&c()?)?.tensor(&floats(&s()?)?)?,
+            &floats(&c_tensor_s()?)?,
         );
         Ok(())
     }

@@ -19,7 +19,9 @@ ROW = "| CategoryTheory.Conditional.unique_as | tests/formalization_lean/conditi
 MISPLACED = "is not on the line directly above `#[test]` on a fn"
 
 
-def build(root: Path, *, lean: str | None, row: str | None, test: str | None) -> None:
+def build(
+    root: Path, *, lean: str | None, row: str | None, test: str | None, others: dict[str, str] | None = None
+) -> None:
     (root / "THEOREM_MAP.md").write_text(MAP_HEAD + (row or ""), encoding="utf-8")
     if lean is not None:
         d = root / "lean" / "Peluang"
@@ -29,13 +31,22 @@ def build(root: Path, *, lean: str | None, row: str | None, test: str | None) ->
         d = root / "tests" / "formalization_lean"
         d.mkdir(parents=True)
         (d / "conditional_tests.rs").write_text(test, encoding="utf-8")
+    for name, text in (others or {}).items():
+        path = root / "tests" / "formalization_lean" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
 
 
 class CheckTheoremMap(unittest.TestCase):
-    def run_case(self, **kw: str | None) -> list[str]:
+    def run_case(self, **kw: object) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
             build(Path(tmp), **kw)
             return ctm.check(Path(tmp))
+
+    def assert_forbidden_text(self, expected: list[str], test: str = TEST_FILE, others: dict[str, str] | None = None) -> None:
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=test, others=others)
+        got = [f.split("/tests/formalization_lean/", 1)[1] for f in failures]
+        self.assertEqual(got, [f"{where}: contains the text `f64-prob`" for where in expected], f"failures: {failures}")
 
     def test_empty_repo_passes(self) -> None:
         self.assertEqual(self.run_case(lean=None, row=None, test=None), [])
@@ -93,14 +104,14 @@ class CheckTheoremMap(unittest.TestCase):
         self.assertIn("carries 0", self.run_case(lean=LEAN_FILE, row=ROW, test=test)[-1])
 
     def test_tag_separated_from_test_attr_is_reported(self) -> None:
-        for between in ("\n", "// note\n", "#[cfg(not(feature = \"f64-prob\"))]\n", "/// doc\n"):
+        for between in ("\n", "// note\n", "#[cfg(not(feature = \"parallel\"))]\n", "/// doc\n"):
             with self.subTest(between=between):
                 self.assert_misplaced(TAG + between + "#[test]\nfn unique_as() {}\n", [1], f"tag separated by {between!r}")
 
     def test_lines_allowed_between_test_attr_and_fn_pass(self) -> None:
         for between in (
-            "#[cfg(not(feature = \"f64-prob\"))]\n",
-            "#[cfg(not(feature = \"f64-prob\"))]\n/// doc\n#[allow(dead_code)]\n",
+            "#[cfg(not(feature = \"parallel\"))]\n",
+            "#[cfg(not(feature = \"parallel\"))]\n/// doc\n#[allow(dead_code)]\n",
             "\n",
             "// note\n",
             "//// note\n",
@@ -133,17 +144,40 @@ class CheckTheoremMap(unittest.TestCase):
                 self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [], f"{attr} rejected")
 
     def test_blocking_attrs_are_reported(self) -> None:
-        for attr in ("#[ignore]", "#[should_panic]", "#[should_panic(expected = \"x\")]", "#[cfg(feature = \"f64-prob\")]"):
+        for attr in ("#[ignore]", "#[should_panic]", "#[should_panic(expected = \"x\")]"):
             with self.subTest(attr=attr):
                 failures = self.run_case(lean=LEAN_FILE, row=ROW, test=TAG + "#[test]\n" + attr + "\nfn unique_as() {}\n")
-                self.assertTrue(any("does not run in the exact lane" in f for f in failures), f"{attr} passed: {failures}")
+                self.assertTrue(any("does not run or does not assert" in f for f in failures), f"{attr} passed: {failures}")
 
-    def test_exact_lane_cfg_passes(self) -> None:
-        test = TAG + "#[test]\n#[cfg(not(feature = \"f64-prob\"))]\nfn unique_as() {}\n"
-        self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [])
+    def test_f64_prob_between_test_attr_and_fn_fails(self) -> None:
+        for attr in ("#[cfg(not(feature = \"f64-prob\"))]", "#[cfg(feature = \"f64-prob\")]"):
+            with self.subTest(attr=attr):
+                self.assert_forbidden_text(["conditional_tests.rs:3"], test=TAG + "#[test]\n" + attr + "\nfn unique_as() {}\n")
+
+    def test_f64_prob_in_inner_attribute_fails(self) -> None:
+        main = "#![cfg(not(feature = \"f64-prob\"))]\n\nmod conditional_tests;\n"
+        self.assert_forbidden_text(["main.rs:1"], others={"main.rs": main})
+
+    def test_f64_prob_above_the_tag_fails(self) -> None:
+        self.assert_forbidden_text(["conditional_tests.rs:1"], test="#[cfg(not(feature = \"f64-prob\"))]\n" + TEST_FILE)
+
+    def test_f64_prob_in_cfg_attr_fails(self) -> None:
+        test = TAG + "#[test]\n#[cfg_attr(feature = \"f64-prob\", allow(dead_code))]\nfn unique_as() {}\n"
+        self.assert_forbidden_text(["conditional_tests.rs:3"], test=test)
+
+    def test_f64_prob_on_a_mod_fails(self) -> None:
+        test = "#[cfg(not(feature = \"f64-prob\"))]\nmod witnesses {\n" + TEST_FILE + "}\n"
+        self.assert_forbidden_text(["conditional_tests.rs:1"], test=test)
+
+    def test_f64_prob_in_a_comment_fails(self) -> None:
+        self.assert_forbidden_text(["conditional_tests.rs:1"], test="// not in the f64-prob lane\n" + TEST_FILE)
+
+    def test_f64_prob_is_reported_once_per_line_in_every_file(self) -> None:
+        others = {"nested/helpers.rs": "\n// f64-prob, f64-prob\n", "main.rs": "// f64-prob\n"}
+        self.assert_forbidden_text(["main.rs:1", "nested/helpers.rs:2"], others=others)
 
     def test_test_attr_with_trailing_comment_passes(self) -> None:
-        test = TAG + "#[test] // exact lane\nfn unique_as() {}\n"
+        test = TAG + "#[test] // note\nfn unique_as() {}\n"
         self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=test), [])
 
     def test_second_tag_between_test_attr_and_fn_is_reported(self) -> None:

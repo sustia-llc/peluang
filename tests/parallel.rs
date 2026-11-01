@@ -11,11 +11,9 @@
 
 #![cfg(feature = "parallel")]
 
-#[cfg(not(feature = "f64-prob"))]
 mod common;
 mod probe;
 
-#[cfg(not(feature = "f64-prob"))]
 mod exact {
     use crate::common::telescoping;
     use peluang::prob::{Exact, PAR_THRESHOLD, Prob, sum_with};

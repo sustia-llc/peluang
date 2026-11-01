@@ -9,8 +9,13 @@ git tag is the authoritative pin.
 ### Changed
 
 - The witness tests in `tests/formalization_lean/` and the tests on `Exact`
-  weights in `tests/canonical.rs` run in every feature lane, also under
-  `f64-prob`.
+  weights in `tests/canonical.rs` and `tests/parallel.rs` run in every feature
+  lane that compiles them, also under `f64-prob`.
+- If a file under `tests/formalization_lean/` contains the text `f64-prob`,
+  `scripts/check_theorem_map.py` fails.
+- The pin gaps of issue #18 are closed in `tests/canonical.rs` and
+  `tests/too_large.rs`, apart from the two items that remain open on that
+  issue.
 
 ## [0.2.3] - 2026-11-01
 
