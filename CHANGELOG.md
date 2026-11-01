@@ -12,8 +12,8 @@ git tag is the authoritative pin.
   stochastic matrices with entries in `ℚ≥0`, `instance : MarkovCategory
   FinStoch` (Fritz 2020 Example 2.5), the deterministic morphisms as functions
   (Example 10.3), and a Bernoulli state that is not deterministic.
-- `tests/laws.rs`: `proptest` law tests on generated kernels, in the `Exact`
-  lane and under `f64-prob` in the `f64` lane.
+- `tests/laws.rs`: law tests on `proptest` kernels and on each cardinality from
+  0 to 4, in the `Exact` lane and under `f64-prob` in the `f64` lane.
 - `tests/formalization_lean/finstoch_tests.rs` with 11 witness tests and
   `THEOREM_MAP.md` rows.
 

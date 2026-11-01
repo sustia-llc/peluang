@@ -1,5 +1,5 @@
-//! Witnesses of `Peluang.Instances.FinStoch` at the running example, each
-//! compared with a literal built through `Kernel::new`.
+//! Witnesses of `Peluang.Instances.FinStoch`: kernels compared with a literal
+//! built through `Kernel::new`, and `is_deterministic` at a fixed expected value.
 
 use peluang::deterministic::is_deterministic;
 use peluang::error::Result;
@@ -8,13 +8,12 @@ use peluang::kernel::Kernel;
 use peluang::markov::{Compose, Tensor};
 use peluang::prob::{Exact, Prob};
 
-use crate::fixtures::{assert_kernel, c, d, e, h, lit, obj_s, obj_t, obj_w, points, r, s, show};
+use crate::fixtures::{assert_kernel, c, d, h, lit, obj_s, obj_t, obj_w, points, r, s, show};
 
 /// Whether each entry of `k` is `0` or `1`.
 fn entries_are_zero_or_one(k: &Kernel<Exact>) -> bool {
     (0..k.domain().card())
-        .filter_map(|x| k.column(x))
-        .flatten()
+        .flat_map(|x| k.column(x).expect("invariant: x < dom.card() has a column"))
         .all(|weight| *weight == Exact::zero() || *weight == Exact::one())
 }
 
@@ -63,17 +62,21 @@ fn witness_of_fun_id() -> Result<()> {
 fn witness_of_fun_comp() -> Result<()> {
     let (w, sp, t) = (obj_w()?, obj_s()?, obj_t()?);
     let to_s = |x: usize| usize::from(x > 0);
-    let to_t = |y: usize| y;
-    let expected = points(w.clone(), t.clone(), &[0, 1, 1])?;
+    let to_t = |y: usize| 1 - y;
+    let expected = points(w.clone(), t.clone(), &[1, 0, 0])?;
     let composite = Kernel::<Exact>::from_fn(w.clone(), sp.clone(), to_s)?
-        .compose(&Kernel::from_fn(sp, t.clone(), to_t)?)?;
-    assert_kernel("from_fn d ≫ from_fn e", &composite, &expected);
+        .compose(&Kernel::from_fn(sp.clone(), t.clone(), to_t)?)?;
+    assert_kernel("from_fn d ≫ from_fn (1 - y)", &composite, &expected);
     assert_kernel(
         "from_fn of the composite",
-        &Kernel::from_fn(w, t, |x| to_t(to_s(x)))?,
+        &Kernel::from_fn(w, t.clone(), |x| to_t(to_s(x)))?,
         &expected,
     );
-    assert_kernel("d ≫ e", &d()?.compose(&e()?)?, &expected);
+    assert_kernel(
+        "d ≫ the literal of 1 - y",
+        &d()?.compose(&points(sp, t, &[1, 0])?)?,
+        &expected,
+    );
     Ok(())
 }
 
@@ -148,12 +151,15 @@ fn witness_deterministic_iff_mass() -> Result<()> {
 fn witness_deterministic_iff_exists_of_fun() -> Result<()> {
     let function = Kernel::from_fn(obj_w()?, obj_s()?, |x| usize::from(x > 0))?;
     assert_kernel("from_fn of d", &function, &d()?);
-    let observed = is_deterministic(&function)?;
-    assert!(
-        observed,
-        "is_deterministic(from_fn of d) on {}: expected true, observed {observed}",
-        show(&function)
-    );
+    for (name, kernel, expected) in [("from_fn of d", function, true), ("s", s()?, false)] {
+        let observed = is_deterministic(&kernel)?;
+        assert_eq!(
+            observed,
+            expected,
+            "is_deterministic({name}) on {}: expected {expected}, observed {observed}",
+            show(&kernel)
+        );
+    }
     Ok(())
 }
 
@@ -175,7 +181,7 @@ fn witness_not_deterministic_bernoulli() -> Result<()> {
 fn witness_markov_category() -> Result<()> {
     let (w, t, sp) = (obj_w()?, obj_t()?, obj_s()?);
     let unit = FinObj::unit();
-    let ts = t.tensor(&sp)?;
+    let ws = w.tensor(&sp)?;
 
     assert_kernel(
         "c ≫ ε[W]",
@@ -183,23 +189,34 @@ fn witness_markov_category() -> Result<()> {
         &points(t.clone(), unit.clone(), &[0, 0])?,
     );
 
-    let tensor_mu = Kernel::identity(&t)?
-        .tensor(&Kernel::swap(&t, &sp)?)?
-        .tensor(&Kernel::identity(&sp)?)?;
-    let copies = Kernel::<Exact>::copy(&t)?.tensor(&Kernel::copy(&sp)?)?;
-    let diagonal = points(ts.clone(), ts.tensor(&ts)?, &[0, 5, 10, 15])?;
-    assert_kernel("Δ[T ⊗ S]", &Kernel::copy(&ts)?, &diagonal);
     assert_kernel(
-        "(Δ[T] ⊗ₘ Δ[S]) ≫ tensorμ",
+        "Δ[I]",
+        &Kernel::copy(&unit)?,
+        &lit(unit.clone(), unit.tensor(&unit)?, &[&[r(1, 1)]])?,
+    );
+    assert_kernel(
+        "ε[I]",
+        &Kernel::del(&unit)?,
+        &lit(unit.clone(), unit.clone(), &[&[r(1, 1)]])?,
+    );
+
+    let tensor_mu = Kernel::identity(&w)?
+        .tensor(&Kernel::swap(&w, &sp)?)?
+        .tensor(&Kernel::identity(&sp)?)?;
+    let copies = Kernel::<Exact>::copy(&w)?.tensor(&Kernel::copy(&sp)?)?;
+    let diagonal = points(ws.clone(), ws.tensor(&ws)?, &[0, 7, 14, 21, 28, 35])?;
+    assert_kernel("Δ[W ⊗ S]", &Kernel::copy(&ws)?, &diagonal);
+    assert_kernel(
+        "(Δ[W] ⊗ₘ Δ[S]) ≫ tensorμ",
         &copies.compose(&tensor_mu)?,
         &diagonal,
     );
 
-    let to_unit = points(ts.clone(), unit.clone(), &[0, 0, 0, 0])?;
-    let discards = Kernel::<Exact>::del(&t)?.tensor(&Kernel::del(&sp)?)?;
-    assert_kernel("ε[T ⊗ S]", &Kernel::del(&ts)?, &to_unit);
+    let to_unit = points(ws.clone(), unit.clone(), &[0, 0, 0, 0, 0, 0])?;
+    let discards = Kernel::<Exact>::del(&w)?.tensor(&Kernel::del(&sp)?)?;
+    assert_kernel("ε[W ⊗ S]", &Kernel::del(&ws)?, &to_unit);
     assert_kernel(
-        "(ε[T] ⊗ₘ ε[S]) ≫ λ_ I",
+        "(ε[W] ⊗ₘ ε[S]) ≫ λ_ I",
         &discards.compose(&Kernel::left_unitor(&unit)?)?,
         &to_unit,
     );

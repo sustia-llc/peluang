@@ -17,8 +17,8 @@ Instance search for the copy-discard and Markov classes and for the comonoid cla
 nested tensor and unit objects. The instance that `Δ[X ⊗ Y]` and `ε[X ⊗ Y]` elaborate to, its
 relation to `CopyDiscardCategory.comonObj` and `Comon.instComonObjTensorObj`, and `copy_eq_ofFun`
 and `discard_eq_ofFun` at tensor objects. The class laws at their `FinStoch` statements, `tensorμ`
-as `Hom.ofFun`, the instance-search goals of issue 9 at `FinStoch` objects, and values of `Δ[X]`
-and `ε[X]` in `ℚ≥0` by `#guard`.
+as `Hom.ofFun`, instance search for `Deterministic` and `IsComonHom` at tensors, whiskers,
+associators and `Δ[X ⊗ Y]`, and values of `Δ[X]` and `ε[X]` in `ℚ≥0` by `#guard`.
 -/
 
 public section

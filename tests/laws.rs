@@ -1,7 +1,14 @@
-//! Generated tests of the Markov-category laws on `Kernel`, on objects of
-//! cardinality 1 to 4 and kernels whose columns are positive integers from 1 to
-//! 9 over their sum: on `Exact` weights under `==` in every feature lane, on
-//! `f64` weights under `Kernel::approx_eq` under `f64-prob`.
+//! Tests on `Kernel` of identity, associativity, interchange, naturality of
+//! `swap`, `associator` and `del`, coassociativity and cocommutativity of
+//! `copy`, the counit laws, `copy_tensor` and `discard_tensor`, on objects of
+//! cardinality 0 to 4. The laws on kernels are generated: each column is
+//! integers from 0 to 9, not all zero, over their sum, and a codomain has
+//! cardinality 0 only over a domain of cardinality 0. The five laws with no
+//! kernel loop over each cardinality and each pair. Laws run on `Exact` weights
+//! under `==` in every feature lane, on `f64` weights under `Kernel::approx_eq`
+//! under `f64-prob`. The `parallel` and `async` lanes run the sequential branch
+//! of `prob::sum`: the largest middle of a composite in this file is 256, in
+//! `copy_tensor` at cardinalities 4 and 4, below `PAR_THRESHOLD`.
 
 use std::ops::RangeInclusive;
 
@@ -12,6 +19,7 @@ use peluang::markov::{Compose, Tensor};
 use peluang::prob::{Exact, Prob};
 use proptest::collection::vec;
 use proptest::prelude::*;
+use proptest::test_runner::TestCaseResult;
 
 /// What a law body needs from a weight type: the weight `n / d` and the
 /// equality of kernels of the lane.
@@ -56,24 +64,71 @@ impl Draw {
 }
 
 fn card() -> RangeInclusive<usize> {
-    1..=4
+    0..=4
+}
+
+/// The cardinalities of a codomain over a domain of cardinality `dom`: a
+/// kernel from a nonempty domain to an empty codomain does not exist.
+fn card_after(dom: usize) -> RangeInclusive<usize> {
+    usize::from(dom > 0)..=4
+}
+
+/// A column of `cod > 0` integers from 0 to 9, with one entry at least 1.
+fn column(cod: usize) -> impl Strategy<Value = Vec<u32>> {
+    (vec(0_u32..=9, cod), 0..cod, 1_u32..=9).prop_map(|(mut column, index, entry)| {
+        column[index] = entry;
+        column
+    })
 }
 
 fn draw(dom: usize, cod: usize) -> impl Strategy<Value = Draw> {
-    vec(vec(1_u32..=9, cod), dom).prop_map(move |columns| Draw { dom, cod, columns })
+    vec(column(cod), dom).prop_map(move |columns| Draw { dom, cod, columns })
 }
 
 fn morphism() -> impl Strategy<Value = Draw> {
-    (card(), card()).prop_flat_map(|(dom, cod)| draw(dom, cod))
+    card().prop_flat_map(|dom| card_after(dom).prop_flat_map(move |cod| draw(dom, cod)))
 }
 
+/// Each object is drawn from `card_after` of the one before it, so each draw
+/// has codomain 0 only over domain 0 and shares its middle object.
 fn composable_pair() -> impl Strategy<Value = (Draw, Draw)> {
-    (card(), card(), card()).prop_flat_map(|(a, b, c)| (draw(a, b), draw(b, c)))
+    card().prop_flat_map(|a| {
+        card_after(a)
+            .prop_flat_map(move |b| card_after(b).prop_flat_map(move |c| (draw(a, b), draw(b, c))))
+    })
 }
 
+/// Each object is drawn from `card_after` of the one before it, as in
+/// `composable_pair`.
 fn composable_triple() -> impl Strategy<Value = (Draw, Draw, Draw)> {
-    (card(), card(), card(), card())
-        .prop_flat_map(|(a, b, c, d)| (draw(a, b), draw(b, c), draw(c, d)))
+    card().prop_flat_map(|a| {
+        card_after(a).prop_flat_map(move |b| {
+            card_after(b).prop_flat_map(move |c| {
+                card_after(c).prop_flat_map(move |d| (draw(a, b), draw(b, c), draw(c, d)))
+            })
+        })
+    })
+}
+
+/// Panics naming the cardinality at the first `x` of `card()` where `law` fails.
+fn at_each_card(law: impl Fn(usize) -> TestCaseResult) {
+    for x in card() {
+        if let Err(failure) = law(x) {
+            panic!("cardinality {x}: {failure}");
+        }
+    }
+}
+
+/// Panics naming the cardinalities at the first pair of `card()` where `law`
+/// fails.
+fn at_each_card_pair(law: impl Fn(usize, usize) -> TestCaseResult) {
+    for x in card() {
+        for y in card() {
+            if let Err(failure) = law(x, y) {
+                panic!("cardinalities {x}, {y}: {failure}");
+            }
+        }
+    }
 }
 
 /// Fails the case unless `observed` equals `expected` in the lane.
@@ -82,7 +137,7 @@ fn check<P: Prob>(
     law: &str,
     observed: &Kernel<P>,
     expected: &Kernel<P>,
-) -> std::result::Result<(), TestCaseError> {
+) -> TestCaseResult {
     prop_assert!(
         (lane.same)(observed, expected),
         "{law}: expected {expected:?}, observed {observed:?}"
@@ -90,9 +145,7 @@ fn check<P: Prob>(
     Ok(())
 }
 
-type Outcome = std::result::Result<(), TestCaseError>;
-
-fn identity_law<P: Prob>(lane: &Lane<P>, f: &Draw) -> Outcome {
+fn identity_law<P: Prob>(lane: &Lane<P>, f: &Draw) -> TestCaseResult {
     let f = f.kernel(lane)?;
     let left = Kernel::identity(f.domain())?.compose(&f)?;
     let right = f.compose(&Kernel::identity(f.codomain())?)?;
@@ -100,7 +153,7 @@ fn identity_law<P: Prob>(lane: &Lane<P>, f: &Draw) -> Outcome {
     check(lane, "f ≫ 𝟙 Y = f", &right, &f)
 }
 
-fn associativity_law<P: Prob>(lane: &Lane<P>, (f, g, h): &(Draw, Draw, Draw)) -> Outcome {
+fn associativity_law<P: Prob>(lane: &Lane<P>, (f, g, h): &(Draw, Draw, Draw)) -> TestCaseResult {
     let (f, g, h) = (f.kernel(lane)?, g.kernel(lane)?, h.kernel(lane)?);
     let left = f.compose(&g)?.compose(&h)?;
     let right = f.compose(&g.compose(&h)?)?;
@@ -111,7 +164,7 @@ fn interchange_law<P: Prob>(
     lane: &Lane<P>,
     (f, h): &(Draw, Draw),
     (g, k): &(Draw, Draw),
-) -> Outcome {
+) -> TestCaseResult {
     let (f, g) = (f.kernel(lane)?, g.kernel(lane)?);
     let (h, k) = (h.kernel(lane)?, k.kernel(lane)?);
     let left = f.tensor(&g)?.compose(&h.tensor(&k)?)?;
@@ -124,7 +177,7 @@ fn interchange_law<P: Prob>(
     )
 }
 
-fn swap_natural_law<P: Prob>(lane: &Lane<P>, f: &Draw, g: &Draw) -> Outcome {
+fn swap_natural_law<P: Prob>(lane: &Lane<P>, f: &Draw, g: &Draw) -> TestCaseResult {
     let (f, g) = (f.kernel(lane)?, g.kernel(lane)?);
     let left = f
         .tensor(&g)?
@@ -133,7 +186,26 @@ fn swap_natural_law<P: Prob>(lane: &Lane<P>, f: &Draw, g: &Draw) -> Outcome {
     check(lane, "(f ⊗ₘ g) ≫ β_ = β_ ≫ (g ⊗ₘ f)", &left, &right)
 }
 
-fn copy_coassociative_law<P: Prob>(lane: &Lane<P>, x: usize) -> Outcome {
+/// Both sides are `X ⊗ Y ⊗ Z → X' ⊗ Y' ⊗ Z'`, with each object of at most
+/// 4 * 4 * 4 elements.
+fn associator_natural_law<P: Prob>(lane: &Lane<P>, f: &Draw, g: &Draw, h: &Draw) -> TestCaseResult {
+    let (f, g, h) = (f.kernel(lane)?, g.kernel(lane)?, h.kernel(lane)?);
+    let left = f.tensor(&g)?.tensor(&h)?.compose(&Kernel::associator(
+        f.codomain(),
+        g.codomain(),
+        h.codomain(),
+    )?)?;
+    let right = Kernel::associator(f.domain(), g.domain(), h.domain())?
+        .compose(&f.tensor(&g.tensor(&h)?)?)?;
+    check(
+        lane,
+        "((f ⊗ₘ g) ⊗ₘ h) ≫ α_ = α_ ≫ (f ⊗ₘ (g ⊗ₘ h))",
+        &left,
+        &right,
+    )
+}
+
+fn copy_coassociative_law<P: Prob>(lane: &Lane<P>, x: usize) -> TestCaseResult {
     let x = FinObj::new(x);
     let copy = Kernel::<P>::copy(&x)?;
     let id = Kernel::identity(&x)?;
@@ -144,14 +216,14 @@ fn copy_coassociative_law<P: Prob>(lane: &Lane<P>, x: usize) -> Outcome {
     check(lane, "Δ ≫ (Δ ▷ X) ≫ α_ = Δ ≫ (X ◁ Δ)", &left, &right)
 }
 
-fn copy_cocommutative_law<P: Prob>(lane: &Lane<P>, x: usize) -> Outcome {
+fn copy_cocommutative_law<P: Prob>(lane: &Lane<P>, x: usize) -> TestCaseResult {
     let x = FinObj::new(x);
     let copy = Kernel::<P>::copy(&x)?;
     let swapped = copy.compose(&Kernel::swap(&x, &x)?)?;
     check(lane, "Δ ≫ β_ = Δ", &swapped, &copy)
 }
 
-fn counit_law<P: Prob>(lane: &Lane<P>, x: usize) -> Outcome {
+fn counit_law<P: Prob>(lane: &Lane<P>, x: usize) -> TestCaseResult {
     let x = FinObj::new(x);
     let (copy, del) = (Kernel::<P>::copy(&x)?, Kernel::<P>::del(&x)?);
     let id = Kernel::identity(&x)?;
@@ -165,7 +237,7 @@ fn counit_law<P: Prob>(lane: &Lane<P>, x: usize) -> Outcome {
     check(lane, "Δ ≫ (X ◁ ε) ≫ ρ_ = 𝟙 X", &right, &id)
 }
 
-fn copy_tensor_law<P: Prob>(lane: &Lane<P>, x: usize, y: usize) -> Outcome {
+fn copy_tensor_law<P: Prob>(lane: &Lane<P>, x: usize, y: usize) -> TestCaseResult {
     let (x, y) = (FinObj::new(x), FinObj::new(y));
     let tensor_mu = Kernel::identity(&x)?
         .tensor(&Kernel::swap(&x, &y)?)?
@@ -177,7 +249,7 @@ fn copy_tensor_law<P: Prob>(lane: &Lane<P>, x: usize, y: usize) -> Outcome {
     check(lane, "Δ[X ⊗ Y] = (Δ[X] ⊗ₘ Δ[Y]) ≫ tensorμ", &left, &right)
 }
 
-fn discard_tensor_law<P: Prob>(lane: &Lane<P>, x: usize, y: usize) -> Outcome {
+fn discard_tensor_law<P: Prob>(lane: &Lane<P>, x: usize, y: usize) -> TestCaseResult {
     let (x, y) = (FinObj::new(x), FinObj::new(y));
     let right = Kernel::<P>::del(&x)?
         .tensor(&Kernel::del(&y)?)?
@@ -186,18 +258,43 @@ fn discard_tensor_law<P: Prob>(lane: &Lane<P>, x: usize, y: usize) -> Outcome {
     check(lane, "ε[X ⊗ Y] = (ε[X] ⊗ₘ ε[Y]) ≫ λ_ I", &left, &right)
 }
 
-fn discard_natural_law<P: Prob>(lane: &Lane<P>, f: &Draw) -> Outcome {
+fn discard_natural_law<P: Prob>(lane: &Lane<P>, f: &Draw) -> TestCaseResult {
     let f = f.kernel(lane)?;
     let left = f.compose(&Kernel::del(f.codomain())?)?;
     let right = Kernel::del(f.domain())?;
     check(lane, "f ≫ ε[Y] = ε[X]", &left, &right)
 }
 
-/// The module `$module` with one generated test per law, in lane `$lane`.
+/// The module `$module` with one test per law, in lane `$lane`.
 macro_rules! law_tests {
     ($module:ident, $lane:expr) => {
         mod $module {
             use super::*;
+
+            #[test]
+            fn copy_coassociative() {
+                at_each_card(|x| copy_coassociative_law(&$lane, x));
+            }
+
+            #[test]
+            fn copy_cocommutative() {
+                at_each_card(|x| copy_cocommutative_law(&$lane, x));
+            }
+
+            #[test]
+            fn counit() {
+                at_each_card(|x| counit_law(&$lane, x));
+            }
+
+            #[test]
+            fn copy_tensor() {
+                at_each_card_pair(|x, y| copy_tensor_law(&$lane, x, y));
+            }
+
+            #[test]
+            fn discard_tensor() {
+                at_each_card_pair(|x, y| discard_tensor_law(&$lane, x, y));
+            }
 
             proptest! {
                 #[test]
@@ -221,28 +318,8 @@ macro_rules! law_tests {
                 }
 
                 #[test]
-                fn copy_coassociative(x in card()) {
-                    copy_coassociative_law(&$lane, x)?;
-                }
-
-                #[test]
-                fn copy_cocommutative(x in card()) {
-                    copy_cocommutative_law(&$lane, x)?;
-                }
-
-                #[test]
-                fn counit(x in card()) {
-                    counit_law(&$lane, x)?;
-                }
-
-                #[test]
-                fn copy_tensor(x in card(), y in card()) {
-                    copy_tensor_law(&$lane, x, y)?;
-                }
-
-                #[test]
-                fn discard_tensor(x in card(), y in card()) {
-                    discard_tensor_law(&$lane, x, y)?;
+                fn associator_natural(f in morphism(), g in morphism(), h in morphism()) {
+                    associator_natural_law(&$lane, &f, &g, &h)?;
                 }
 
                 #[test]

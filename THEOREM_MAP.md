@@ -2,9 +2,12 @@
 
 One row per Lean theorem under `lean/Peluang/`: the fully qualified Lean id,
 the Rust witness test, and the anchor. Lean proves the universal statement.
-The Rust test pins the engine at worked examples, and `tests/laws.rs` pins the
-structure laws at property-generated inputs. Phase 3 proves the FinStoch
-instance of the abstract statements in the `CategoryTheory.*` rows.
+The Rust test pins the engine at worked examples. `tests/laws.rs` pins identity,
+associativity, interchange, naturality of `swap` and of the associator, and
+naturality of `del` at property-generated inputs. It also tests the `copy` laws,
+counit, `copy_tensor` and `discard_tensor` at each cardinality from 0 to 4.
+`lean/Peluang/Instances/FinStoch/` proves the FinStoch instance of the abstract
+statements in the `CategoryTheory.*` rows.
 `scripts/check_theorem_map.py` enforces: every `theorem` or `lemma`
 under `lean/Peluang/` has a row whose test exists (exactly one `#[test]` under
 `tests/formalization_lean/` carrying `/// THEOREM_MAP: <id>`), or an opt-out
