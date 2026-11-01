@@ -13,9 +13,10 @@ comment allowed), the first line after that which is not blank, a `//`/`///`
 comment other than a tag, or a single-line `#[...]` attribute is the `fn`, and
 no attribute line in between is `#[ignore]` or `#[should_panic]`; and when no
 line of a `.rs` file under tests/formalization_lean/, comments included,
-contains the text `f64-prob`. Exit 1 otherwise, printing each failure (each
-misplaced tag and each line holding that text with its file and line) on its
-own line.
+contains the text `f64-prob` or the text `cfg` at the start of a word (which
+covers `cfg_attr`). Exit 1 otherwise, printing each failure (each misplaced tag,
+and each line holding that text once, with its file and line and the text
+matched) on its own line.
 
 Usage: check_theorem_map.py [REPO_ROOT]
 """
@@ -51,7 +52,7 @@ TEST_FN_RE = re.compile(
 TEST_ATTR_RE = re.compile(r"^\s*#\[(?:test|(?:\w+::)+test(?:\(.*\))?)\]\s*(?://.*)?$")
 BETWEEN_RE = re.compile(r"^\s*(?:#\[.*\]\s*(?://.*)?|//.*)?$")
 NOT_RUN_RE = re.compile(r"^\s*#\[\s*(?:ignore|should_panic)\b")
-FORBIDDEN_TEXT = "f64-prob"
+FORBIDDEN_RE = re.compile(r"f64-prob|\bcfg")
 
 
 @dataclass(frozen=True)
@@ -174,12 +175,15 @@ def map_rows(map_path: Path) -> tuple[dict[str, tuple[str, int]], list[str]]:
 
 def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], list[str]]:
     tags: dict[str, list[tuple[Path, str]]] = {}
-    misplaced: list[str] = []
+    failures: list[str] = []
     if not tests_root.is_dir():
-        return tags, misplaced
+        return tags, failures
     for path in sorted(tests_root.rglob("*.rs")):
         lines = path.read_text(encoding="utf-8").splitlines()
         for i, line in enumerate(lines):
+            forbidden = list(dict.fromkeys(FORBIDDEN_RE.findall(line)))
+            if forbidden:
+                failures.append(f"{path}:{i + 1}: contains the text {', '.join(f'`{t}`' for t in forbidden)}")
             m = TAG_RE.match(line)
             if not m:
                 continue
@@ -193,29 +197,18 @@ def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], l
                     j += 1
                 fm = TEST_FN_RE.match(lines[j]) if j < len(lines) else None
             if fm and blocking:
-                misplaced.append(
+                failures.append(
                     f"{path}:{i + 1}: `/// THEOREM_MAP: {m.group(1)}` sits on a test that does not run "
                     f"or does not assert: {', '.join(f'`{b}`' for b in blocking)}"
                 )
             elif fm:
                 tags.setdefault(m.group(1), []).append((path, fm.group(1)))
             else:
-                misplaced.append(
+                failures.append(
                     f"{path}:{i + 1}: `/// THEOREM_MAP: {m.group(1)}` is not on the line directly above "
                     "`#[test]` on a fn"
                 )
-    return tags, misplaced
-
-
-def forbidden_text(tests_root: Path) -> list[str]:
-    failures: list[str] = []
-    if not tests_root.is_dir():
-        return failures
-    for path in sorted(tests_root.rglob("*.rs")):
-        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
-            if FORBIDDEN_TEXT in line:
-                failures.append(f"{path}:{i + 1}: contains the text `{FORBIDDEN_TEXT}`")
-    return failures
+    return tags, failures
 
 
 def check(root: Path) -> list[str]:
@@ -225,10 +218,8 @@ def check(root: Path) -> list[str]:
         return [f"{map_path}: missing"]
     rows, duplicates = map_rows(map_path)
     failures.extend(duplicates)
-    tests_root = root / "tests" / "formalization_lean"
-    tags, misplaced = tagged_tests(tests_root)
-    failures.extend(misplaced)
-    failures.extend(forbidden_text(tests_root))
+    tags, test_failures = tagged_tests(root / "tests" / "formalization_lean")
+    failures.extend(test_failures)
 
     decls = library_decls(root / "lean")
     for d in decls:

@@ -241,10 +241,10 @@ mod kernels {
     use std::collections::TryReserveError;
     use std::error::Error as StdError;
 
+    use crate::c_tensor_s;
     use crate::common::{closed_form, telescoping};
     use crate::fixtures::{
-        assert_kernel, c, c_tensor_s, d, e, h, labels, lit, obj_s, obj_t, obj_w, points, psi_t, r,
-        s, show,
+        assert_kernel, c, d, e, h, labels, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
     };
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
@@ -790,9 +790,28 @@ mod kernels {
     }
 }
 
+/// `c ⊗ₘ s : T ⊗ W → W ⊗ S`, the literal.
+fn c_tensor_s() -> peluang::error::Result<peluang::kernel::Kernel<peluang::prob::Exact>> {
+    use crate::fixtures::{lit, obj_s, obj_t, obj_w, r};
+
+    lit(
+        obj_t()?.tensor(&obj_w()?)?,
+        obj_w()?.tensor(&obj_s()?)?,
+        &[
+            &[r(1, 6), r(1, 3), r(1, 6), r(1, 3), r(0, 1), r(0, 1)],
+            &[r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 12), r(1, 6), r(1, 4), r(1, 2)],
+            &[r(0, 1), r(0, 1), r(1, 4), r(0, 1), r(3, 4), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(1, 4), r(0, 1), r(3, 4)],
+        ],
+    )
+}
+
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
-    use crate::fixtures::{c, c_tensor_s, d, f, h, obj_s, obj_t, obj_w, s};
+    use crate::c_tensor_s;
+    use crate::fixtures::{c, d, f, h, obj_s, obj_t, obj_w, s};
     use num_traits::ToPrimitive;
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
