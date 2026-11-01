@@ -1,14 +1,34 @@
 # peluang
 
 Categorical probability with proofs: a Lean 4 library over Mathlib's
-`MarkovCategory` (FinStoch, deterministic morphisms, almost-sure equality,
-conditionals, conditional independence) and a Rust crate computing the same
-structures on finite stochastic kernels, bridged by `THEOREM_MAP.md` — one
-Rust witness test per Lean theorem.
+`MarkovCategory` and a Rust crate that computes the same structures on finite
+stochastic kernels. `THEOREM_MAP.md` is the bridge: each Lean theorem has a Rust
+witness test or a stated opt-out.
 
 Anchor of record: T. Fritz, *A synthetic approach to Markov kernels,
 conditional independence and theorems on sufficient statistics*,
-arXiv:1908.07021; cited by definition and theorem number.
+arXiv:1908.07021. Citations use definition and theorem numbers.
+
+## Results
+
+Release `v0.3.0` proves these statements under `lean/Peluang/`. The proofs have
+no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
+`Quot.sound`.
+
+- `instance : MarkovCategory FinStoch`: finite sets and stochastic matrices with
+  entries in `ℚ≥0` form a Markov category (Fritz 2020 Example 2.5).
+- The deterministic morphisms of FinStoch are the functions (Example 10.3). A
+  Bernoulli state is not deterministic.
+- In a Markov category, the deterministic morphisms form a wide subcategory that
+  is again a Markov category.
+
+`THEOREM_MAP.md` has 32 rows that pair a Lean id with a Rust test. At this
+release, the crate has 135 tests with all features on. Almost-sure equality,
+conditionals and conditional independence are planned.
+
+![Mathlib classes and what peluang adds](docs/diagrams/lean-1-classes.svg)
+
+![A Lean theorem, its row, its witness](docs/diagrams/lean-4-bridge.svg)
 
 ## Architecture
 
@@ -83,6 +103,7 @@ with default features. Browsers are out of scope. CI checks these with
 # Rust
 cargo nextest run
 cargo nextest run --features f64-prob
+cargo nextest run --features parallel
 cargo nextest run --features async
 cargo nextest run --all-features
 # scripts and bridge (no Lean needed)
@@ -101,10 +122,6 @@ rg -c 'peluangTest audit: [0-9]+ files' /tmp/lake-build.log   # must print 1
 python3 -I scripts/print_axioms.py
 python3 -I scripts/probe_selftest.py
 ```
-
-## Examples
-
-`examples/` holds the crate's usage; none yet.
 
 ## Documentation
 
