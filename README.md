@@ -17,18 +17,19 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 
 - `instance : MarkovCategory FinStoch`: finite sets and stochastic matrices with
   entries in `ℚ≥0` form a Markov category (Fritz 2020 Example 2.5).
-- The deterministic morphisms of FinStoch are the functions (Example 10.3). A
-  Bernoulli state is not deterministic.
+- The deterministic morphisms of FinStoch are the functions (Example 10.3). The
+  fair Bernoulli state is not deterministic.
 - In a Markov category, the deterministic morphisms form a wide subcategory that
-  is again a Markov category.
+  is again a Markov category (Remark 10.13). This instance has no
+  `THEOREM_MAP.md` row.
 
-`THEOREM_MAP.md` has 32 rows that pair a Lean id with a Rust test. At this
-release, the crate has 135 tests with all features on. Almost-sure equality,
-conditionals and conditional independence are planned.
+At `v0.3.0`, `THEOREM_MAP.md` has 32 rows that pair a Lean id with a Rust test.
+The crate has 135 tests with all features on. Almost-sure equality, conditionals
+and conditional independence are planned.
 
-![Mathlib classes and what peluang adds](docs/diagrams/lean-1-classes.svg)
+[![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
-![A Lean theorem, its row, its witness](docs/diagrams/lean-4-bridge.svg)
+[![A Lean theorem, its row, its witness](docs/diagrams/lean-4-bridge.svg)](docs/diagrams/lean-4-bridge.svg)
 
 ## Architecture
 
