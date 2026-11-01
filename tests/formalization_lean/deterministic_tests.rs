@@ -2,27 +2,14 @@
 //! `Peluang.Deterministic.Lemmas` at the running example: `is_deterministic` and
 //! the literal of each morphism.
 
-use peluang::deterministic::is_deterministic;
 use peluang::error::Result;
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
 use peluang::markov::Tensor;
-use peluang::prob::Exact;
 
-use crate::fixtures::{assert_kernel, d, e, lit, obj_s, obj_t, obj_w, points, r, s, show};
-
-/// Asserts `is_deterministic(k) == expected`, naming `name`.
-#[track_caller]
-fn assert_deterministic(name: &str, k: &Kernel<Exact>, expected: bool) -> Result<()> {
-    let observed = is_deterministic(k)?;
-    assert_eq!(
-        observed,
-        expected,
-        "is_deterministic({name}) on {}: expected {expected}, observed {observed}",
-        show(k)
-    );
-    Ok(())
-}
+use crate::fixtures::{
+    assert_deterministic, assert_kernel, d, e, lit, obj_s, obj_t, obj_w, points, r, s,
+};
 
 /// THEOREM_MAP: CategoryTheory.Deterministic.instCopy
 #[test]

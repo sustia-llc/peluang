@@ -3,8 +3,8 @@
 One row per Lean theorem under `lean/Peluang/`: the fully qualified Lean id,
 the Rust witness test, and the anchor. Lean proves the universal statement.
 The Rust test pins the engine at worked examples. `tests/laws.rs` pins identity,
-associativity, interchange, naturality of `swap` and of the associator, and
-naturality of `del` at property-generated inputs. It also tests the `copy` laws,
+associativity, interchange, naturality of `swap`, of the associator, of both
+unitors and of `del` at property-generated inputs. It also tests the `copy` laws,
 counit, `copy_tensor` and `discard_tensor` at each cardinality from 0 to 4.
 `lean/Peluang/Instances/FinStoch/` proves the FinStoch instance of the abstract
 statements in the `CategoryTheory.*` rows.

@@ -15,7 +15,7 @@ public import Peluang.Instances.FinStoch.Basic
 ## Main definitions
 
 * `FinStoch.Hom.tensor` - the Kronecker product of two stochastic matrices.
-* `FinStoch.isoOfFun` - the isomorphism of an equivalence of carriers.
+* `FinStoch.isoOfEquiv` - the isomorphism of an equivalence of carriers.
 * `FinStoch.instMonoidalCategory` - `X ⊗ Y` has carrier `X.carrier × Y.carrier` and the unit has
   carrier `PUnit`.
 * `FinStoch.instSymmetricCategory` - the braiding is `Hom.ofFun Prod.swap`.
@@ -52,28 +52,28 @@ protected def Hom.tensor (f : Hom A B) (g : Hom C D) :
 
 /-- The isomorphism `X ≅ Y` with `hom = Hom.ofFun e` and `inv = Hom.ofFun e.symm`, for an
 equivalence `e` of the carriers. -/
-def isoOfFun (e : X.carrier ≃ Y.carrier) : X ≅ Y where
+def isoOfEquiv (e : X.carrier ≃ Y.carrier) : X ≅ Y where
   hom := Hom.ofFun e
   inv := Hom.ofFun e.symm
   hom_inv_id := by rw [ofFun_comp, e.symm_comp_self, ofFun_id]
   inv_hom_id := by rw [ofFun_comp, e.self_comp_symm, ofFun_id]
 
--- WITNESS: none (unfolds isoOfFun; no engine meaning)
-/-- The forward map of `isoOfFun e` is `Hom.ofFun e`. -/
-theorem isoOfFun_hom (e : X.carrier ≃ Y.carrier) : (isoOfFun e).hom = Hom.ofFun e :=
+-- WITNESS: none (unfolds isoOfEquiv; no engine meaning)
+/-- The forward map of `isoOfEquiv e` is `Hom.ofFun e`. -/
+theorem isoOfEquiv_hom (e : X.carrier ≃ Y.carrier) : (isoOfEquiv e).hom = Hom.ofFun e :=
   rfl
 
 /-- The tensor product on `FinStoch`: `X ⊗ Y` has carrier `X.carrier × Y.carrier`, the unit has
-carrier `PUnit`, `⊗ₘ` is `Hom.tensor`, and the associator and unitors are `isoOfFun`. -/
+carrier `PUnit`, `⊗ₘ` is `Hom.tensor`, and the associator and unitors are `isoOfEquiv`. -/
 instance : MonoidalCategoryStruct FinStoch where
   tensorObj X Y := ⟨X.carrier × Y.carrier⟩
   tensorUnit := ⟨PUnit⟩
   tensorHom f g := Hom.tensor f g
   whiskerLeft X _ _ f := Hom.tensor (𝟙 X) f
   whiskerRight f X := Hom.tensor f (𝟙 X)
-  associator _ _ _ := isoOfFun (Equiv.prodAssoc _ _ _)
-  leftUnitor _ := isoOfFun (Equiv.punitProd _)
-  rightUnitor _ := isoOfFun (Equiv.prodPUnit _)
+  associator _ _ _ := isoOfEquiv (Equiv.prodAssoc _ _ _)
+  leftUnitor _ := isoOfEquiv (Equiv.punitProd _)
+  rightUnitor _ := isoOfEquiv (Equiv.prodPUnit _)
 
 /-- An entry of `f ⊗ₘ g` at `(a, c)` and `(b, d)` is `f.mass a b * g.mass c d`. -/
 @[simp]
@@ -147,6 +147,15 @@ theorem comp_ofFun_mass (f : X ⟶ Y) (e : Y.carrier ≃ Z.carrier) (x z) :
     (f ≫ Hom.ofFun e : X ⟶ Z).mass x z = f.mass x (e.symm z) := by
   simp [← e.eq_symm_apply]
 
+-- WITNESS: none (entry step; no engine meaning)
+/-- For equivalences `e` and `e'` of carriers, the entries of `f ≫ (isoOfEquiv e').hom` and
+`(isoOfEquiv e).hom ≫ g` at `a` and `d` agree when `f.mass a (e'.symm d) = g.mass (e a) d`. -/
+theorem comp_isoOfEquiv_hom_mass_eq (f : A ⟶ B) (e' : B.carrier ≃ D.carrier)
+    (e : A.carrier ≃ C.carrier) (g : C ⟶ D) {a : A.carrier} {d : D.carrier}
+    (h : f.mass a (e'.symm d) = g.mass (e a) d) :
+    (f ≫ (isoOfEquiv e').hom : A ⟶ D).mass a d = ((isoOfEquiv e).hom ≫ g : A ⟶ D).mass a d := by
+  rw [isoOfEquiv_hom, isoOfEquiv_hom, ofFun_comp_mass, comp_ofFun_mass, h]
+
 -- WITNESS: none (Mathlib tensorHom_comp_tensorHom at the instance)
 /-- `⊗ₘ` sends a pair of composites to the composite of the tensors. -/
 protected theorem tensorHom_comp_tensorHom {X₁ Y₁ Z₁ X₂ Y₂ Z₂ : FinStoch} (f₁ : X₁ ⟶ Y₁)
@@ -167,19 +176,16 @@ instance : MonoidalCategory FinStoch where
   id_whiskerRight _ _ := tensorHom_ofFun id id
   associator_naturality {_ _ _ Y₁ Y₂ Y₃} f₁ f₂ f₃ := by
     ext ⟨⟨a, b⟩, c⟩ ⟨d, e, k⟩ : 1
-    change (_ ≫ (isoOfFun _).hom : _ ⟶ _).mass _ _ = ((isoOfFun _).hom ≫ _ : _ ⟶ _).mass _ _
-    rw [isoOfFun_hom, isoOfFun_hom, ofFun_comp_mass, comp_ofFun_mass]
+    refine comp_isoOfEquiv_hom_mass_eq _ _ _ _ ?_
     exact mul_assoc _ _ _
   leftUnitor_naturality {X Y} f := by
     ext ⟨⟨⟩, a⟩ b : 1
-    change (_ ≫ (isoOfFun _).hom : _ ⟶ _).mass _ _ = ((isoOfFun _).hom ≫ _ : _ ⟶ _).mass _ _
-    rw [isoOfFun_hom, isoOfFun_hom, ofFun_comp_mass, comp_ofFun_mass]
+    refine comp_isoOfEquiv_hom_mass_eq _ _ _ _ ?_
     change (𝟙 (𝟙_ FinStoch) ⊗ₘ f).mass (PUnit.unit, a) (PUnit.unit, b) = f.mass a b
     simp
   rightUnitor_naturality {X Y} f := by
     ext ⟨a, ⟨⟩⟩ b : 1
-    change (_ ≫ (isoOfFun _).hom : _ ⟶ _).mass _ _ = ((isoOfFun _).hom ≫ _ : _ ⟶ _).mass _ _
-    rw [isoOfFun_hom, isoOfFun_hom, ofFun_comp_mass, comp_ofFun_mass]
+    refine comp_isoOfEquiv_hom_mass_eq _ _ _ _ ?_
     change (f ⊗ₘ 𝟙 (𝟙_ FinStoch)).mass (a, PUnit.unit) (b, PUnit.unit) = f.mass a b
     simp
   pentagon W X Y Z := by
@@ -192,25 +198,25 @@ instance : MonoidalCategory FinStoch where
 
 /-- `FinStoch` is a symmetric monoidal category with `(β_ X Y).hom = Hom.ofFun Prod.swap`. -/
 instance : SymmetricCategory FinStoch where
-  braiding _ _ := isoOfFun (Equiv.prodComm _ _)
+  braiding _ _ := isoOfEquiv (Equiv.prodComm _ _)
   braiding_naturality_right X Y Z f := by
     ext ⟨a, b⟩ ⟨c, d⟩ : 1
-    rw [isoOfFun_hom, isoOfFun_hom, ofFun_comp_mass, comp_ofFun_mass]
+    rw [isoOfEquiv_hom, isoOfEquiv_hom, ofFun_comp_mass, comp_ofFun_mass]
     exact mul_comm _ _
   braiding_naturality_left f Z := by
     ext ⟨a, b⟩ ⟨c, d⟩ : 1
-    rw [isoOfFun_hom, isoOfFun_hom, ofFun_comp_mass, comp_ofFun_mass]
+    rw [isoOfEquiv_hom, isoOfEquiv_hom, ofFun_comp_mass, comp_ofFun_mass]
     exact mul_comm _ _
   hexagon_forward X Y Z := by
-    simp only [isoOfFun_hom, associator_hom_eq_ofFun, whiskerRight_ofFun, whiskerLeft_ofFun,
+    simp only [isoOfEquiv_hom, associator_hom_eq_ofFun, whiskerRight_ofFun, whiskerLeft_ofFun,
       ofFun_comp]
     rfl
   hexagon_reverse X Y Z := by
-    simp only [isoOfFun_hom, associator_inv_eq_ofFun, whiskerRight_ofFun, whiskerLeft_ofFun,
+    simp only [isoOfEquiv_hom, associator_inv_eq_ofFun, whiskerRight_ofFun, whiskerLeft_ofFun,
       ofFun_comp]
     rfl
   symmetry X Y := by
-    simp only [isoOfFun_hom, ofFun_comp]
+    simp only [isoOfEquiv_hom, ofFun_comp]
     rfl
 
 /-- `(β_ X Y).hom` is `Hom.ofFun Prod.swap`. -/

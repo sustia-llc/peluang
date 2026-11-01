@@ -17,8 +17,9 @@ Instance search for the copy-discard and Markov classes and for the comonoid cla
 nested tensor and unit objects. The instance that `Δ[X ⊗ Y]` and `ε[X ⊗ Y]` elaborate to, its
 relation to `CopyDiscardCategory.comonObj` and `Comon.instComonObjTensorObj`, and `copy_eq_ofFun`
 and `discard_eq_ofFun` at tensor objects. The class laws at their `FinStoch` statements, `tensorμ`
-as `Hom.ofFun`, instance search for `Deterministic` and `IsComonHom` at tensors, whiskers,
-associators and `Δ[X ⊗ Y]`, and values of `Δ[X]` and `ε[X]` in `ℚ≥0` by `#guard`.
+as `Hom.ofFun`, instance search for `Deterministic` and `IsComonHom` at tensors, left and right
+whiskers, associators and `Δ[X ⊗ Y]` and for `Deterministic` at `ε[X ⊗ Y]`, and values of `Δ[X]`
+and `ε[X]` in `ℚ≥0` by `#guard`.
 -/
 
 public section
@@ -148,6 +149,12 @@ example (f : X ⟶ Y) (g : A ⟶ B) [IsComonHom f] [IsComonHom g] :
 example (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : FinStoch) : Deterministic (f ▷ Z) := inferInstance
 
 example (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : FinStoch) : IsComonHom (f ▷ Z) := inferInstance
+
+example (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : FinStoch) : Deterministic (Z ◁ f) := inferInstance
+
+example (f : A ⊗ B ⟶ Y) [IsComonHom f] (Z : FinStoch) : IsComonHom (Z ◁ f) := inferInstance
+
+example (X Y Z : FinStoch) : Deterministic (α_ (X ⊗ Y) Y Z).hom := inferInstance
 
 example (X Y Z : FinStoch) : IsComonHom (α_ (X ⊗ Y) Y Z).hom := inferInstance
 

@@ -1,14 +1,15 @@
 //! Witnesses of `Peluang.Instances.FinStoch`: kernels compared with a literal
 //! built through `Kernel::new`, and `is_deterministic` at a fixed expected value.
 
-use peluang::deterministic::is_deterministic;
 use peluang::error::Result;
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
 use peluang::markov::{Compose, Tensor};
 use peluang::prob::{Exact, Prob};
 
-use crate::fixtures::{assert_kernel, c, d, h, lit, obj_s, obj_t, obj_w, points, r, s, show};
+use crate::fixtures::{
+    assert_deterministic, assert_kernel, c, d, h, lit, obj_s, obj_t, obj_w, points, r, s, show,
+};
 
 /// Whether each entry of `k` is `0` or `1`.
 fn entries_are_zero_or_one(k: &Kernel<Exact>) -> bool {
@@ -128,18 +129,12 @@ fn witness_braiding_eq_of_fun() -> Result<()> {
 #[test]
 fn witness_deterministic_iff_mass() -> Result<()> {
     for (name, kernel, expected) in [("d", d()?, true), ("s", s()?, false)] {
-        let observed = is_deterministic(&kernel)?;
+        assert_deterministic(name, &kernel, expected)?;
         let zero_one = entries_are_zero_or_one(&kernel);
         assert_eq!(
-            observed,
-            expected,
-            "is_deterministic({name}) on {}: expected {expected}, observed {observed}",
-            show(&kernel)
-        );
-        assert_eq!(
             zero_one,
-            observed,
-            "the 0/1 test on {name} ({}): expected {observed}, observed {zero_one}",
+            expected,
+            "the 0/1 test on {name} ({}): expected {expected}, observed {zero_one}",
             show(&kernel)
         );
     }
@@ -152,12 +147,18 @@ fn witness_deterministic_iff_exists_of_fun() -> Result<()> {
     let function = Kernel::from_fn(obj_w()?, obj_s()?, |x| usize::from(x > 0))?;
     assert_kernel("from_fn of d", &function, &d()?);
     for (name, kernel, expected) in [("from_fn of d", function, true), ("s", s()?, false)] {
-        let observed = is_deterministic(&kernel)?;
-        assert_eq!(
-            observed,
-            expected,
-            "is_deterministic({name}) on {}: expected {expected}, observed {observed}",
-            show(&kernel)
+        assert_deterministic(name, &kernel, expected)?;
+    }
+    let target = s()?;
+    for code in 0_usize..8 {
+        let outputs = [code & 1, (code >> 1) & 1, (code >> 2) & 1];
+        let candidate = Kernel::from_fn(obj_w()?, obj_s()?, |x| outputs[x])?;
+        assert!(
+            candidate != target,
+            "from_fn of W → S with outputs {outputs:?}: expected a kernel other than {}, \
+             observed {}",
+            show(&target),
+            show(&candidate)
         );
     }
     Ok(())
@@ -167,13 +168,7 @@ fn witness_deterministic_iff_exists_of_fun() -> Result<()> {
 #[test]
 fn witness_not_deterministic_bernoulli() -> Result<()> {
     let bernoulli = Kernel::state(FinObj::new(2), vec![r(1, 2), r(1, 2)])?;
-    let observed = is_deterministic(&bernoulli)?;
-    assert!(
-        !observed,
-        "is_deterministic(bernoulli) on {}: expected false, observed {observed}",
-        show(&bernoulli)
-    );
-    Ok(())
+    assert_deterministic("bernoulli", &bernoulli, false)
 }
 
 /// THEOREM_MAP: FinStoch.instMarkovCategory
