@@ -6,6 +6,12 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Changed
+
+- The witness tests in `tests/formalization_lean/` and the tests on `Exact`
+  weights in `tests/canonical.rs` run in every feature lane, also under
+  `f64-prob`.
+
 ## [0.2.3] - 2026-11-01
 
 ### Added

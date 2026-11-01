@@ -71,9 +71,9 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 - Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`
   Mathlib `@ git "v4.35.0"`; `lean/lake-manifest.json` Mathlib rev
   `56a005855ea17e0b0958f73ec801ae140b0a1679`.
-- Witness tests compile only in the exact lane
-  (`#[cfg(not(feature = "f64-prob"))]`); the `f64-prob` lane runs law tests
-  with declared tolerances only.
+- Witness tests use `Exact` weights and carry no `f64-prob` gate, so they
+  run in every feature lane. Tests on `f64` weights run under `f64-prob`
+  with declared tolerances.
 
 ## Lifecycle of a proof + witness change
 
