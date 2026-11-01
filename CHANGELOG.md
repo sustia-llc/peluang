@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-01
+
 ### Added
 
 - `exec::Executor` implements `Debug`.
@@ -32,6 +34,8 @@ git tag is the authoritative pin.
 
 - `prob::sum`, `prob::sum_with` and the README `parallel` entry state which
   rayon pool a parallel run uses.
+- `prob::sum` and `prob::sum_with` state the effect of a parallel run on `f64`
+  weights.
 
 ## [0.2.2] - 2026-10-25
 
@@ -193,7 +197,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/sustia-llc/peluang/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/sustia-llc/peluang/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/sustia-llc/peluang/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/sustia-llc/peluang/compare/v0.1.1...v0.2.0
