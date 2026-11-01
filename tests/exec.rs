@@ -24,8 +24,8 @@ use peluang::exec::Executor;
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
 use peluang::markov::Compose;
-use peluang::prob::{PAR_THRESHOLD, Prob, sum_with};
-use probe::{AddLog, Probe, ROUTES, add_sites, names, off_worker, thread_name, unit_terms};
+use peluang::prob::{PAR_THRESHOLD, sum_with};
+use probe::{AddLog, ROUTES, add_sites, names, off_worker, point_mass, thread_name, unit_terms};
 use tokio_rayon::rayon;
 
 fn on_exec_thread(name: Option<&str>) -> bool {
@@ -107,19 +107,8 @@ async fn compose_inside_run_stays_on_executor_pool() -> Result<()> {
     let exec = Executor::with_num_threads(exec_size)?;
     let log = AddLog::default();
     let middle = FinObj::new(PAR_THRESHOLD);
+    let f = point_mass(&log, middle.clone())?;
     let (units, _) = unit_terms(&log, PAR_THRESHOLD);
-    let point_mass: Vec<Probe> = units
-        .iter()
-        .enumerate()
-        .map(|(y, unit)| {
-            if y == 0 {
-                unit.clone()
-            } else {
-                unit.mul(&Probe::zero())
-            }
-        })
-        .collect();
-    let f = Kernel::state(middle.clone(), point_mass)?;
     let g = Kernel::new(middle, FinObj::unit(), units)?;
     log.lock().unwrap().clear();
 

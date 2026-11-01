@@ -130,5 +130,11 @@ fn witness_inst_braiding() -> Result<()> {
     let swap = Kernel::swap(&t, &sp)?;
     let expected = points(t.tensor(&sp)?, sp.tensor(&t)?, &[0, 2, 1, 3])?;
     assert_kernel("β_ T S", &swap, &expected);
-    assert_deterministic("β_ T S", &swap, true)
+    assert_deterministic("β_ T S", &swap, true)?;
+
+    let w = obj_w()?;
+    let swap = Kernel::swap(&w, &sp)?;
+    let expected = points(w.tensor(&sp)?, sp.tensor(&w)?, &[0, 3, 1, 4, 2, 5])?;
+    assert_kernel("β_ W S", &swap, &expected);
+    assert_deterministic("β_ W S", &swap, true)
 }

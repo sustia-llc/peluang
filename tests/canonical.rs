@@ -3,11 +3,12 @@
 //! `FinObj` and `Kernel`: the object laws, the rejections of each constructor
 //! and operation, composition and tensor at literals, `is_deterministic`,
 //! results across `PAR_THRESHOLD`, size errors, and the post's eq. (9) as exact
-//! rationals. In the `f64` lane, the input tests of `Kernel::new`.
+//! rationals. In the `f64` lane, the input tests of `Kernel::new`,
+//! `Kernel::approx_eq`, and worked `compose`, `tensor`, marginals and
+//! `is_deterministic` under `Kernel::approx_eq`.
 
 #[cfg(not(feature = "f64-prob"))]
 mod common;
-#[cfg(not(feature = "f64-prob"))]
 #[path = "formalization_lean/fixtures.rs"]
 mod fixtures;
 
@@ -163,14 +164,10 @@ mod exact {
     }
 }
 
-#[cfg(not(feature = "f64-prob"))]
 mod objects {
+    use crate::fixtures::labels;
     use peluang::error::{Error, Result};
     use peluang::finset::FinObj;
-
-    fn labels(names: &[&str]) -> Result<FinObj> {
-        FinObj::labeled(names.iter().map(|&name| name.to_owned()).collect())
-    }
 
     #[test]
     fn tensor_is_concatenation() -> Result<()> {
@@ -209,10 +206,11 @@ mod objects {
                 got,
                 Err(Error::TooLarge {
                     fst: usize::MAX,
-                    snd: 2
+                    snd: 2,
+                    source: None
                 })
             ),
-            "expected TooLarge {{ fst: usize::MAX, snd: 2 }}, observed {got:?}"
+            "expected TooLarge {{ fst: usize::MAX, snd: 2, source: None }}, observed {got:?}"
         );
     }
 
@@ -242,6 +240,9 @@ mod objects {
 
 #[cfg(not(feature = "f64-prob"))]
 mod kernels {
+    use std::collections::TryReserveError;
+    use std::error::Error as StdError;
+
     use crate::common::{closed_form, telescoping};
     use crate::fixtures::{
         assert_kernel, c, d, e, h, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
@@ -268,6 +269,19 @@ mod kernels {
 
     #[test]
     fn new_rejects_each_input_in_order() {
+        let got = Kernel::<Exact>::new(FinObj::new(usize::MAX), FinObj::new(2), Vec::new());
+        assert!(
+            matches!(
+                got,
+                Err(Error::TooLarge {
+                    fst: usize::MAX,
+                    snd: 2,
+                    source: None
+                })
+            ),
+            "expected TooLarge {{ fst: usize::MAX, snd: 2, source: None }} ahead of DataLength, observed {got:?}"
+        );
+
         let (dom, cod) = (FinObj::new(2), FinObj::new(3));
         let got = Kernel::new(dom.clone(), cod.clone(), vec![r(1, 1); 5]);
         assert!(
@@ -433,6 +447,63 @@ mod kernels {
     }
 
     #[test]
+    fn tensor_overflow_is_too_large() -> Result<()> {
+        let huge = FinObj::new(usize::MAX);
+        let empty = Kernel::<Exact>::new(FinObj::new(0), huge, Vec::new())?;
+        let got = empty.tensor(&empty);
+        assert!(
+            matches!(
+                got,
+                Err(Error::TooLarge {
+                    fst: usize::MAX,
+                    snd: usize::MAX,
+                    source: None
+                })
+            ),
+            "expected TooLarge from the codomain product, observed {got:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn approx_eq_compares_objects_and_entries() -> Result<()> {
+        let unit_mass = |cod: FinObj, card: usize| {
+            let mut weights = vec![Exact::zero(); card];
+            weights[0] = Exact::one();
+            Kernel::state(cod, weights)
+        };
+        let on_off = unit_mass(obj_s()?, 2)?;
+        for (name, other, expected) in [
+            ("itself", unit_mass(obj_s()?, 2)?, true),
+            (
+                "another entry",
+                Kernel::state(obj_s()?, vec![r(0, 1), r(1, 1)])?,
+                false,
+            ),
+            ("other labels", unit_mass(obj_t()?, 2)?, false),
+            ("other cardinality", unit_mass(obj_w()?, 3)?, false),
+        ] {
+            let observed = on_off.approx_eq(&other);
+            assert_eq!(
+                observed, expected,
+                "codomain, {name}: expected {expected}, observed {observed}"
+            );
+        }
+        let del_s = Kernel::<Exact>::del(&obj_s()?)?;
+        for (name, other) in [
+            ("other labels", Kernel::del(&obj_t()?)?),
+            ("other cardinality", Kernel::del(&obj_w()?)?),
+        ] {
+            let observed = del_s.approx_eq(&other);
+            assert!(
+                !observed,
+                "domain, {name}: expected false, observed {observed}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn marginals_reject_a_wrong_split() -> Result<()> {
         let (two, three) = (FinObj::new(2), FinObj::new(3));
         let joint = Kernel::state(
@@ -464,6 +535,28 @@ mod kernels {
         assert!(
             matches!(got, Err(Error::NotATensor { .. })),
             "expected NotATensor on a split whose product overflows, observed {got:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn marginals_of_an_empty_domain_compute_no_terms() -> Result<()> {
+        let (empty, one, huge) = (FinObj::new(0), FinObj::new(1), FinObj::new(usize::MAX));
+
+        let joint = Kernel::<Exact>::new(empty.clone(), one.tensor(&huge)?, Vec::new())?;
+        let expected = Kernel::new(empty.clone(), one.clone(), Vec::new())?;
+        let got = joint.marginal_fst(&one, &huge);
+        assert!(
+            got.as_ref().is_ok_and(|kernel| *kernel == expected),
+            "marginal_fst summing a factor of usize::MAX: expected {expected:?}, observed {got:?}"
+        );
+
+        let joint = Kernel::<Exact>::new(empty.clone(), huge.tensor(&one)?, Vec::new())?;
+        let expected = Kernel::new(empty, one.clone(), Vec::new())?;
+        let got = joint.marginal_snd(&huge, &one);
+        assert!(
+            got.as_ref().is_ok_and(|kernel| *kernel == expected),
+            "marginal_snd summing a factor of usize::MAX: expected {expected:?}, observed {got:?}"
         );
         Ok(())
     }
@@ -554,25 +647,41 @@ mod kernels {
         let n = 1_usize << 31;
         let got = Kernel::<Exact>::identity(&FinObj::new(n));
         assert!(
-            matches!(got, Err(Error::TooLarge { fst, snd }) if fst == n && snd == n),
-            "expected TooLarge on 2^62 entries past isize::MAX bytes, observed {got:?}"
+            matches!(got, Err(Error::TooLarge { fst, snd, source: Some(_) }) if fst == n && snd == n),
+            "expected TooLarge with a source on 2^62 entries past isize::MAX bytes, observed {got:?}"
         );
         let n = 1_usize << 46;
         let got = Kernel::<Exact>::del(&FinObj::new(n));
         assert!(
-            matches!(got, Err(Error::TooLarge { fst, snd: 1 }) if fst == n),
-            "expected TooLarge from the allocator on 2^46 entries, observed {got:?}"
+            matches!(got, Err(Error::TooLarge { fst, snd: 1, source: Some(_) }) if fst == n),
+            "expected TooLarge with a source from the allocator on 2^46 entries, observed {got:?}"
         );
         let n = 1_usize << 32;
         let got = Kernel::<Exact>::copy(&FinObj::new(n));
         assert!(
-            matches!(got, Err(Error::TooLarge { .. })),
-            "expected TooLarge from an overflowing n·n, observed {got:?}"
+            matches!(got, Err(Error::TooLarge { fst, snd, source: None }) if fst == n && snd == n),
+            "expected TooLarge from an overflowing n·n with no source, observed {got:?}"
         );
         let got = Kernel::<Exact>::swap(&FinObj::new(n), &FinObj::new(n));
         assert!(
-            matches!(got, Err(Error::TooLarge { .. })),
-            "expected TooLarge from an overflowing n·n, observed {got:?}"
+            matches!(got, Err(Error::TooLarge { fst, snd, source: None }) if fst == n && snd == n),
+            "expected TooLarge from an overflowing n·n with no source, observed {got:?}"
+        );
+    }
+
+    #[test]
+    fn too_large_reports_its_source_through_the_error_trait() {
+        let reservation = Kernel::<Exact>::identity(&FinObj::new(1_usize << 31));
+        let source = reservation.as_ref().err().and_then(StdError::source);
+        assert!(
+            source.is_some_and(|source| source.is::<TryReserveError>()),
+            "expected a TryReserveError source on a failed reservation, observed {source:?}"
+        );
+        let overflow = FinObj::new(usize::MAX).tensor(&FinObj::new(2));
+        let source = overflow.as_ref().err().and_then(StdError::source);
+        assert!(
+            source.is_none(),
+            "expected no source on an overflowing product, observed {source:?}"
         );
     }
 
@@ -625,13 +734,110 @@ mod kernels {
 
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
+    use crate::fixtures::{obj_s, obj_t, obj_w};
+    use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
     use peluang::finset::FinObj;
     use peluang::kernel::Kernel;
+    use peluang::markov::{Compose, Tensor};
     use peluang::prob::F64_TOLERANCE;
+
+    const THIRD: f64 = 1.0 / 3.0;
+    const SIXTH: f64 = 1.0 / 6.0;
 
     fn column(weights: Vec<f64>) -> Result<Kernel<f64>> {
         Kernel::new(FinObj::new(1), FinObj::new(weights.len()), weights)
+    }
+
+    /// The fixture `c : T → W`.
+    fn c() -> Result<Kernel<f64>> {
+        let columns = [0.5, 0.5, 0.0, 0.0, 0.25, 0.75];
+        Kernel::new(obj_t()?, obj_w()?, columns.to_vec())
+    }
+
+    /// The fixture `s : W → S`.
+    fn s() -> Result<Kernel<f64>> {
+        let columns = [THIRD, 2.0 * THIRD, 1.0, 0.0, 0.0, 1.0];
+        Kernel::new(obj_w()?, obj_s()?, columns.to_vec())
+    }
+
+    /// The fixture `h : T → S`.
+    fn h() -> Result<Kernel<f64>> {
+        let columns = [2.0 * THIRD, THIRD, 0.25, 0.75];
+        Kernel::new(obj_t()?, obj_s()?, columns.to_vec())
+    }
+
+    #[track_caller]
+    fn assert_approx(side: &str, observed: &Kernel<f64>, expected: &Kernel<f64>) {
+        assert!(
+            observed.approx_eq(expected),
+            "{side}: expected {expected:?} within {F64_TOLERANCE}, observed {observed:?}"
+        );
+    }
+
+    #[test]
+    fn approx_eq_holds_within_tolerance_only() -> Result<()> {
+        let base = column(vec![0.5, 0.5])?;
+        let within = column(vec![0.5 + F64_TOLERANCE / 4.0, 0.5 - F64_TOLERANCE / 4.0])?;
+        let beyond = column(vec![0.5 + 2.0 * F64_TOLERANCE, 0.5 - 2.0 * F64_TOLERANCE])?;
+        assert_ne!(base, within, "expected the pair to differ as values");
+        assert_approx("within tolerance", &within, &base);
+        let observed = beyond.approx_eq(&base);
+        assert!(
+            !observed,
+            "expected false beyond F64_TOLERANCE, observed {observed}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn compose_is_chapman_kolmogorov() -> Result<()> {
+        assert_approx("c ≫ s", &c()?.compose(&s()?)?, &h()?);
+        Ok(())
+    }
+
+    #[test]
+    fn tensor_has_the_first_factor_major() -> Result<()> {
+        let psi = Kernel::state(obj_t()?, vec![0.2, 0.8])?;
+        let columns = [0.1, 0.4, 0.1, 0.4, 0.0, 0.0, 0.0, 0.0, 0.05, 0.2, 0.15, 0.6];
+        let expected = Kernel::new(obj_t()?, obj_w()?.tensor(&obj_t()?)?, columns.to_vec())?;
+        assert_approx("c ⊗ₘ psi_t", &c()?.tensor(&psi)?, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn marginals_of_the_joint() -> Result<()> {
+        let (w, sp) = (obj_w()?, obj_s()?);
+        let columns = [
+            SIXTH, THIRD, 0.5, 0.0, 0.0, 0.0, // hot
+            0.0, 0.0, 0.25, 0.0, 0.0, 0.75, // cold
+        ];
+        let f = Kernel::new(obj_t()?, w.tensor(&sp)?, columns.to_vec())?;
+        assert_approx("marginal_fst", &f.marginal_fst(&w, &sp)?, &c()?);
+        assert_approx("marginal_snd", &f.marginal_snd(&w, &sp)?, &h()?);
+        Ok(())
+    }
+
+    #[test]
+    fn is_deterministic_under_approx_eq() -> Result<()> {
+        let tilt = F64_TOLERANCE / 4.0;
+        let near = Kernel::new(obj_s()?, obj_t()?, vec![1.0 - tilt, tilt, 0.0, 1.0])?;
+        for (name, kernel, expected) in [
+            (
+                "d",
+                Kernel::from_fn(obj_w()?, obj_s()?, |x| usize::from(x > 0))?,
+                true,
+            ),
+            ("within tolerance of a function", near, true),
+            ("s", s()?, false),
+        ] {
+            let observed = is_deterministic(&kernel)?;
+            assert_eq!(
+                observed, expected,
+                "is_deterministic({name}) on {kernel:?}: expected {expected}, observed {observed}"
+            );
+        }
+        Ok(())
     }
 
     #[test]

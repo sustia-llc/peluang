@@ -46,7 +46,9 @@ impl<P: Prob> Compose for Kernel<P> {
     /// The kernel with weight `Σ_y self(y|x) · other(z|y)` of output `z` on
     /// input `x`, each sum through `prob::sum`, or `Error::NotComposable` when
     /// the codomain of `self` differs from the domain of `other`, or
-    /// `Error::TooLarge` when the result cannot be allocated.
+    /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
+    /// capacity fails; no other allocation reports an error. In the `f64` lane,
+    /// results can differ between runs and with the `parallel` feature.
     fn compose(&self, other: &Self) -> Result<Self> {
         self.composable(other)?;
         let (inputs, middle, outputs) = (self.dom().card(), self.cod().card(), other.cod().card());
@@ -81,8 +83,8 @@ impl<P: Prob> Compose for Kernel<P> {
 impl<P: Prob> Tensor for Kernel<P> {
     /// The kernel with weight `self(y|x) · other(y'|x')` of output `(y, y')` on
     /// input `(x, x')`, the first factor major in input and output, or
-    /// `Error::TooLarge` when a product overflows `usize` or the result cannot
-    /// be allocated.
+    /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
+    /// capacity fails; no other allocation reports an error.
     fn tensor(&self, other: &Self) -> Result<Self> {
         let dom = self.dom().tensor(other.dom())?;
         let cod = self.cod().tensor(other.cod())?;
@@ -101,47 +103,55 @@ impl<P: Prob> Tensor for Kernel<P> {
 }
 
 impl<P: Prob> Kernel<P> {
-    /// The identity on `x`, or `Error::TooLarge` when it cannot be allocated.
+    /// The identity on `x`, or `Error::TooLarge` when a product overflows
+    /// `usize` or reserving a `Vec` capacity fails; no other allocation reports
+    /// an error.
     pub fn identity(x: &FinObj) -> Result<Self> {
         Self::from_fn(x.clone(), x.clone(), |i| i)
     }
 
     /// The kernel `x → x ⊗ x` sending `i` to `(i, i)`, or `Error::TooLarge`
-    /// when a product overflows `usize` or it cannot be allocated.
+    /// when a product overflows `usize` or reserving a `Vec` capacity fails; no
+    /// other allocation reports an error.
     pub fn copy(x: &FinObj) -> Result<Self> {
         let n = x.card();
         Self::from_fn(x.clone(), x.tensor(x)?, |i| i * n + i)
     }
 
-    /// The kernel `x → FinObj::unit()`, or `Error::TooLarge` when it cannot be
-    /// allocated.
+    /// The kernel `x → FinObj::unit()`, or `Error::TooLarge` when reserving a
+    /// `Vec` capacity fails; no other allocation reports an error.
     pub fn del(x: &FinObj) -> Result<Self> {
         Self::from_fn(x.clone(), FinObj::unit(), |_| 0)
     }
 
     /// The kernel `x ⊗ y → y ⊗ x` sending `(a, b)` to `(b, a)`, or
-    /// `Error::TooLarge` when a product overflows `usize` or it cannot be
-    /// allocated.
+    /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
+    /// capacity fails; no other allocation reports an error.
     pub fn swap(x: &FinObj, y: &FinObj) -> Result<Self> {
         let (nx, ny) = (x.card(), y.card());
         Self::from_fn(x.tensor(y)?, y.tensor(x)?, |i| (i % ny) * nx + i / ny)
     }
 
     /// The associator of `x`, `y`, `z`: the identity on `x ⊗ y ⊗ z`, or
-    /// `Error::TooLarge` when a product overflows `usize` or it cannot be
-    /// allocated.
+    /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
+    /// capacity fails; no other allocation reports an error. The error depends
+    /// on nesting when an intermediate product overflows: it returns
+    /// `Error::TooLarge` when `x.card() * y.card()` overflows, also when
+    /// `z.card() == 0`.
     pub fn associator(x: &FinObj, y: &FinObj, z: &FinObj) -> Result<Self> {
         Self::identity(&x.tensor(y)?.tensor(z)?)
     }
 
     /// The left unitor of `x`: the identity on `FinObj::unit() ⊗ x`, or
-    /// `Error::TooLarge` when it cannot be allocated.
+    /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
+    /// capacity fails; no other allocation reports an error.
     pub fn left_unitor(x: &FinObj) -> Result<Self> {
         Self::identity(&FinObj::unit().tensor(x)?)
     }
 
     /// The right unitor of `x`: the identity on `x ⊗ FinObj::unit()`, or
-    /// `Error::TooLarge` when it cannot be allocated.
+    /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
+    /// capacity fails; no other allocation reports an error.
     pub fn right_unitor(x: &FinObj) -> Result<Self> {
         Self::identity(&x.tensor(&FinObj::unit())?)
     }
@@ -160,8 +170,9 @@ impl<P: Prob> Kernel<P> {
 
     /// The first marginal of `self : dom → x ⊗ y`: each weight of `x` is the
     /// sum over `y`, through `prob::sum`. Returns `Error::NotATensor` unless
-    /// the codomain equals `x ⊗ y`, or `Error::TooLarge` when the result cannot
-    /// be allocated.
+    /// the codomain equals `x ⊗ y`, or `Error::TooLarge` when reserving a `Vec`
+    /// capacity fails; no other allocation reports an error. In the `f64` lane,
+    /// results can differ between runs and with the `parallel` feature.
     pub fn marginal_fst(&self, x: &FinObj, y: &FinObj) -> Result<Self> {
         self.split(x, y)?;
         let ny = y.card();
@@ -170,8 +181,9 @@ impl<P: Prob> Kernel<P> {
 
     /// The second marginal of `self : dom → x ⊗ y`: each weight of `y` is the
     /// sum over `x`, through `prob::sum`. Returns `Error::NotATensor` unless
-    /// the codomain equals `x ⊗ y`, or `Error::TooLarge` when the result cannot
-    /// be allocated.
+    /// the codomain equals `x ⊗ y`, or `Error::TooLarge` when reserving a `Vec`
+    /// capacity fails; no other allocation reports an error. In the `f64` lane,
+    /// results can differ between runs and with the `parallel` feature.
     pub fn marginal_snd(&self, x: &FinObj, y: &FinObj) -> Result<Self> {
         self.split(x, y)?;
         let ny = y.card();
@@ -198,7 +210,8 @@ impl<P: Prob> Kernel<P> {
     }
 
     /// The kernel `dom → kept` whose weight of `k` on input `a` is the sum, over
-    /// `s < summed`, of the weight of output `index(k, s)` on `a`.
+    /// `s < summed`, of the weight of output `index(k, s)` on `a`. The buffer of
+    /// terms is reserved only when the result has an entry.
     fn marginal(
         &self,
         kept: &FinObj,
@@ -207,7 +220,11 @@ impl<P: Prob> Kernel<P> {
     ) -> Result<Self> {
         let inputs = self.dom().card();
         let mut data = reserve(inputs, kept.card())?;
-        let mut terms = reserve(summed, 1)?;
+        let mut terms = if inputs == 0 || kept.card() == 0 {
+            Vec::new()
+        } else {
+            reserve(summed, 1)?
+        };
         for a in 0..inputs {
             for k in 0..kept.card() {
                 terms.clear();

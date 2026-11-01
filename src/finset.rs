@@ -10,19 +10,22 @@ pub(crate) fn product(rows: usize, cols: usize) -> Result<usize> {
     rows.checked_mul(cols).ok_or(Error::TooLarge {
         fst: rows,
         snd: cols,
+        source: None,
     })
 }
 
 /// An empty vector with capacity for `rows * cols` elements, or
-/// `Error::TooLarge` when the product overflows `usize` or the allocator
-/// refuses it.
+/// `Error::TooLarge` when the product overflows `usize` or reserving that
+/// capacity fails.
 pub(crate) fn reserve<T>(rows: usize, cols: usize) -> Result<Vec<T>> {
     let len = product(rows, cols)?;
     let mut out = Vec::new();
-    out.try_reserve_exact(len).map_err(|_| Error::TooLarge {
-        fst: rows,
-        snd: cols,
-    })?;
+    out.try_reserve_exact(len)
+        .map_err(|source| Error::TooLarge {
+            fst: rows,
+            snd: cols,
+            source: Some(source),
+        })?;
     Ok(out)
 }
 
@@ -104,7 +107,10 @@ impl FinObj {
 
     /// The object whose factors are those of `self` followed by those of
     /// `other`, or `Error::TooLarge` when the cardinality product overflows
-    /// `usize` or the factor list cannot be allocated.
+    /// `usize` or reserving a `Vec` capacity fails; no other allocation reports
+    /// an error. The error depends on nesting when an intermediate product
+    /// overflows: `(x ⊗ y) ⊗ z` fails when `x.card() * y.card()` overflows, and
+    /// `x ⊗ (y ⊗ z)` with `z.card() == 0` does not.
     pub fn tensor(&self, other: &Self) -> Result<Self> {
         let card = product(self.card, other.card)?;
         let mut factors = reserve(self.factors.len() + other.factors.len(), 1)?;

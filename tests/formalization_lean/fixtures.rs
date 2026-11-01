@@ -13,7 +13,8 @@ pub fn r(n: i64, d: i64) -> Exact {
     Exact::new(n.into(), d.into())
 }
 
-fn labels(names: &[&str]) -> Result<FinObj> {
+/// The object with one factor whose elements are `names` in order.
+pub fn labels(names: &[&str]) -> Result<FinObj> {
     FinObj::labeled(names.iter().map(|&name| name.to_owned()).collect())
 }
 

@@ -59,33 +59,16 @@ mod dispatch {
     use peluang::finset::FinObj;
     use peluang::kernel::Kernel;
     use peluang::markov::Compose;
-    use peluang::prob::{PAR_THRESHOLD, Prob, sum, sum_with};
+    use peluang::prob::{PAR_THRESHOLD, sum, sum_with};
 
     use crate::probe::{
-        AddLog, Probe, ROUTES, add_sites, names, off_worker, thread_name, unit_terms,
+        AddLog, Probe, ROUTES, add_sites, names, off_worker, point_mass, thread_name, unit_terms,
     };
 
     /// Runs `sum` over `len` unit terms; whether any `add` ran on a rayon
     /// worker.
     fn sum_ran_on_worker(len: usize) -> bool {
         add_sites(len, sum).iter().any(|site| site.on_worker)
-    }
-
-    /// The state on `cod` with weight 1 at output 0, recording into `log`.
-    fn point_mass(log: &AddLog, cod: FinObj) -> Result<Kernel<Probe>> {
-        let (units, _) = unit_terms(log, cod.card());
-        let weights = units
-            .iter()
-            .enumerate()
-            .map(|(y, unit)| {
-                if y == 0 {
-                    unit.clone()
-                } else {
-                    unit.mul(&Probe::zero())
-                }
-            })
-            .collect();
-        Kernel::state(cod, weights)
     }
 
     /// Clears `log`, runs `op`; whether any `add` ran on a rayon worker.

@@ -75,14 +75,17 @@ pub enum Error {
         label: String,
     },
 
-    /// A product `fst * snd` overflows `usize`, or an allocation of that many
-    /// elements failed.
+    /// A product `fst * snd` overflows `usize`, or reserving the `Vec` capacity
+    /// of that many elements failed. No other allocation reports this error.
     #[error("size {fst} * {snd} is too large")]
     TooLarge {
         /// The first operand.
         fst: usize,
         /// The second operand.
         snd: usize,
+        /// The error of the reservation, `None` on an overflowing product.
+        #[source]
+        source: Option<std::collections::TryReserveError>,
     },
 
     /// `kernel::Kernel::from_fn` received a function with an output out of

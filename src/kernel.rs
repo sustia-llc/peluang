@@ -58,7 +58,8 @@ impl<P: Prob> Kernel<P> {
     /// The deterministic kernel sending each input `x` of `dom` to output
     /// `f(x)`, or `Error::NotAFunction` at the first input with
     /// `f(x) >= cod.card()`, or `Error::TooLarge` when `dom.card() * cod.card()`
-    /// overflows `usize` or the data cannot be allocated.
+    /// overflows `usize` or reserving a `Vec` capacity fails; no other
+    /// allocation reports an error.
     pub fn from_fn(dom: FinObj, cod: FinObj, f: impl Fn(usize) -> usize) -> Result<Self> {
         let width = cod.card();
         let len = product(dom.card(), width)?;

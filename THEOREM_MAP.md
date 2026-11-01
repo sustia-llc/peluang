@@ -3,7 +3,7 @@
 One row per Lean theorem under `lean/Peluang/`: the fully qualified Lean id,
 the Rust witness test, and the anchor. Lean proves the universal statement;
 the Rust test pins the engine at worked examples. Each row pins an abstract
-statement over `MarkovCategory`, and Phase 3 proves its FinStoch instance.
+statement, and Phase 3 proves its FinStoch instance.
 `scripts/check_theorem_map.py` enforces: every `theorem` or `lemma`
 under `lean/Peluang/` has a row whose test exists (exactly one `#[test]` under
 `tests/formalization_lean/` carrying `/// THEOREM_MAP: <id>`), or an opt-out
@@ -17,7 +17,8 @@ Mathlib-owned theorems are prefixed `mathlib:` and are optional.
 
 Anchor format: `Fritz 2020 Def./Prop./Thm./Lemma/Remark/Notation N.M`
 (arXiv:1908.07021) and/or the Café post's `D`/`T` id. A row can name an
-instance, and `check_theorem_map.py` reads only the test side of a row.
+instance, and `check_theorem_map.py` does not test that a row's Lean id names
+a declaration.
 
 | Lean id | Rust test | anchor |
 |---|---|---|
