@@ -6,14 +6,36 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-01
+
 ### Added
 
 - `exec::Executor` implements `Debug`.
+- `finset::FinObj`: a finite object as an ordered list of factors, each a
+  cardinality with optional labels. `tensor` concatenates the lists, and
+  `unit` is the empty list.
+- `kernel::Kernel<P>`: a stochastic matrix stored by input. `Kernel::new`
+  tests the data length, the sign of each entry and the sum of each column.
+- `markov::Compose` and `markov::Tensor`, implemented by `Kernel<P>`, with
+  `identity`, `copy`, `del`, `swap`, `associator`, `left_unitor`,
+  `right_unitor`, `whisker_left`, `whisker_right`, `marginal_fst` and
+  `marginal_snd`.
+- `deterministic::is_deterministic`: Fritz 2020 Def. 10.1.
+- `error::Error` variants `DataLength`, `NegativeWeight`, `NotNormalized`,
+  `NotComposable`, `NotATensor`, `DuplicateLabel`, `TooLarge`, `NotAFunction`.
+- `tests/formalization_lean/` with 21 witness tests and `THEOREM_MAP.md` rows.
+
+### Removed
+
+- The 12 `-- WITNESS: none (Phase 2R witness)` opt-outs in
+  `lean/Peluang/Markov/Derived.lean`.
 
 ### Changed
 
 - `prob::sum`, `prob::sum_with` and the README `parallel` entry state which
   rayon pool a parallel run uses.
+- `prob::sum` and `prob::sum_with` state the effect of a parallel run on `f64`
+  weights.
 
 ## [0.2.2] - 2026-10-25
 
@@ -175,7 +197,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/sustia-llc/peluang/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/sustia-llc/peluang/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/sustia-llc/peluang/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/sustia-llc/peluang/compare/v0.1.1...v0.2.0

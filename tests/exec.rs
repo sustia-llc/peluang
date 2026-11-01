@@ -8,7 +8,9 @@
 //! the calling thread, and every other add on a worker that reports the global
 //! pool size. Inside `Executor::run`, `prob::sum_with(_, true)` over 1 and 2
 //! terms runs every add on `peluang-exec-*`. `Executor` supports `#[derive(Debug)]` on a struct that holds
-//! it.
+//! it. `Compose::compose` inside `Executor::run` with a middle object of
+//! `PAR_THRESHOLD` elements records more adds than a sequential run, each on a
+//! `peluang-exec-*` thread that reports the executor's pool size.
 
 #![cfg(feature = "async")]
 
@@ -19,8 +21,11 @@ use std::sync::Arc;
 
 use peluang::error::Result;
 use peluang::exec::Executor;
+use peluang::finset::FinObj;
+use peluang::kernel::Kernel;
+use peluang::markov::Compose;
 use peluang::prob::{PAR_THRESHOLD, sum_with};
-use probe::{AddLog, ROUTES, add_sites, names, off_worker, thread_name, unit_terms};
+use probe::{AddLog, ROUTES, add_sites, names, off_worker, point_mass, thread_name, unit_terms};
 use tokio_rayon::rayon;
 
 fn on_exec_thread(name: Option<&str>) -> bool {
@@ -92,6 +97,35 @@ async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
         observed.iter().all(|(held, ..)| *held),
         "expected total = {PAR_THRESHOLD}, more than {} records (a sequential run records exactly that many), every add on peluang-exec-* and every add seeing the executor size {exec_size}, observed (held, route, total, records, off-pool names, pool sizes): {observed:?}",
         PAR_THRESHOLD + 1
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn compose_inside_run_stays_on_executor_pool() -> Result<()> {
+    let exec_size = rayon::current_num_threads() + 1;
+    let exec = Executor::with_num_threads(exec_size)?;
+    let log = AddLog::default();
+    let middle = FinObj::new(PAR_THRESHOLD);
+    let f = point_mass(&log, middle.clone())?;
+    let (units, _) = unit_terms(&log, PAR_THRESHOLD);
+    let g = Kernel::new(middle, FinObj::unit(), units)?;
+    log.lock().unwrap().clear();
+
+    let composite = exec.run(move || f.compose(&g)).await?;
+
+    let total = composite.column(0).map(|column| column[0].n);
+    let sites = log.lock().unwrap();
+    let off_pool = names(&sites, |site| !on_exec_thread(site.name.as_deref()));
+    let sizes: BTreeSet<usize> = sites.iter().map(|site| site.pool_size).collect();
+    assert!(
+        total == Some(1)
+            && sites.len() > PAR_THRESHOLD + 1
+            && off_pool.is_empty()
+            && sizes == BTreeSet::from([exec_size]),
+        "expected weight 1, more than {} records (a sequential run records at most that many), every add on peluang-exec-* and every add seeing the executor size {exec_size}, observed (weight, records, off-pool names, pool sizes): {:?}",
+        PAR_THRESHOLD + 1,
+        (total, sites.len(), &off_pool, &sizes)
     );
     Ok(())
 }

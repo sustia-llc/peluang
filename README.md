@@ -13,13 +13,15 @@ arXiv:1908.07021; cited by definition and theorem number.
 ## Architecture
 
 - `src/` — the crate: `prob.rs` (the `Prob` carrier trait; exact rationals by
-  default, `f64` behind the `f64-prob` feature; `sum`), `exec.rs` (behind
-  `async`), `error.rs`, and the Markov-category modules as they land.
+  default, `f64` behind the `f64-prob` feature; `sum`), `finset.rs` (finite
+  objects, `tensor` as concatenation of factors), `kernel.rs` (`Kernel<P>`, a
+  stochastic matrix with `Kernel::new` testing its input), `markov.rs`
+  (`Compose`, `Tensor`, the structure maps, marginals), `deterministic.rs`
+  (`is_deterministic`), `exec.rs` (behind `async`), `error.rs`.
 - `lean/` — the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
   `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is
   the library root and imports every file under `lean/Peluang/`.
-- `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`
-  (none yet).
+- `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`.
 - `THEOREM_MAP.md` — Lean theorem → Rust test → anchor.
 - `scripts/check_theorem_map.py` — every theorem of the library has a
   `THEOREM_MAP.md` row with an existing witness, or a `-- WITNESS: none`
@@ -54,7 +56,8 @@ All off by default.
   pool of the calling thread: the `exec::Executor` pool inside
   `Executor::run`, the global pool on a thread outside any rayon pool. On
   such a thread, the caller blocks until the workers finish and then runs the
-  last combining `add`.
+  last combining `add`. `compose`, `marginal_fst` and `marginal_snd` compute
+  each weight through `prob::sum`.
 - `async` — implies `parallel`; `exec::Executor` owns a rayon pool and
   `Executor::run` awaits a closure on it (`tokio-rayon`). The crate creates
   no async runtime.

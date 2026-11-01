@@ -3,6 +3,9 @@
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
+use peluang::error::Result;
+use peluang::finset::FinObj;
+use peluang::kernel::Kernel;
 use peluang::prob::{Prob, sum, sum_with};
 
 pub type Route = fn(&[Probe]) -> Probe;
@@ -95,6 +98,23 @@ pub fn unit_terms(log: &AddLog, len: usize) -> (Vec<Probe>, u64) {
     };
     let want = u64::try_from(len).expect("invariant: test sizes fit in u64");
     (vec![term; len], want)
+}
+
+/// The state on `cod` with weight 1 at output 0, recording into `log`.
+pub fn point_mass(log: &AddLog, cod: FinObj) -> Result<Kernel<Probe>> {
+    let (units, _) = unit_terms(log, cod.card());
+    let weights = units
+        .iter()
+        .enumerate()
+        .map(|(y, unit)| {
+            if y == 0 {
+                unit.clone()
+            } else {
+                unit.mul(&Probe::zero())
+            }
+        })
+        .collect();
+    Kernel::state(cod, weights)
 }
 
 /// The distinct thread names in `sites` that `keep` selects.
