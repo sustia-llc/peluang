@@ -21,7 +21,8 @@ arXiv:1908.07021; cited by definition and theorem number.
 - `lean/` — the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
   `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is
   the library root and imports every file under `lean/Peluang/`.
-- `tests/formalization_lean/` — witness tests tagged `/// THEOREM_MAP: <id>`.
+- `tests/formalization_lean/`: witness tests tagged `/// THEOREM_MAP: <id>`.
+- `tests/laws.rs`: `proptest` law tests on generated kernels.
 - `THEOREM_MAP.md` — Lean theorem → Rust test → anchor.
 - `scripts/check_theorem_map.py` — every theorem of the library has a
   `THEOREM_MAP.md` row with an existing witness, or a `-- WITNESS: none`

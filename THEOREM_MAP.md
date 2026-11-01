@@ -1,9 +1,10 @@
 # THEOREM_MAP
 
 One row per Lean theorem under `lean/Peluang/`: the fully qualified Lean id,
-the Rust witness test, and the anchor. Lean proves the universal statement;
-the Rust test pins the engine at worked examples. Each row pins an abstract
-statement, and Phase 3 proves its FinStoch instance.
+the Rust witness test, and the anchor. Lean proves the universal statement.
+The Rust test pins the engine at worked examples, and `tests/laws.rs` pins the
+structure laws at property-generated inputs. Phase 3 proves the FinStoch
+instance of the abstract statements in the `CategoryTheory.*` rows.
 `scripts/check_theorem_map.py` enforces: every `theorem` or `lemma`
 under `lean/Peluang/` has a row whose test exists (exactly one `#[test]` under
 `tests/formalization_lean/` carrying `/// THEOREM_MAP: <id>`), or an opt-out
@@ -17,7 +18,7 @@ If a `.rs` file under `tests/formalization_lean/` contains `f64-prob` or a word
 that starts with `cfg`, `scripts/check_theorem_map.py` fails. Rows for Mathlib-owned theorems are
 prefixed `mathlib:` and are optional.
 
-Anchor format: `Fritz 2020 Def./Prop./Thm./Lemma/Remark/Notation N.M`
+Anchor format: `Fritz 2020 Def./Prop./Thm./Lemma/Remark/Notation/Example N.M`
 (arXiv:1908.07021) and/or the Café post's `D`/`T` id. A row can name an
 instance, and `check_theorem_map.py` does not test that a row's Lean id names
 a declaration.
@@ -45,3 +46,14 @@ a declaration.
 | CategoryTheory.Deterministic.instLeftUnitor | tests/formalization_lean/deterministic_tests.rs::witness_inst_left_unitor | Fritz 2020 Lemma 10.12 |
 | CategoryTheory.Deterministic.instRightUnitor | tests/formalization_lean/deterministic_tests.rs::witness_inst_right_unitor | Fritz 2020 Lemma 10.12 |
 | CategoryTheory.Deterministic.instBraiding | tests/formalization_lean/deterministic_tests.rs::witness_inst_braiding | Fritz 2020 Lemma 10.12 |
+| FinStoch.comp_mass | tests/formalization_lean/finstoch_tests.rs::witness_comp_mass | Fritz 2020 Example 2.5 |
+| FinStoch.tensorHom_mass | tests/formalization_lean/finstoch_tests.rs::witness_tensor_hom_mass | Fritz 2020 Example 2.5 |
+| FinStoch.ofFun_id | tests/formalization_lean/finstoch_tests.rs::witness_of_fun_id | Fritz 2020 Example 10.3 |
+| FinStoch.ofFun_comp | tests/formalization_lean/finstoch_tests.rs::witness_of_fun_comp | Fritz 2020 Example 10.3 |
+| FinStoch.copy_eq_ofFun | tests/formalization_lean/finstoch_tests.rs::witness_copy_eq_of_fun | Fritz 2020 Example 2.5 |
+| FinStoch.discard_eq_ofFun | tests/formalization_lean/finstoch_tests.rs::witness_discard_eq_of_fun | Fritz 2020 Example 2.5 |
+| FinStoch.braiding_eq_ofFun | tests/formalization_lean/finstoch_tests.rs::witness_braiding_eq_of_fun | Fritz 2020 Example 2.5 |
+| FinStoch.deterministic_iff_mass | tests/formalization_lean/finstoch_tests.rs::witness_deterministic_iff_mass | Fritz 2020 Example 10.3, T12 |
+| FinStoch.deterministic_iff_exists_ofFun | tests/formalization_lean/finstoch_tests.rs::witness_deterministic_iff_exists_of_fun | Fritz 2020 Example 10.3, T12 |
+| FinStoch.not_deterministic_bernoulli | tests/formalization_lean/finstoch_tests.rs::witness_not_deterministic_bernoulli | Fritz 2020 Def. 10.1 |
+| FinStoch.instMarkovCategory | tests/formalization_lean/finstoch_tests.rs::witness_markov_category | Fritz 2020 Example 2.5, T1 |
