@@ -245,7 +245,7 @@ mod kernels {
 
     use crate::common::{closed_form, telescoping};
     use crate::fixtures::{
-        assert_kernel, c, d, e, h, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
+        assert_kernel, c, d, e, h, labels, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
     };
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
@@ -295,17 +295,17 @@ mod kernels {
             "expected DataLength {{ expected: 6, found: 5 }}, observed {got:?}"
         );
 
-        let negative = vec![r(1, 2), r(1, 1), r(1, 1), r(0, 1), r(-1, 3), r(4, 3)];
+        let negative = vec![r(1, 2), r(1, 1), r(1, 1), r(-1, 3), r(0, 1), r(4, 3)];
         let got = Kernel::new(dom.clone(), cod.clone(), negative);
         assert!(
             matches!(
                 got,
                 Err(Error::NegativeWeight {
                     input: 1,
-                    output: 1
+                    output: 0
                 })
             ),
-            "expected NegativeWeight at input 1, output 1 ahead of the unnormalized column 0, observed {got:?}"
+            "expected NegativeWeight at input 1, output 0 ahead of the unnormalized column 0, observed {got:?}"
         );
 
         let unnormalized = vec![r(1, 1), r(0, 1), r(0, 1), r(1, 2), r(1, 2), r(1, 2)];
@@ -499,32 +499,81 @@ mod kernels {
         Ok(())
     }
 
+    #[track_caller]
+    fn assert_not_a_tensor(
+        route: &str,
+        got: &Result<Kernel<Exact>>,
+        cod: &FinObj,
+        x: &FinObj,
+        y: &FinObj,
+    ) {
+        assert!(
+            matches!(got, Err(Error::NotATensor { codomain, fst, snd })
+                if codomain == cod && fst == x && snd == y),
+            "{route}: expected NotATensor {{ codomain: {cod:?}, fst: {x:?}, snd: {y:?} }}, observed {got:?}"
+        );
+    }
+
     #[test]
     fn marginals_reject_a_wrong_split() -> Result<()> {
-        let (two, three) = (FinObj::new(2), FinObj::new(3));
-        let joint = Kernel::state(
-            two.tensor(&three)?,
-            vec![r(1, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
-        )?;
-        for (route, got) in [
-            ("marginal_fst", joint.marginal_fst(&three, &two)),
-            ("marginal_snd", joint.marginal_snd(&three, &two)),
+        let (one, two, three) = (FinObj::new(1), FinObj::new(2), FinObj::new(3));
+        let point = vec![r(1, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1)];
+        let cod = two.tensor(&three)?;
+        let joint = Kernel::state(cod.clone(), point.clone())?;
+        for (route, got, x, y) in [
+            (
+                "marginal_fst, 3·2 split",
+                joint.marginal_fst(&three, &two),
+                &three,
+                &two,
+            ),
+            (
+                "marginal_snd, 3·2 split",
+                joint.marginal_snd(&three, &two),
+                &three,
+                &two,
+            ),
+            (
+                "marginal_fst, mismatch only on snd",
+                joint.marginal_fst(&two, &two),
+                &two,
+                &two,
+            ),
+            (
+                "marginal_snd, mismatch only on fst",
+                joint.marginal_snd(&one, &three),
+                &one,
+                &three,
+            ),
         ] {
-            assert!(
-                matches!(&got, Err(Error::NotATensor { codomain, fst, snd })
-                    if *codomain == two.tensor(&three)? && *fst == three && *snd == two),
-                "{route}: expected NotATensor on the 3·2 split of a 2·3 codomain, observed {got:?}"
-            );
+            assert_not_a_tensor(route, &got, &cod, x, y);
         }
+
+        let (abc, xyz) = (labels(&["a", "b", "c"])?, labels(&["x", "y", "z"])?);
+        let labeled_cod = abc.tensor(&two)?;
+        let labeled = Kernel::state(labeled_cod.clone(), point.clone())?;
+        assert_not_a_tensor(
+            "marginal_fst, labels differ at equal cardinalities",
+            &labeled.marginal_fst(&xyz, &two),
+            &labeled_cod,
+            &xyz,
+            &two,
+        );
+
         let flat = FinObj::new(6);
-        let joint = Kernel::state(
-            flat,
-            vec![r(1, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
-        )?;
+        let joint = Kernel::state(flat.clone(), point)?;
         let got = joint.marginal_fst(&two, &three);
         assert!(
             matches!(got, Err(Error::NotATensor { .. })),
             "expected NotATensor on a single 6-element factor, observed {got:?}"
+        );
+        let longer = two.tensor(&three)?;
+        assert_not_a_tensor(
+            "marginal_fst, x has more factors than the codomain",
+            &joint.marginal_fst(&longer, &FinObj::unit()),
+            &flat,
+            &longer,
+            &FinObj::unit(),
         );
         let huge = FinObj::new(usize::MAX);
         let got = joint.marginal_snd(&huge, &huge);
