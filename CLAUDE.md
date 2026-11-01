@@ -90,8 +90,8 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 - Library code returns `crate::error::Error` (`thiserror`); `anyhow` only in
   examples and tests. No `unwrap()` in `src/`; `expect("invariant: …")` only
   where a precondition makes the other branch unreachable.
-- No code blocks in docstrings while the repo is private (`[lib] doctest =
-  false`); usage lives in `examples/` and `tests/`.
+- No code blocks in docstrings (`[lib] doctest = false`). Usage lives in
+  `examples/` and `tests/`.
 - Lean/Mathlib move together as a pair, pinned in `lean/lean-toolchain`,
   `lean/lakefile.lean` and `lean/lake-manifest.json`; never `lake update`.
 - Anchors cite Fritz 2020 (arXiv:1908.07021) by definition/theorem number.
