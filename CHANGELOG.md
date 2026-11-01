@@ -6,6 +6,18 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Changed
+
+- The witness tests in `tests/formalization_lean/` and the tests on `Exact`
+  weights in `tests/canonical.rs` run in every feature lane, also under
+  `f64-prob`. The tests on `Exact` weights in `tests/parallel.rs` run in each
+  lane with `parallel`.
+- If a `.rs` file under `tests/formalization_lean/` contains `f64-prob` or a
+  word that starts with `cfg`, `scripts/check_theorem_map.py` fails.
+- Tests pin the input order and the product of `tensor` on `f64` weights, the
+  domain factor list of `Tensor::tensor`, and the reset of the test allocator
+  limit after a panic.
+
 ## [0.2.3] - 2026-11-01
 
 ### Added

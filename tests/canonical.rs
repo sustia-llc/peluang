@@ -1,13 +1,13 @@
-//! Canonical integration tests. In both lanes: the `Prob` trait (law
-//! verification, checked division and normalization), the `FinObj` object laws
-//! and rejections, and `Kernel::approx_eq`. In the exact lane: the rejections
-//! of each `Kernel` constructor and operation, composition and tensor at
-//! literals, `is_deterministic`, results across `PAR_THRESHOLD`, size errors,
-//! and the post's eq. (9) as exact rationals. In the `f64` lane: the input
-//! tests of `Kernel::new`, and worked `compose`, `tensor`, marginals and
-//! `is_deterministic` under `Kernel::approx_eq`.
+//! Canonical integration tests. On `Exact` weights in every feature lane: the
+//! `Prob` trait (law verification, checked division and normalization), the
+//! rejections of each `Kernel` constructor and operation, `Kernel::approx_eq`,
+//! composition and tensor at literals, `is_deterministic`, results across
+//! `PAR_THRESHOLD`, size errors, and the post's eq. (9). In every feature lane:
+//! the `FinObj` object laws and rejections. On `f64` weights under `f64-prob`:
+//! the `Prob` trait, `Kernel::approx_eq`, the input tests of `Kernel::new`, and
+//! worked `compose`, `tensor`, marginals and `is_deterministic` under
+//! `Kernel::approx_eq`.
 
-#[cfg(not(feature = "f64-prob"))]
 mod common;
 #[path = "formalization_lean/fixtures.rs"]
 mod fixtures;
@@ -64,7 +64,6 @@ mod rejection {
     }
 }
 
-#[cfg(not(feature = "f64-prob"))]
 mod exact {
     use crate::common::{closed_form, telescoping};
     use peluang::error::Error;
@@ -216,10 +215,10 @@ mod objects {
 
     #[test]
     fn labeled_rejects_a_repeat() {
-        let got = labels(&["on", "off", "on"]);
+        let got = labels(&["on", "off", "off", "on"]);
         assert!(
-            matches!(&got, Err(Error::DuplicateLabel { label }) if label == "on"),
-            "expected DuplicateLabel {{ label: \"on\" }}, observed {got:?}"
+            matches!(&got, Err(Error::DuplicateLabel { label }) if label == "off"),
+            "expected DuplicateLabel {{ label: \"off\" }}, observed {got:?}"
         );
     }
 
@@ -238,11 +237,11 @@ mod objects {
     }
 }
 
-#[cfg(not(feature = "f64-prob"))]
 mod kernels {
     use std::collections::TryReserveError;
     use std::error::Error as StdError;
 
+    use crate::c_tensor_s;
     use crate::common::{closed_form, telescoping};
     use crate::fixtures::{
         assert_kernel, c, d, e, h, labels, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
@@ -350,16 +349,16 @@ mod kernels {
 
     #[test]
     fn from_fn_rejects_an_output_out_of_range() -> Result<()> {
-        let got = Kernel::<Exact>::from_fn(FinObj::new(3), FinObj::new(2), |x| x);
+        let got = Kernel::<Exact>::from_fn(FinObj::new(3), FinObj::new(4), |x| 2 * x + 1);
         assert!(
             matches!(
                 got,
                 Err(Error::NotAFunction {
                     input: 2,
-                    output: 2
+                    output: 5
                 })
             ),
-            "expected NotAFunction at input 2, output 2, observed {got:?}"
+            "expected NotAFunction at input 2, output 5, observed {got:?}"
         );
         let got = Kernel::<Exact>::from_fn(obj_w()?, obj_s()?, |x| usize::from(x > 0))?;
         assert_kernel("from_fn", &got, &d()?);
@@ -443,6 +442,8 @@ mod kernels {
             ],
         )?;
         assert_kernel("c ⊗ₘ psi_t", &mixed, &expected);
+
+        assert_kernel("c ⊗ₘ s", &c()?.tensor(&s()?)?, &c_tensor_s()?);
         Ok(())
     }
 
@@ -718,10 +719,11 @@ mod kernels {
             matches!(got, Err(Error::TooLarge { fst, snd, source: None }) if fst == n && snd == n),
             "expected TooLarge from an overflowing n·n with no source, observed {got:?}"
         );
-        let got = Kernel::<Exact>::swap(&FinObj::new(n), &FinObj::new(n));
+        let m = 1_usize << 33;
+        let got = Kernel::<Exact>::swap(&FinObj::new(n), &FinObj::new(m));
         assert!(
-            matches!(got, Err(Error::TooLarge { fst, snd, source: None }) if fst == n && snd == n),
-            "expected TooLarge from an overflowing n·n with no source, observed {got:?}"
+            matches!(got, Err(Error::TooLarge { fst, snd, source: None }) if fst == n && snd == m),
+            "expected TooLarge from an overflowing n·m with fst = n, snd = m and no source, observed {got:?}"
         );
     }
 
@@ -788,9 +790,28 @@ mod kernels {
     }
 }
 
+/// `c ⊗ₘ s : T ⊗ W → W ⊗ S`, the literal.
+fn c_tensor_s() -> peluang::error::Result<peluang::kernel::Kernel<peluang::prob::Exact>> {
+    use crate::fixtures::{lit, obj_s, obj_t, obj_w, r};
+
+    lit(
+        obj_t()?.tensor(&obj_w()?)?,
+        obj_w()?.tensor(&obj_s()?)?,
+        &[
+            &[r(1, 6), r(1, 3), r(1, 6), r(1, 3), r(0, 1), r(0, 1)],
+            &[r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 12), r(1, 6), r(1, 4), r(1, 2)],
+            &[r(0, 1), r(0, 1), r(1, 4), r(0, 1), r(3, 4), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(1, 4), r(0, 1), r(3, 4)],
+        ],
+    )
+}
+
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
-    use crate::fixtures::{c, d, f, h, obj_s, obj_t, obj_w, psi_t, s};
+    use crate::c_tensor_s;
+    use crate::fixtures::{c, d, f, h, obj_s, obj_t, obj_w, s};
     use num_traits::ToPrimitive;
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
@@ -853,12 +874,10 @@ mod float_kernels {
 
     #[test]
     fn tensor_has_the_first_factor_major() -> Result<()> {
-        let columns = [0.1, 0.4, 0.1, 0.4, 0.0, 0.0, 0.0, 0.0, 0.05, 0.2, 0.15, 0.6];
-        let expected = Kernel::new(obj_t()?, obj_w()?.tensor(&obj_t()?)?, columns.to_vec())?;
         assert_approx(
-            "c ⊗ₘ psi_t",
-            &floats(&c()?)?.tensor(&floats(&psi_t()?)?)?,
-            &expected,
+            "c ⊗ₘ s",
+            &floats(&c()?)?.tensor(&floats(&s()?)?)?,
+            &floats(&c_tensor_s()?)?,
         );
         Ok(())
     }

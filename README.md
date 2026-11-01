@@ -49,8 +49,8 @@ arXiv:1908.07021; cited by definition and theorem number.
 
 All off by default.
 
-- `f64-prob` — `Prob` for `f64` with a declared tolerance; witness tests do
-  not compile in this lane.
+- `f64-prob` — `Prob` for `f64` with a declared tolerance. Witness tests use
+  `Exact` weights and also run in this lane.
 - `parallel` — `prob::sum` runs on rayon (via `rayon-cond`) at or above
   `prob::PAR_THRESHOLD` terms. On a target with threads, it uses the rayon
   pool of the calling thread: the `exec::Executor` pool inside
