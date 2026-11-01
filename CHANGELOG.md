@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-01
+
 ### Added
 
 - `lean/Peluang/Instances/FinStoch/`: the category of finite sets and
