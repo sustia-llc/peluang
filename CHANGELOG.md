@@ -6,6 +6,19 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-01
+
+### Added
+
+- `lean/Peluang/Instances/FinStoch/`: the category of finite sets and
+  stochastic matrices with entries in `ℚ≥0`, `instance : MarkovCategory
+  FinStoch` (Fritz 2020 Example 2.5), the deterministic morphisms as functions
+  (Example 10.3), and a Bernoulli state that is not deterministic.
+- `tests/laws.rs`: law tests on `proptest` kernels and on each cardinality from
+  0 to 4, in the `Exact` lane and under `f64-prob` in the `f64` lane.
+- `tests/formalization_lean/finstoch_tests.rs` with 11 witness tests and
+  `THEOREM_MAP.md` rows.
+
 ### Changed
 
 - The witness tests in `tests/formalization_lean/` and the tests on `Exact`

@@ -1,9 +1,10 @@
 //! The running example as exact literals built with `Kernel::new`: the objects
 //! `W`, `T`, `S`, the kernels `psi_t`, `c`, `s`, `h`, `f`, `j`, `d`, `e`, and
-//! the comparison that reports observed and expected values.
+//! the comparisons that report observed and expected values.
 
 #![allow(dead_code)]
 
+use peluang::deterministic::is_deterministic;
 use peluang::error::Result;
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
@@ -164,4 +165,17 @@ pub fn assert_kernel(side: &str, observed: &Kernel<Exact>, expected: &Kernel<Exa
         show(expected),
         show(observed)
     );
+}
+
+/// Asserts `is_deterministic(k) == expected`, naming `name`.
+#[track_caller]
+pub fn assert_deterministic(name: &str, k: &Kernel<Exact>, expected: bool) -> Result<()> {
+    let observed = is_deterministic(k)?;
+    assert_eq!(
+        observed,
+        expected,
+        "is_deterministic({name}) on {}: expected {expected}, observed {observed}",
+        show(k)
+    );
+    Ok(())
 }
