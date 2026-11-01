@@ -9,6 +9,7 @@ public import Mathlib.Probability.Kernel.Category.Stoch
 public import Peluang.Deterministic.Lemmas
 public import Peluang.Deterministic.Wide
 public import Peluang.Instances.FinStoch.Basic
+public import Peluang.Instances.FinStoch.Markov
 public import Peluang.Instances.FinStoch.Monoidal
 public import Peluang.Markov.Cartesian
 public import Peluang.Markov.Derived
