@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
@@ -334,6 +336,20 @@ class CheckTheoremMap(unittest.TestCase):
         failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("is not `tests/formalization_lean/", failures[0])
+
+    def main_code(self, **kw: object) -> int:
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(tmp)
+            build(root, **kw)
+            return ctm.main(["check_theorem_map.py", str(root)])
+
+    def test_main_returns_1_on_a_failure(self) -> None:
+        code = self.main_code(lean=LEAN_FILE, row=None, test=None)
+        self.assertEqual(code, 1, f"main returned {code} on an uncovered theorem")
+
+    def test_main_returns_0_on_a_clean_tree(self) -> None:
+        code = self.main_code(lean=LEAN_FILE, row=ROW, test=TEST_FILE)
+        self.assertEqual(code, 0, f"main returned {code} on a covered theorem")
 
 
 if __name__ == "__main__":

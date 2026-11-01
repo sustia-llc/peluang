@@ -349,16 +349,16 @@ mod kernels {
 
     #[test]
     fn from_fn_rejects_an_output_out_of_range() -> Result<()> {
-        let got = Kernel::<Exact>::from_fn(FinObj::new(3), FinObj::new(2), |x| x + 1);
+        let got = Kernel::<Exact>::from_fn(FinObj::new(3), FinObj::new(4), |x| 2 * x + 1);
         assert!(
             matches!(
                 got,
                 Err(Error::NotAFunction {
-                    input: 1,
-                    output: 2
+                    input: 2,
+                    output: 5
                 })
             ),
-            "expected NotAFunction at input 1, output 2, observed {got:?}"
+            "expected NotAFunction at input 2, output 5, observed {got:?}"
         );
         let got = Kernel::<Exact>::from_fn(obj_w()?, obj_s()?, |x| usize::from(x > 0))?;
         assert_kernel("from_fn", &got, &d()?);
