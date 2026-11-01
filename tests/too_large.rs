@@ -2,15 +2,17 @@
 //! `Kernel::marginal_fst` and `Kernel::marginal_snd` under an allocator that
 //! refuses the reservation of 64 weights: each returns `Error::TooLarge` with
 //! the sizes of that reservation and a `TryReserveError` source, for the buffer
-//! of the result, the buffer of the terms of `compose` and `marginal_snd`, and
-//! the factor list of `FinObj::tensor`. `compose` on an empty domain and
-//! `marginal_fst` reserve no terms under it.
+//! of the result, the buffer of the terms of `compose` and `marginal_snd`, the
+//! factor list of `FinObj::tensor`, and the domain factor list of
+//! `Tensor::tensor`. `compose` on an empty domain and `marginal_fst` reserve no
+//! terms under it. `refusing` restores the limit when `op` panics.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 use std::collections::TryReserveError;
 use std::error::Error as StdError;
 use std::fmt::Debug;
+use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 use std::ptr;
 
 use peluang::error::{Error, Result};
@@ -137,7 +139,34 @@ fn tensors_report_a_refused_reservation() -> Result<()> {
         factors,
         1,
     );
+
+    let f = Kernel::del(&list)?;
+    let g = point_mass(FinObj::unit())?;
+    assert_refused(
+        "Tensor::tensor, domain factor list",
+        &refusing(|| f.tensor(&g)),
+        factors,
+        1,
+    );
     Ok(())
+}
+
+#[test]
+fn refusing_restores_the_limit_when_op_panics() {
+    let armed = Cell::new(0);
+    let got = catch_unwind(AssertUnwindSafe(|| {
+        refusing(|| -> Result<()> {
+            armed.set(LIMIT.get());
+            resume_unwind(Box::new("op panics"))
+        })
+    }));
+    let restored = LIMIT.replace(usize::MAX);
+    assert!(got.is_err(), "expected op to panic, observed {got:?}");
+    assert_eq!(
+        (armed.get(), restored),
+        (REFUSED * size_of::<Exact>(), usize::MAX),
+        "expected the limit armed during op and usize::MAX after its panic, observed on the left"
+    );
 }
 
 #[test]

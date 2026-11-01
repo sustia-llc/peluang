@@ -1,4 +1,4 @@
-//! Shared exact-lane fixtures; each test binary uses a subset.
+//! Shared fixtures on `Exact` weights; each test binary uses a subset.
 
 #![allow(dead_code)]
 
