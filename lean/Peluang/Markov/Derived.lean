@@ -106,40 +106,34 @@ def marginalSnd [CopyDiscardCategory C] {A X Y : C} (f : A ⟶ X ⊗ Y) : A ⟶ 
 
 variable [CopyDiscardCategory C] {A B X Y : C}
 
--- WITNESS: none (Phase 2R witness)
 /-- The first marginal commutes with precomposition. -/
 @[simp]
 theorem marginalFst_comp (k : B ⟶ A) (f : A ⟶ X ⊗ Y) :
     marginalFst (k ≫ f) = k ≫ marginalFst f := by
   simp [marginalFst]
 
--- WITNESS: none (Phase 2R witness)
 /-- The second marginal commutes with precomposition. -/
 @[simp]
 theorem marginalSnd_comp (k : B ⟶ A) (f : A ⟶ X ⊗ Y) :
     marginalSnd (k ≫ f) = k ≫ marginalSnd f := by
   simp [marginalSnd]
 
--- WITNESS: none (Phase 2R witness)
 /-- The first marginal of copying is the identity. -/
 @[simp]
 theorem marginalFst_copy (X : C) : marginalFst Δ[X] = 𝟙 X := by
   simp [marginalFst]
 
--- WITNESS: none (Phase 2R witness)
 /-- The second marginal of copying is the identity. -/
 @[simp]
 theorem marginalSnd_copy (X : C) : marginalSnd Δ[X] = 𝟙 X := by
   simp [marginalSnd]
 
--- WITNESS: none (Phase 2R witness)
 /-- The first marginal of `f ▷ B`, for `f : A ⟶ X`, is discarding `B` followed by `f`. -/
 @[simp]
 theorem marginalFst_whiskerRight (f : A ⟶ X) (B : C) :
     marginalFst (f ▷ B) = A ◁ ε[B] ≫ (ρ_ A).hom ≫ f := by
   rw [marginalFst, ← whisker_exchange_assoc, rightUnitor_naturality]
 
--- WITNESS: none (Phase 2R witness)
 /-- The second marginal of `A ◁ g`, for `g : B ⟶ Y`, is discarding `A` followed by `g`. -/
 @[simp]
 theorem marginalSnd_whiskerLeft (A : C) (g : B ⟶ Y) :
@@ -154,7 +148,6 @@ open CopyDiscardCategory
 
 variable [MarkovCategory C] {A B X Y : C}
 
--- WITNESS: none (Phase 2R witness)
 /-- In a Markov category, the first marginal of `Δ[A] ≫ (g ⊗ₘ h)` is `g`. -/
 theorem marginalFst_copy_comp_tensorHom (g : A ⟶ X) (h : A ⟶ Y) :
     marginalFst (Δ[A] ≫ (g ⊗ₘ h)) = g := by
@@ -162,7 +155,6 @@ theorem marginalFst_copy_comp_tensorHom (g : A ⟶ X) (h : A ⟶ Y) :
     Category.comp_id, MarkovCategory.discard_natural, comul_counit_hom_assoc, Iso.inv_hom_id,
     Category.comp_id]
 
--- WITNESS: none (Phase 2R witness)
 /-- In a Markov category, the second marginal of `Δ[A] ≫ (g ⊗ₘ h)` is `h`. -/
 theorem marginalSnd_copy_comp_tensorHom (g : A ⟶ X) (h : A ⟶ Y) :
     marginalSnd (Δ[A] ≫ (g ⊗ₘ h)) = h := by
@@ -170,7 +162,6 @@ theorem marginalSnd_copy_comp_tensorHom (g : A ⟶ X) (h : A ⟶ Y) :
     Category.comp_id, MarkovCategory.discard_natural, counit_comul_hom_assoc, Iso.inv_hom_id,
     Category.comp_id]
 
--- WITNESS: none (Phase 2R witness)
 /-- In a Markov category, the first marginal of `f ⊗ₘ g`, for `f : A ⟶ X` and `g : B ⟶ Y`,
 is discarding `B` followed by `f`. -/
 @[simp]
@@ -179,7 +170,6 @@ theorem marginalFst_tensorHom (f : A ⟶ X) (g : B ⟶ Y) :
   rw [marginalFst, tensorHom_def, Category.assoc, ← whiskerLeft_comp_assoc,
     MarkovCategory.discard_natural, ← whisker_exchange_assoc, rightUnitor_naturality]
 
--- WITNESS: none (Phase 2R witness)
 /-- In a Markov category, the second marginal of `f ⊗ₘ g`, for `f : A ⟶ X` and `g : B ⟶ Y`,
 is discarding `A` followed by `g`. -/
 @[simp]
@@ -188,7 +178,6 @@ theorem marginalSnd_tensorHom (f : A ⟶ X) (g : B ⟶ Y) :
   rw [marginalSnd, tensorHom_def', Category.assoc, ← comp_whiskerRight_assoc,
     MarkovCategory.discard_natural, whisker_exchange_assoc, leftUnitor_naturality]
 
--- WITNESS: none (Phase 2R witness)
 /-- In a Markov category, the second marginal of `f ▷ B`, for `f : A ⟶ X`, is discarding
 `A`. -/
 @[simp]
@@ -196,7 +185,6 @@ theorem marginalSnd_whiskerRight (f : A ⟶ X) (B : C) :
     marginalSnd (f ▷ B) = ε[A] ▷ B ≫ (λ_ B).hom := by
   rw [marginalSnd, ← comp_whiskerRight_assoc, MarkovCategory.discard_natural]
 
--- WITNESS: none (Phase 2R witness)
 /-- In a Markov category, the first marginal of `A ◁ g`, for `g : B ⟶ Y`, is discarding
 `B`. -/
 @[simp]

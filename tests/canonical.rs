@@ -1,8 +1,15 @@
 //! Canonical integration tests for the `Prob` trait: law verification,
 //! checked division and normalization, in the exact lane and the `f64` lane.
+//! `FinObj` and `Kernel`: the object laws, the rejections of each constructor
+//! and operation, composition and tensor at literals, `is_deterministic`,
+//! results across `PAR_THRESHOLD`, size errors, and the post's eq. (9) as exact
+//! rationals. In the `f64` lane, the input tests of `Kernel::new`.
 
 #[cfg(not(feature = "f64-prob"))]
 mod common;
+#[cfg(not(feature = "f64-prob"))]
+#[path = "formalization_lean/fixtures.rs"]
+mod fixtures;
 
 mod rejection {
     use peluang::error::Error;
@@ -153,6 +160,514 @@ mod exact {
         assert!(pos, "expected 3/5 nonneg, got {pos}");
         assert!(zero, "expected 0 nonneg, got {zero}");
         assert!(!neg, "expected -1/5 not nonneg, got {neg}");
+    }
+}
+
+#[cfg(not(feature = "f64-prob"))]
+mod objects {
+    use peluang::error::{Error, Result};
+    use peluang::finset::FinObj;
+
+    fn labels(names: &[&str]) -> Result<FinObj> {
+        FinObj::labeled(names.iter().map(|&name| name.to_owned()).collect())
+    }
+
+    #[test]
+    fn tensor_is_concatenation() -> Result<()> {
+        let (x, y, z) = (FinObj::new(2), labels(&["a", "b", "c"])?, FinObj::new(5));
+        let i = FinObj::unit();
+        let left = x.tensor(&y)?.tensor(&z)?;
+        let right = x.tensor(&y.tensor(&z)?)?;
+        assert_eq!(left, right, "expected (X ⊗ Y) ⊗ Z == X ⊗ (Y ⊗ Z)");
+        assert_eq!(x.tensor(&i)?, x, "expected X ⊗ I == X");
+        assert_eq!(i.tensor(&x)?, x, "expected I ⊗ X == X");
+        let observed = (left.card(), left.factors().to_vec());
+        let expected = (30, [x.factors(), y.factors(), z.factors()].concat());
+        assert_eq!(
+            observed, expected,
+            "expected card 30 and the factors of X, Y, Z in order, observed on the left"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn one_element_object_is_not_unit() {
+        let (one, unit) = (FinObj::new(1), FinObj::unit());
+        assert_ne!(one, unit, "expected FinObj::new(1) != FinObj::unit()");
+        assert_eq!(
+            (one.card(), unit.card()),
+            (1, 1),
+            "expected card 1 on both, observed on the left"
+        );
+    }
+
+    #[test]
+    fn tensor_overflow_is_too_large() {
+        let got = FinObj::new(usize::MAX).tensor(&FinObj::new(2));
+        assert!(
+            matches!(
+                got,
+                Err(Error::TooLarge {
+                    fst: usize::MAX,
+                    snd: 2
+                })
+            ),
+            "expected TooLarge {{ fst: usize::MAX, snd: 2 }}, observed {got:?}"
+        );
+    }
+
+    #[test]
+    fn labeled_rejects_a_repeat() {
+        let got = labels(&["on", "off", "on"]);
+        assert!(
+            matches!(&got, Err(Error::DuplicateLabel { label }) if label == "on"),
+            "expected DuplicateLabel {{ label: \"on\" }}, observed {got:?}"
+        );
+    }
+
+    #[test]
+    fn labels_are_part_of_identity() -> Result<()> {
+        let abc = labels(&["a", "b", "c"])?;
+        let xyz = labels(&["x", "y", "z"])?;
+        assert_eq!(
+            (abc.card(), xyz.card()),
+            (3, 3),
+            "expected equal cardinalities, observed on the left"
+        );
+        assert_ne!(abc, xyz, "expected different labels to compare unequal");
+        assert_ne!(abc, FinObj::new(3), "expected labels to count against none");
+        Ok(())
+    }
+}
+
+#[cfg(not(feature = "f64-prob"))]
+mod kernels {
+    use crate::common::{closed_form, telescoping};
+    use crate::fixtures::{
+        assert_kernel, c, d, e, h, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
+    };
+    use peluang::deterministic::is_deterministic;
+    use peluang::error::{Error, Result};
+    use peluang::finset::FinObj;
+    use peluang::kernel::Kernel;
+    use peluang::markov::{Compose, Tensor};
+    use peluang::prob::{Exact, PAR_THRESHOLD, Prob};
+
+    #[test]
+    fn compose_across_labels_is_not_composable() -> Result<()> {
+        let abc = FinObj::labeled(vec!["a".to_owned(), "b".to_owned(), "c".to_owned()])?;
+        let f = Kernel::state(abc.clone(), vec![r(1, 1), r(0, 1), r(0, 1)])?;
+        let got = f.compose(&s()?);
+        assert!(
+            matches!(&got, Err(Error::NotComposable { codomain, domain })
+                if *codomain == abc && *domain == obj_w()?),
+            "expected NotComposable from abc to W, observed {got:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn new_rejects_each_input_in_order() {
+        let (dom, cod) = (FinObj::new(2), FinObj::new(3));
+        let got = Kernel::new(dom.clone(), cod.clone(), vec![r(1, 1); 5]);
+        assert!(
+            matches!(
+                got,
+                Err(Error::DataLength {
+                    expected: 6,
+                    found: 5
+                })
+            ),
+            "expected DataLength {{ expected: 6, found: 5 }}, observed {got:?}"
+        );
+
+        let negative = vec![r(1, 2), r(1, 1), r(1, 1), r(0, 1), r(-1, 3), r(4, 3)];
+        let got = Kernel::new(dom.clone(), cod.clone(), negative);
+        assert!(
+            matches!(
+                got,
+                Err(Error::NegativeWeight {
+                    input: 1,
+                    output: 1
+                })
+            ),
+            "expected NegativeWeight at input 1, output 1 ahead of the unnormalized column 0, observed {got:?}"
+        );
+
+        let unnormalized = vec![r(1, 1), r(0, 1), r(0, 1), r(1, 2), r(1, 2), r(1, 2)];
+        let got = Kernel::new(dom, cod, unnormalized);
+        assert!(
+            matches!(got, Err(Error::NotNormalized { input: 1 })),
+            "expected NotNormalized at input 1, observed {got:?}"
+        );
+    }
+
+    #[test]
+    fn empty_domain_is_accepted_and_empty_codomain_rejected() -> Result<()> {
+        let empty = Kernel::<Exact>::new(FinObj::new(0), FinObj::new(3), Vec::new())?;
+        assert_eq!(
+            empty.column(0),
+            None,
+            "expected no column on ∅ → Y, observed on the left"
+        );
+        let got = Kernel::<Exact>::new(FinObj::new(2), FinObj::new(0), Vec::new());
+        assert!(
+            matches!(got, Err(Error::NotNormalized { input: 0 })),
+            "expected NotNormalized at input 0 on X → ∅, observed {got:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn state_has_unit_domain() -> Result<()> {
+        let state = psi_t()?;
+        assert_eq!(
+            state.domain(),
+            &FinObj::unit(),
+            "expected domain FinObj::unit(), observed on the left"
+        );
+        assert_kernel(
+            "psi_t",
+            &state,
+            &Kernel::new(FinObj::unit(), obj_t()?, vec![r(1, 5), r(4, 5)])?,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn from_fn_rejects_an_output_out_of_range() -> Result<()> {
+        let got = Kernel::<Exact>::from_fn(FinObj::new(3), FinObj::new(2), |x| x);
+        assert!(
+            matches!(
+                got,
+                Err(Error::NotAFunction {
+                    input: 2,
+                    output: 2
+                })
+            ),
+            "expected NotAFunction at input 2, output 2, observed {got:?}"
+        );
+        let got = Kernel::<Exact>::from_fn(obj_w()?, obj_s()?, |x| usize::from(x > 0))?;
+        assert_kernel("from_fn", &got, &d()?);
+        Ok(())
+    }
+
+    #[test]
+    fn compose_is_chapman_kolmogorov_in_diagrammatic_order() -> Result<()> {
+        let t = obj_t()?;
+        let a = lit(
+            t.clone(),
+            t.clone(),
+            &[&[r(1, 2), r(1, 2)], &[r(1, 4), r(3, 4)]],
+        )?;
+        let b = lit(
+            t.clone(),
+            t.clone(),
+            &[&[r(1, 3), r(2, 3)], &[r(1, 1), r(0, 1)]],
+        )?;
+        let a_then_b = lit(
+            t.clone(),
+            t.clone(),
+            &[&[r(2, 3), r(1, 3)], &[r(5, 6), r(1, 6)]],
+        )?;
+        let b_then_a = lit(
+            t.clone(),
+            t.clone(),
+            &[&[r(1, 3), r(2, 3)], &[r(1, 2), r(1, 2)]],
+        )?;
+        assert_kernel("a ≫ b", &a.compose(&b)?, &a_then_b);
+        assert_kernel("b ≫ a", &b.compose(&a)?, &b_then_a);
+        assert_kernel("c ≫ s", &c()?.compose(&s()?)?, &h()?);
+
+        let got = s()?.compose(&c()?);
+        assert!(
+            matches!(&got, Err(Error::NotComposable { codomain, domain })
+                if *codomain == obj_s()? && *domain == t),
+            "expected NotComposable from S to T, observed {got:?}"
+        );
+        let got = s()?.composable(&c()?);
+        assert!(
+            matches!(got, Err(Error::NotComposable { .. })),
+            "expected composable to report NotComposable, observed {got:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn tensor_is_the_product_with_the_first_factor_major() -> Result<()> {
+        let t = obj_t()?;
+        let a = lit(
+            t.clone(),
+            t.clone(),
+            &[&[r(1, 2), r(1, 2)], &[r(1, 4), r(3, 4)]],
+        )?;
+        let b = lit(
+            t.clone(),
+            t.clone(),
+            &[&[r(1, 3), r(2, 3)], &[r(1, 1), r(0, 1)]],
+        )?;
+        let tt = t.tensor(&t)?;
+        let expected = lit(
+            tt.clone(),
+            tt,
+            &[
+                &[r(1, 6), r(1, 3), r(1, 6), r(1, 3)],
+                &[r(1, 2), r(0, 1), r(1, 2), r(0, 1)],
+                &[r(1, 12), r(1, 6), r(1, 4), r(1, 2)],
+                &[r(1, 4), r(0, 1), r(3, 4), r(0, 1)],
+            ],
+        )?;
+        assert_kernel("a ⊗ₘ b", &a.tensor(&b)?, &expected);
+
+        let mixed = c()?.tensor(&psi_t()?)?;
+        let expected = lit(
+            obj_t()?,
+            obj_w()?.tensor(&obj_t()?)?,
+            &[
+                &[r(1, 10), r(2, 5), r(1, 10), r(2, 5), r(0, 1), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(1, 20), r(1, 5), r(3, 20), r(3, 5)],
+            ],
+        )?;
+        assert_kernel("c ⊗ₘ psi_t", &mixed, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn marginals_reject_a_wrong_split() -> Result<()> {
+        let (two, three) = (FinObj::new(2), FinObj::new(3));
+        let joint = Kernel::state(
+            two.tensor(&three)?,
+            vec![r(1, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+        )?;
+        for (route, got) in [
+            ("marginal_fst", joint.marginal_fst(&three, &two)),
+            ("marginal_snd", joint.marginal_snd(&three, &two)),
+        ] {
+            assert!(
+                matches!(&got, Err(Error::NotATensor { codomain, fst, snd })
+                    if *codomain == two.tensor(&three)? && *fst == three && *snd == two),
+                "{route}: expected NotATensor on the 3·2 split of a 2·3 codomain, observed {got:?}"
+            );
+        }
+        let flat = FinObj::new(6);
+        let joint = Kernel::state(
+            flat,
+            vec![r(1, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+        )?;
+        let got = joint.marginal_fst(&two, &three);
+        assert!(
+            matches!(got, Err(Error::NotATensor { .. })),
+            "expected NotATensor on a single 6-element factor, observed {got:?}"
+        );
+        let huge = FinObj::new(usize::MAX);
+        let got = joint.marginal_snd(&huge, &huge);
+        assert!(
+            matches!(got, Err(Error::NotATensor { .. })),
+            "expected NotATensor on a split whose product overflows, observed {got:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn is_deterministic_at_the_fixtures() -> Result<()> {
+        for (name, kernel, expected) in [
+            ("psi_t", psi_t()?, false),
+            ("s", s()?, false),
+            ("d", d()?, true),
+            ("e", e()?, true),
+        ] {
+            let observed = is_deterministic(&kernel)?;
+            assert_eq!(
+                observed,
+                expected,
+                "is_deterministic({name}) on {}: expected {expected}, observed {observed}",
+                show(&kernel)
+            );
+        }
+        Ok(())
+    }
+
+    /// `(on, off)` weights of the first `k` terms against the rest.
+    fn split_weight(k: usize) -> Result<Kernel<Exact>> {
+        let denominator = i64::try_from(k + 1).expect("invariant: test sizes fit in i64");
+        Kernel::state(obj_s()?, vec![closed_form(k), r(1, denominator)])
+    }
+
+    #[test]
+    fn composites_match_closed_forms_across_threshold() -> Result<()> {
+        for m in [PAR_THRESHOLD - 1, PAR_THRESHOLD, 3 * PAR_THRESHOLD + 7] {
+            let k = m / 2;
+            let middle = FinObj::new(m);
+            let denominator = i64::try_from(m).expect("invariant: test sizes fit in i64");
+            let mut weights = telescoping(m - 1);
+            weights.push(r(1, denominator));
+            let expected = split_weight(k)?;
+
+            let outputs: Vec<usize> = (0..m).map(|y| usize::from(y >= k)).collect();
+            let f = Kernel::state(middle.clone(), weights.clone())?;
+            let g = points(middle.clone(), obj_s()?, &outputs)?;
+            assert_kernel(
+                &format!("compose over {m} terms"),
+                &f.compose(&g)?,
+                &expected,
+            );
+
+            let zero = Exact::zero();
+            let on_off: Vec<(Exact, Exact)> = weights
+                .into_iter()
+                .enumerate()
+                .map(|(y, weight)| {
+                    if y < k {
+                        (weight, zero.clone())
+                    } else {
+                        (zero.clone(), weight)
+                    }
+                })
+                .collect();
+            let by_s: Vec<Exact> = on_off
+                .iter()
+                .map(|(on, _)| on.clone())
+                .chain(on_off.iter().map(|(_, off)| off.clone()))
+                .collect();
+            let by_m: Vec<Exact> = on_off
+                .iter()
+                .flat_map(|(on, off)| [on.clone(), off.clone()])
+                .collect();
+            let s_then_m = Kernel::state(obj_s()?.tensor(&middle)?, by_s)?;
+            let m_then_s = Kernel::state(middle.tensor(&obj_s()?)?, by_m)?;
+            assert_kernel(
+                &format!("marginal_fst over {m} terms"),
+                &s_then_m.marginal_fst(&obj_s()?, &middle)?,
+                &expected,
+            );
+            assert_kernel(
+                &format!("marginal_snd over {m} terms"),
+                &m_then_s.marginal_snd(&middle, &obj_s()?)?,
+                &expected,
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn oversized_kernels_are_too_large_errors() {
+        let n = 1_usize << 31;
+        let got = Kernel::<Exact>::identity(&FinObj::new(n));
+        assert!(
+            matches!(got, Err(Error::TooLarge { fst, snd }) if fst == n && snd == n),
+            "expected TooLarge on 2^62 entries past isize::MAX bytes, observed {got:?}"
+        );
+        let n = 1_usize << 46;
+        let got = Kernel::<Exact>::del(&FinObj::new(n));
+        assert!(
+            matches!(got, Err(Error::TooLarge { fst, snd: 1 }) if fst == n),
+            "expected TooLarge from the allocator on 2^46 entries, observed {got:?}"
+        );
+        let n = 1_usize << 32;
+        let got = Kernel::<Exact>::copy(&FinObj::new(n));
+        assert!(
+            matches!(got, Err(Error::TooLarge { .. })),
+            "expected TooLarge from an overflowing n·n, observed {got:?}"
+        );
+        let got = Kernel::<Exact>::swap(&FinObj::new(n), &FinObj::new(n));
+        assert!(
+            matches!(got, Err(Error::TooLarge { .. })),
+            "expected TooLarge from an overflowing n·n, observed {got:?}"
+        );
+    }
+
+    /// The observations of the post's table as `(W, H, T3, sprinkler on)`, each
+    /// component an index into its object.
+    const TABLE: [(usize, usize, usize, bool); 7] = [
+        (0, 1, 1, false),
+        (0, 0, 0, true),
+        (1, 0, 0, true),
+        (1, 1, 1, true),
+        (2, 1, 2, false),
+        (1, 0, 2, true),
+        (0, 1, 2, false),
+    ];
+
+    fn climate_index(w: usize, h: usize, t: usize) -> usize {
+        w * 6 + h * 3 + t
+    }
+
+    #[test]
+    fn sprinkler_eq_9_is_exact_at_either_fill() -> Result<()> {
+        let hum = FinObj::labeled(vec!["dry".to_owned(), "humid".to_owned()])?;
+        let t3 = FinObj::labeled(vec!["hot".to_owned(), "mild".to_owned(), "cold".to_owned()])?;
+        let climate = obj_w()?.tensor(&hum)?.tensor(&t3)?;
+
+        let mut atoms = vec![Exact::zero(); climate.card()];
+        atoms[climate_index(0, 0, 0)] = r(1, 5);
+        atoms[climate_index(2, 1, 2)] = r(3, 10);
+        atoms[climate_index(1, 1, 1)] = r(3, 10);
+        atoms[climate_index(1, 0, 0)] = r(1, 5);
+        let p = Kernel::state(climate.clone(), atoms)?;
+
+        let expected = Kernel::state(obj_s()?, vec![r(7, 10), r(3, 10)])?;
+        for fill_on in [false, true] {
+            let mut on = vec![fill_on; climate.card()];
+            for (w, h, t, row_on) in TABLE {
+                on[climate_index(w, h, t)] = row_on;
+            }
+            let outputs: Vec<usize> = on.iter().map(|&row_on| usize::from(!row_on)).collect();
+            let f = points(climate.clone(), obj_s()?, &outputs)?;
+            assert_kernel(
+                &format!("f ∘ p with fill_on = {fill_on}"),
+                &p.compose(&f)?,
+                &expected,
+            );
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "f64-prob")]
+mod float_kernels {
+    use peluang::error::{Error, Result};
+    use peluang::finset::FinObj;
+    use peluang::kernel::Kernel;
+    use peluang::prob::F64_TOLERANCE;
+
+    fn column(weights: Vec<f64>) -> Result<Kernel<f64>> {
+        Kernel::new(FinObj::new(1), FinObj::new(weights.len()), weights)
+    }
+
+    #[test]
+    fn new_rejects_nan_and_infinite_entries() {
+        let got = column(vec![0.5, f64::NAN]);
+        assert!(
+            matches!(
+                got,
+                Err(Error::NegativeWeight {
+                    input: 0,
+                    output: 1
+                })
+            ),
+            "expected NegativeWeight at the NaN entry, observed {got:?}"
+        );
+        let got = column(vec![f64::INFINITY, 0.0]);
+        assert!(
+            matches!(got, Err(Error::NotNormalized { input: 0 })),
+            "expected NotNormalized on an infinite entry, observed {got:?}"
+        );
+    }
+
+    #[test]
+    fn new_accepts_a_column_within_tolerance() {
+        let within = vec![0.5, 0.5 + F64_TOLERANCE / 2.0];
+        let got = column(within);
+        assert!(
+            got.is_ok(),
+            "expected Ok within F64_TOLERANCE of 1, observed {got:?}"
+        );
+        let beyond = vec![0.5, 0.5 + 2.0 * F64_TOLERANCE];
+        let got = column(beyond);
+        assert!(
+            matches!(got, Err(Error::NotNormalized { input: 0 })),
+            "expected NotNormalized beyond F64_TOLERANCE of 1, observed {got:?}"
+        );
     }
 }
 

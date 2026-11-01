@@ -5,7 +5,9 @@
 //! `prob::sum_with(_, true)` at `PAR_THRESHOLD` terms and
 //! `prob::sum_with(_, true)` at 2 terms run exactly one add off a worker, the
 //! last add, on the calling thread; `prob::sum_with(_, true)` at 1 term runs
-//! every add on the calling thread.
+//! every add on the calling thread. `Compose::compose`, `Kernel::marginal_fst`
+//! and `Kernel::marginal_snd` run no add on a rayon worker when the summed
+//! object has `PAR_THRESHOLD - 1` elements and at least one at `PAR_THRESHOLD`.
 
 #![cfg(feature = "parallel")]
 
@@ -53,14 +55,102 @@ mod exact {
 mod dispatch {
     use std::collections::BTreeSet;
 
-    use peluang::prob::{PAR_THRESHOLD, sum, sum_with};
+    use peluang::error::Result;
+    use peluang::finset::FinObj;
+    use peluang::kernel::Kernel;
+    use peluang::markov::Compose;
+    use peluang::prob::{PAR_THRESHOLD, Prob, sum, sum_with};
 
-    use crate::probe::{ROUTES, add_sites, names, off_worker, thread_name};
+    use crate::probe::{
+        AddLog, Probe, ROUTES, add_sites, names, off_worker, thread_name, unit_terms,
+    };
 
     /// Runs `sum` over `len` unit terms; whether any `add` ran on a rayon
     /// worker.
     fn sum_ran_on_worker(len: usize) -> bool {
         add_sites(len, sum).iter().any(|site| site.on_worker)
+    }
+
+    /// The state on `cod` with weight 1 at output 0, recording into `log`.
+    fn point_mass(log: &AddLog, cod: FinObj) -> Result<Kernel<Probe>> {
+        let (units, _) = unit_terms(log, cod.card());
+        let weights = units
+            .iter()
+            .enumerate()
+            .map(|(y, unit)| {
+                if y == 0 {
+                    unit.clone()
+                } else {
+                    unit.mul(&Probe::zero())
+                }
+            })
+            .collect();
+        Kernel::state(cod, weights)
+    }
+
+    /// Clears `log`, runs `op`; whether any `add` ran on a rayon worker.
+    fn ran_on_worker(log: &AddLog, op: impl FnOnce() -> Result<Kernel<Probe>>) -> Result<bool> {
+        log.lock().unwrap().clear();
+        op()?;
+        let sites = log.lock().unwrap();
+        assert!(
+            !sites.is_empty(),
+            "expected a non-empty record, observed {sites:?}"
+        );
+        Ok(sites.iter().any(|site| site.on_worker))
+    }
+
+    /// `(on a worker below PAR_THRESHOLD, on a worker at PAR_THRESHOLD)`.
+    fn dispatch(op: impl Fn(&AddLog, usize) -> Result<bool>) -> Result<(bool, bool)> {
+        let log = AddLog::default();
+        Ok((op(&log, PAR_THRESHOLD - 1)?, op(&log, PAR_THRESHOLD)?))
+    }
+
+    #[test]
+    fn compose_dispatches_at_threshold() -> Result<()> {
+        let observed = dispatch(|log, m| {
+            let middle = FinObj::new(m);
+            let f = point_mass(log, middle.clone())?;
+            let (units, _) = unit_terms(log, m);
+            let g = Kernel::new(middle, FinObj::unit(), units)?;
+            ran_on_worker(log, || f.compose(&g))
+        })?;
+        assert_eq!(
+            observed,
+            (false, true),
+            "expected no worker add below PAR_THRESHOLD and one at it, observed on the left"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn marginal_fst_dispatches_at_threshold() -> Result<()> {
+        let observed = dispatch(|log, m| {
+            let (x, y) = (FinObj::new(2), FinObj::new(m));
+            let joint = point_mass(log, x.tensor(&y)?)?;
+            ran_on_worker(log, || joint.marginal_fst(&x, &y))
+        })?;
+        assert_eq!(
+            observed,
+            (false, true),
+            "expected no worker add below PAR_THRESHOLD and one at it, observed on the left"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn marginal_snd_dispatches_at_threshold() -> Result<()> {
+        let observed = dispatch(|log, m| {
+            let (x, y) = (FinObj::new(m), FinObj::new(2));
+            let joint = point_mass(log, x.tensor(&y)?)?;
+            ran_on_worker(log, || joint.marginal_snd(&x, &y))
+        })?;
+        assert_eq!(
+            observed,
+            (false, true),
+            "expected no worker add below PAR_THRESHOLD and one at it, observed on the left"
+        );
+        Ok(())
     }
 
     #[test]

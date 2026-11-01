@@ -9,6 +9,24 @@ git tag is the authoritative pin.
 ### Added
 
 - `exec::Executor` implements `Debug`.
+- `finset::FinObj`: a finite object as an ordered list of factors, each a
+  cardinality with optional labels. `tensor` concatenates the lists, and
+  `unit` is the empty list.
+- `kernel::Kernel<P>`: a stochastic matrix stored by input. `Kernel::new`
+  tests the data length, the sign of each entry and the sum of each column.
+- `markov::Compose` and `markov::Tensor`, implemented by `Kernel<P>`, with
+  `identity`, `copy`, `del`, `swap`, `associator`, `left_unitor`,
+  `right_unitor`, `whisker_left`, `whisker_right`, `marginal_fst` and
+  `marginal_snd`.
+- `deterministic::is_deterministic`: Fritz 2020 Def. 10.1.
+- `error::Error` variants `DataLength`, `NegativeWeight`, `NotNormalized`,
+  `NotComposable`, `NotATensor`, `DuplicateLabel`, `TooLarge`, `NotAFunction`.
+- `tests/formalization_lean/` with 21 witness tests and `THEOREM_MAP.md` rows.
+
+### Removed
+
+- The 12 `-- WITNESS: none (Phase 2R witness)` opt-outs in
+  `lean/Peluang/Markov/Derived.lean`.
 
 ### Changed
 
