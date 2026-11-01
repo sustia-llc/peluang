@@ -47,13 +47,13 @@ impl<P: Prob> Compose for Kernel<P> {
     /// input `x`, each sum through `prob::sum`, or `Error::NotComposable` when
     /// the codomain of `self` differs from the domain of `other`, or
     /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
-    /// capacity fails; no other allocation reports an error. In the `f64` lane,
-    /// results can differ between runs and with the `parallel` feature.
+    /// capacity fails; no other allocation reports an error. `prob::sum` states
+    /// the effect of a parallel run on `f64` weights.
     fn compose(&self, other: &Self) -> Result<Self> {
         self.composable(other)?;
         let (inputs, middle, outputs) = (self.dom().card(), self.cod().card(), other.cod().card());
         let mut data = reserve(inputs, outputs)?;
-        let mut terms = reserve(middle, 1)?;
+        let mut terms = terms_buffer(inputs, middle)?;
         for x in 0..inputs {
             for z in 0..outputs {
                 terms.clear();
@@ -171,23 +171,41 @@ impl<P: Prob> Kernel<P> {
     /// The first marginal of `self : dom → x ⊗ y`: each weight of `x` is the
     /// sum over `y`, through `prob::sum`. Returns `Error::NotATensor` unless
     /// the codomain equals `x ⊗ y`, or `Error::TooLarge` when reserving a `Vec`
-    /// capacity fails; no other allocation reports an error. In the `f64` lane,
-    /// results can differ between runs and with the `parallel` feature.
+    /// capacity fails; no other allocation reports an error. `prob::sum` states
+    /// the effect of a parallel run on `f64` weights.
     pub fn marginal_fst(&self, x: &FinObj, y: &FinObj) -> Result<Self> {
         self.split(x, y)?;
-        let ny = y.card();
-        self.marginal(x, ny, |i, j| i * ny + j)
+        let (inputs, ny) = (self.dom().card(), y.card());
+        let mut data = reserve(inputs, x.card())?;
+        for a in 0..inputs {
+            let column = self
+                .column(a)
+                .expect("invariant: a < dom.card() has a column");
+            for i in 0..x.card() {
+                data.push(sum(&column[i * ny..(i + 1) * ny]));
+            }
+        }
+        Ok(Self::from_parts(self.dom().clone(), x.clone(), data))
     }
 
     /// The second marginal of `self : dom → x ⊗ y`: each weight of `y` is the
     /// sum over `x`, through `prob::sum`. Returns `Error::NotATensor` unless
     /// the codomain equals `x ⊗ y`, or `Error::TooLarge` when reserving a `Vec`
-    /// capacity fails; no other allocation reports an error. In the `f64` lane,
-    /// results can differ between runs and with the `parallel` feature.
+    /// capacity fails; no other allocation reports an error. `prob::sum` states
+    /// the effect of a parallel run on `f64` weights.
     pub fn marginal_snd(&self, x: &FinObj, y: &FinObj) -> Result<Self> {
         self.split(x, y)?;
-        let ny = y.card();
-        self.marginal(y, x.card(), |j, i| i * ny + j)
+        let (inputs, nx, ny) = (self.dom().card(), x.card(), y.card());
+        let mut data = reserve(inputs, ny)?;
+        let mut terms = terms_buffer(inputs, nx)?;
+        for a in 0..inputs {
+            for j in 0..ny {
+                terms.clear();
+                terms.extend((0..nx).map(|i| self.weight(a, i * ny + j).clone()));
+                data.push(sum(&terms));
+            }
+        }
+        Ok(Self::from_parts(self.dom().clone(), y.clone(), data))
     }
 
     /// `Ok` exactly when the factors of the codomain are those of `x` followed
@@ -208,30 +226,14 @@ impl<P: Prob> Kernel<P> {
             })
         }
     }
+}
 
-    /// The kernel `dom → kept` whose weight of `k` on input `a` is the sum, over
-    /// `s < summed`, of the weight of output `index(k, s)` on `a`. The buffer of
-    /// terms is reserved only when the result has an entry.
-    fn marginal(
-        &self,
-        kept: &FinObj,
-        summed: usize,
-        index: impl Fn(usize, usize) -> usize,
-    ) -> Result<Self> {
-        let inputs = self.dom().card();
-        let mut data = reserve(inputs, kept.card())?;
-        let mut terms = if inputs == 0 || kept.card() == 0 {
-            Vec::new()
-        } else {
-            reserve(summed, 1)?
-        };
-        for a in 0..inputs {
-            for k in 0..kept.card() {
-                terms.clear();
-                terms.extend((0..summed).map(|s| self.weight(a, index(k, s)).clone()));
-                data.push(sum(&terms));
-            }
-        }
-        Ok(Self::from_parts(self.dom().clone(), kept.clone(), data))
+/// An empty vector with capacity for `terms` elements, unreserved when
+/// `inputs == 0`, or `Error::TooLarge` when reserving that capacity fails.
+fn terms_buffer<T>(inputs: usize, terms: usize) -> Result<Vec<T>> {
+    if inputs == 0 {
+        Ok(Vec::new())
+    } else {
+        reserve(terms, 1)
     }
 }

@@ -1,10 +1,10 @@
-//! Canonical integration tests for the `Prob` trait: law verification,
-//! checked division and normalization, in the exact lane and the `f64` lane.
-//! `FinObj` and `Kernel`: the object laws, the rejections of each constructor
-//! and operation, composition and tensor at literals, `is_deterministic`,
-//! results across `PAR_THRESHOLD`, size errors, and the post's eq. (9) as exact
-//! rationals. In the `f64` lane, the input tests of `Kernel::new`,
-//! `Kernel::approx_eq`, and worked `compose`, `tensor`, marginals and
+//! Canonical integration tests. In both lanes: the `Prob` trait (law
+//! verification, checked division and normalization), the `FinObj` object laws
+//! and rejections, and `Kernel::approx_eq`. In the exact lane: the rejections
+//! of each `Kernel` constructor and operation, composition and tensor at
+//! literals, `is_deterministic`, results across `PAR_THRESHOLD`, size errors,
+//! and the post's eq. (9) as exact rationals. In the `f64` lane: the input
+//! tests of `Kernel::new`, and worked `compose`, `tensor`, marginals and
 //! `is_deterministic` under `Kernel::approx_eq`.
 
 #[cfg(not(feature = "f64-prob"))]
@@ -467,21 +467,17 @@ mod kernels {
 
     #[test]
     fn approx_eq_compares_objects_and_entries() -> Result<()> {
-        let unit_mass = |cod: FinObj, card: usize| {
-            let mut weights = vec![Exact::zero(); card];
-            weights[0] = Exact::one();
-            Kernel::state(cod, weights)
-        };
-        let on_off = unit_mass(obj_s()?, 2)?;
+        let first = |cod: FinObj| points(FinObj::unit(), cod, &[0]);
+        let on_off = first(obj_s()?)?;
         for (name, other, expected) in [
-            ("itself", unit_mass(obj_s()?, 2)?, true),
+            ("itself", first(obj_s()?)?, true),
             (
                 "another entry",
                 Kernel::state(obj_s()?, vec![r(0, 1), r(1, 1)])?,
                 false,
             ),
-            ("other labels", unit_mass(obj_t()?, 2)?, false),
-            ("other cardinality", unit_mass(obj_w()?, 3)?, false),
+            ("other labels", first(obj_t()?)?, false),
+            ("other cardinality", first(obj_w()?)?, false),
         ] {
             let observed = on_off.approx_eq(&other);
             assert_eq!(
@@ -577,6 +573,17 @@ mod kernels {
                 show(&kernel)
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn is_deterministic_on_an_empty_domain_builds_no_copy() -> Result<()> {
+        let empty = Kernel::<Exact>::new(FinObj::new(0), FinObj::new(1 << 32), Vec::new())?;
+        let got = is_deterministic(&empty);
+        assert!(
+            matches!(got, Ok(true)),
+            "expected Ok(true) on ∅ → 2^32 elements, observed {got:?}"
+        );
         Ok(())
     }
 
@@ -734,37 +741,32 @@ mod kernels {
 
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
-    use crate::fixtures::{obj_s, obj_t, obj_w};
+    use crate::fixtures::{c, d, f, h, obj_s, obj_t, obj_w, psi_t, s};
+    use num_traits::ToPrimitive;
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
     use peluang::finset::FinObj;
     use peluang::kernel::Kernel;
     use peluang::markov::{Compose, Tensor};
-    use peluang::prob::F64_TOLERANCE;
-
-    const THIRD: f64 = 1.0 / 3.0;
-    const SIXTH: f64 = 1.0 / 6.0;
+    use peluang::prob::{Exact, F64_TOLERANCE};
 
     fn column(weights: Vec<f64>) -> Result<Kernel<f64>> {
         Kernel::new(FinObj::new(1), FinObj::new(weights.len()), weights)
     }
 
-    /// The fixture `c : T → W`.
-    fn c() -> Result<Kernel<f64>> {
-        let columns = [0.5, 0.5, 0.0, 0.0, 0.25, 0.75];
-        Kernel::new(obj_t()?, obj_w()?, columns.to_vec())
-    }
-
-    /// The fixture `s : W → S`.
-    fn s() -> Result<Kernel<f64>> {
-        let columns = [THIRD, 2.0 * THIRD, 1.0, 0.0, 0.0, 1.0];
-        Kernel::new(obj_w()?, obj_s()?, columns.to_vec())
-    }
-
-    /// The fixture `h : T → S`.
-    fn h() -> Result<Kernel<f64>> {
-        let columns = [2.0 * THIRD, THIRD, 0.25, 0.75];
-        Kernel::new(obj_t()?, obj_s()?, columns.to_vec())
+    /// `k` with each weight of each `Kernel::column` converted to `f64`,
+    /// through `Kernel::new`.
+    fn floats(k: &Kernel<Exact>) -> Result<Kernel<f64>> {
+        let data: Vec<f64> = (0..k.domain().card())
+            .filter_map(|x| k.column(x))
+            .flatten()
+            .map(|weight| {
+                weight
+                    .to_f64()
+                    .expect("invariant: fixture weights are finite")
+            })
+            .collect();
+        Kernel::new(k.domain().clone(), k.codomain().clone(), data)
     }
 
     #[track_caller]
@@ -792,29 +794,40 @@ mod float_kernels {
 
     #[test]
     fn compose_is_chapman_kolmogorov() -> Result<()> {
-        assert_approx("c ≫ s", &c()?.compose(&s()?)?, &h()?);
+        assert_approx(
+            "c ≫ s",
+            &floats(&c()?)?.compose(&floats(&s()?)?)?,
+            &floats(&h()?)?,
+        );
         Ok(())
     }
 
     #[test]
     fn tensor_has_the_first_factor_major() -> Result<()> {
-        let psi = Kernel::state(obj_t()?, vec![0.2, 0.8])?;
         let columns = [0.1, 0.4, 0.1, 0.4, 0.0, 0.0, 0.0, 0.0, 0.05, 0.2, 0.15, 0.6];
         let expected = Kernel::new(obj_t()?, obj_w()?.tensor(&obj_t()?)?, columns.to_vec())?;
-        assert_approx("c ⊗ₘ psi_t", &c()?.tensor(&psi)?, &expected);
+        assert_approx(
+            "c ⊗ₘ psi_t",
+            &floats(&c()?)?.tensor(&floats(&psi_t()?)?)?,
+            &expected,
+        );
         Ok(())
     }
 
     #[test]
     fn marginals_of_the_joint() -> Result<()> {
         let (w, sp) = (obj_w()?, obj_s()?);
-        let columns = [
-            SIXTH, THIRD, 0.5, 0.0, 0.0, 0.0, // hot
-            0.0, 0.0, 0.25, 0.0, 0.0, 0.75, // cold
-        ];
-        let f = Kernel::new(obj_t()?, w.tensor(&sp)?, columns.to_vec())?;
-        assert_approx("marginal_fst", &f.marginal_fst(&w, &sp)?, &c()?);
-        assert_approx("marginal_snd", &f.marginal_snd(&w, &sp)?, &h()?);
+        let joint = floats(&f()?)?;
+        assert_approx(
+            "marginal_fst",
+            &joint.marginal_fst(&w, &sp)?,
+            &floats(&c()?)?,
+        );
+        assert_approx(
+            "marginal_snd",
+            &joint.marginal_snd(&w, &sp)?,
+            &floats(&h()?)?,
+        );
         Ok(())
     }
 
@@ -823,13 +836,9 @@ mod float_kernels {
         let tilt = F64_TOLERANCE / 4.0;
         let near = Kernel::new(obj_s()?, obj_t()?, vec![1.0 - tilt, tilt, 0.0, 1.0])?;
         for (name, kernel, expected) in [
-            (
-                "d",
-                Kernel::from_fn(obj_w()?, obj_s()?, |x| usize::from(x > 0))?,
-                true,
-            ),
+            ("d", floats(&d()?)?, true),
             ("within tolerance of a function", near, true),
-            ("s", s()?, false),
+            ("s", floats(&s()?)?, false),
         ] {
             let observed = is_deterministic(&kernel)?;
             assert_eq!(

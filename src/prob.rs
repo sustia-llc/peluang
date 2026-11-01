@@ -125,7 +125,9 @@ pub const PAR_THRESHOLD: usize = 1024;
 /// pool of the calling thread: the `exec::Executor` pool inside
 /// `Executor::run`, the global pool on a thread outside any rayon pool. On
 /// such a thread, the caller blocks until the workers finish and then runs the
-/// last combining `add`.
+/// last combining `add`. On `f64` weights, a parallel run groups additions by
+/// the rayon split tree, so its result can differ from a sequential fold and
+/// between runs.
 pub fn sum<P: Prob>(terms: &[P]) -> P {
     #[cfg(feature = "parallel")]
     {
@@ -144,7 +146,9 @@ pub fn sum<P: Prob>(terms: &[P]) -> P {
 /// `exec::Executor` pool inside `Executor::run`, the global pool on a thread
 /// outside any rayon pool. On such a thread, the caller blocks until the
 /// workers finish and then runs the last combining `add`. With fewer than two
-/// terms, the rayon reduction runs on the calling thread.
+/// terms, the rayon reduction runs on the calling thread. On `f64` weights, a
+/// parallel run groups additions by the rayon split tree, so its result can
+/// differ from a sequential fold and between runs.
 #[cfg(feature = "parallel")]
 pub fn sum_with<P: Prob>(terms: &[P], parallel: bool) -> P {
     rayon_cond::CondIterator::new(terms, parallel)

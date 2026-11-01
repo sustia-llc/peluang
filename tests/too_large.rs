@@ -1,19 +1,22 @@
-//! `Compose::compose`, `Kernel::marginal_fst` and `Kernel::marginal_snd` under
-//! an allocator that refuses the reservation of 64 weights: each returns
-//! `Error::TooLarge` with the sizes of that reservation and a
-//! `TryReserveError` source, for the buffer of the result and for the buffer of
-//! the terms.
+//! `Compose::compose`, `Tensor::tensor`, `FinObj::tensor`,
+//! `Kernel::marginal_fst` and `Kernel::marginal_snd` under an allocator that
+//! refuses the reservation of 64 weights: each returns `Error::TooLarge` with
+//! the sizes of that reservation and a `TryReserveError` source, for the buffer
+//! of the result, the buffer of the terms of `compose` and `marginal_snd`, and
+//! the factor list of `FinObj::tensor`. `compose` on an empty domain and
+//! `marginal_fst` reserve no terms under it.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 use std::collections::TryReserveError;
 use std::error::Error as StdError;
+use std::fmt::Debug;
 use std::ptr;
 
 use peluang::error::{Error, Result};
-use peluang::finset::FinObj;
+use peluang::finset::{Factor, FinObj};
 use peluang::kernel::Kernel;
-use peluang::markov::Compose;
+use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
 
 const REFUSED: usize = 64;
@@ -52,18 +55,26 @@ unsafe impl GlobalAlloc for Refusing {
 #[global_allocator]
 static ALLOCATOR: Refusing = Refusing;
 
+/// Sets `LIMIT` to `usize::MAX` when dropped.
+struct LimitReset;
+
+impl Drop for LimitReset {
+    fn drop(&mut self) {
+        LIMIT.set(usize::MAX);
+    }
+}
+
 /// Runs `op` while this thread's allocations of `REFUSED` weights or more fail.
-fn refusing(op: impl FnOnce() -> Result<Kernel<Exact>>) -> Result<Kernel<Exact>> {
+fn refusing<T>(op: impl FnOnce() -> Result<T>) -> Result<T> {
+    let _reset = LimitReset;
     LIMIT.set(REFUSED * size_of::<Exact>());
-    let got = op();
-    LIMIT.set(usize::MAX);
-    got
+    op()
 }
 
 /// Asserts `got` is `Error::TooLarge` for `rows * cols` with a
 /// `TryReserveError` source, naming `route`.
 #[track_caller]
-fn assert_refused(route: &str, got: &Result<Kernel<Exact>>, rows: usize, cols: usize) {
+fn assert_refused<T: Debug>(route: &str, got: &Result<T>, rows: usize, cols: usize) {
     let source = got.as_ref().err().and_then(StdError::source);
     assert!(
         matches!(got, Err(Error::TooLarge { fst, snd, source: Some(_) }) if *fst == rows && *snd == cols)
@@ -92,6 +103,57 @@ fn compose_reports_a_refused_reservation() -> Result<()> {
 }
 
 #[test]
+fn compose_of_an_empty_domain_computes_no_terms() -> Result<()> {
+    let (empty, wide) = (FinObj::new(0), FinObj::new(REFUSED));
+    let f = Kernel::<Exact>::new(empty.clone(), wide.clone(), Vec::new())?;
+    let g = Kernel::del(&wide)?;
+    let expected = Kernel::new(empty, FinObj::unit(), Vec::new())?;
+    let got = refusing(|| f.compose(&g));
+    assert!(
+        got.as_ref().is_ok_and(|kernel| *kernel == expected),
+        "compose over a middle object of {REFUSED} elements: expected {expected:?}, observed {got:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn tensors_report_a_refused_reservation() -> Result<()> {
+    let (one, wide) = (FinObj::new(1), FinObj::new(REFUSED));
+
+    let f = point_mass(wide)?;
+    let g = point_mass(one.clone())?;
+    assert_refused(
+        "Tensor::tensor, result buffer",
+        &refusing(|| f.tensor(&g)),
+        1,
+        REFUSED,
+    );
+
+    let factors = (REFUSED * size_of::<Exact>()).div_ceil(size_of::<Factor>());
+    let list = (1..factors).try_fold(one.clone(), |list, _| list.tensor(&one))?;
+    assert_refused(
+        "FinObj::tensor, factor list",
+        &refusing(|| list.tensor(&FinObj::unit())),
+        factors,
+        1,
+    );
+    Ok(())
+}
+
+#[test]
+fn marginal_fst_reserves_no_terms() -> Result<()> {
+    let (one, wide) = (FinObj::new(1), FinObj::new(REFUSED));
+    let joint = point_mass(one.tensor(&wide)?)?;
+    let expected = point_mass(one.clone())?;
+    let got = refusing(|| joint.marginal_fst(&one, &wide));
+    assert!(
+        got.as_ref().is_ok_and(|kernel| *kernel == expected),
+        "marginal_fst summing {REFUSED} terms: expected {expected:?}, observed {got:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn marginals_report_a_refused_reservation() -> Result<()> {
     let (one, wide) = (FinObj::new(1), FinObj::new(REFUSED));
     let wide_first = point_mass(wide.tensor(&one)?)?;
@@ -102,12 +164,6 @@ fn marginals_report_a_refused_reservation() -> Result<()> {
             refusing(|| wide_first.marginal_fst(&wide, &one)),
             1,
             REFUSED,
-        ),
-        (
-            "marginal_fst, terms buffer",
-            refusing(|| wide_last.marginal_fst(&one, &wide)),
-            REFUSED,
-            1,
         ),
         (
             "marginal_snd, result buffer",
