@@ -174,6 +174,8 @@ fn witness_almost_surely_eq_comp() -> Result<()> {
 fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
     let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
     let g1 = s_with_rainy([r(1, 2), r(1, 2)])?;
+    assert_as_equal("hf: as_equal(q, s', s)", &q, &s1, &s, true)?;
+    assert_as_equal("hg: as_equal(q, g', s)", &q, &g1, &s, true)?;
     let (w, sp) = (obj_w()?, obj_s()?);
     let (on, off, zero) = ([r(1, 18), r(1, 9)], [r(1, 9), r(2, 9)], r(0, 1));
     let expected = Kernel::state(
@@ -222,12 +224,54 @@ fn witness_almost_surely_eq_iff() -> Result<()> {
     }
 
     assert_as_equal("as_equal(c, s'', s)", &c()?, &s2, &s, false)?;
+    assert_as_equal(
+        "as_equal(c, s', s), rainy reached only from cold",
+        &c()?,
+        &s1,
+        &s,
+        false,
+    )?;
     let p = lit(
         obj_t()?,
         obj_w()?,
         &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(1, 4), r(3, 4), r(0, 1)]],
     )?;
     assert_as_equal("as_equal(p, s', s), p missing rainy", &p, &s1, &s, true)?;
+
+    let (third, one, zero) = (r(1, 3), r(1, 1), r(0, 1));
+    let rest: [&[Exact]; 2] = [
+        &[zero.clone(), one.clone(), zero.clone()],
+        &[zero.clone(), zero.clone(), one],
+    ];
+    let k1 = lit(
+        obj_w()?,
+        obj_w()?,
+        &[
+            &[third.clone(), third.clone(), third.clone()],
+            rest[0],
+            rest[1],
+        ],
+    )?;
+    let k2 = lit(
+        obj_w()?,
+        obj_w()?,
+        &[&[third, r(2, 3), zero], rest[0], rest[1]],
+    )?;
+    assert_as_equal(
+        "as_equal(q, k1, k2), equal at output 0 of sunny",
+        &q,
+        &k1,
+        &k2,
+        false,
+    )?;
+    let (lhs, rhs) = (copy_whisker(&q, &k1)?, copy_whisker(&q, &k2)?);
+    let def = lhs == rhs;
+    assert!(
+        !def,
+        "Def. 13.1 for (k1, k2): expected q ≫ Δ[W] ≫ (k1 ▷ W) == q ≫ Δ[W] ≫ (k2 ▷ W) to be false, observed {def}: {} vs {}",
+        show(&lhs),
+        show(&rhs)
+    );
     Ok(())
 }
 
@@ -322,7 +366,10 @@ fn witness_is_conditional_cond() -> Result<()> {
 fn witness_is_conditional_not_unique() -> Result<()> {
     let (w, sp) = (obj_w()?, obj_s()?);
     let f = f()?;
-    let g1 = conditional(&f, &w, &sp)?;
+    let got = conditional(&f, &w, &sp);
+    let Ok(g1) = got else {
+        panic!("conditional(f, W, S): expected Ok, observed {got:?}");
+    };
     let marginal = f.marginal_fst(&w, &sp)?;
     let observed = marginal.column(1).and_then(|column| column.first());
     assert!(
@@ -338,31 +385,61 @@ fn witness_is_conditional_not_unique() -> Result<()> {
             None => panic!("column {x} of {} is missing", show(&g1)),
         }
     }
-    let g2 = Kernel::new(g1.domain().clone(), sp.clone(), data)?;
-    assert_kernel(
-        "Def. 11.5 composite of g1 = cond f",
-        &conditional_composite(&f, &w, &sp, &g1)?,
-        &f,
-    );
+    let got = Kernel::new(g1.domain().clone(), sp.clone(), data);
+    let Ok(g2) = got else {
+        panic!(
+            "g2 = g1 with (sunny, cold) at (1, 0) from {}: expected Ok, observed {got:?}",
+            show(&g1)
+        );
+    };
+    let got = conditional_composite(&f, &w, &sp, &g1);
+    let Ok(composite) = got else {
+        panic!("Def. 11.5 composite of g1 = cond f: expected Ok, observed {got:?}");
+    };
+    assert_kernel("Def. 11.5 composite of g1 = cond f", &composite, &f);
+    let got = conditional_composite(&f, &w, &sp, &g2);
+    let Ok(composite) = got else {
+        panic!(
+            "Def. 11.5 composite of g2 = g1 with (sunny, cold) at (1, 0): expected Ok, observed {got:?}"
+        );
+    };
     assert_kernel(
         "Def. 11.5 composite of g2 = g1 with (sunny, cold) at (1, 0)",
-        &conditional_composite(&f, &w, &sp, &g2)?,
+        &composite,
         &f,
     );
     assert!(g1 != g2, "expected g1 != g2, observed both {}", show(&g1));
 
     let b = labels(&["false", "true"])?;
     let bool_f = Kernel::state(b.tensor(&b)?, vec![r(0, 1), r(0, 1), r(0, 1), r(1, 1)])?;
-    let bool_g1 = conditional(&bool_f, &b, &b)?;
-    let bool_g2 = Kernel::from_fn(b.tensor(&FinObj::unit())?, b.clone(), |_| 1)?;
+    let got = conditional(&bool_f, &b, &b);
+    let Ok(bool_g1) = got else {
+        panic!("conditional(f, B, B), f at (true, true): expected Ok, observed {got:?}");
+    };
+    let got = Kernel::from_fn(b.tensor(&FinObj::unit())?, b.clone(), |_| 1);
+    let Ok(bool_g2) = got else {
+        panic!("g2 = constant true : B ⊗ I → B: expected Ok, observed {got:?}");
+    };
+    let got = conditional_composite(&bool_f, &b, &b, &bool_g1);
+    let Ok(composite) = got else {
+        panic!(
+            "Def. 11.5 composite of g1 = cond f, f at (true, true): expected Ok, observed {got:?}"
+        );
+    };
     assert_kernel(
         "Def. 11.5 composite of g1 = cond f, f at (true, true)",
-        &conditional_composite(&bool_f, &b, &b, &bool_g1)?,
+        &composite,
         &bool_f,
     );
+    let got = conditional_composite(&bool_f, &b, &b, &bool_g2);
+    let Ok(composite) = got else {
+        panic!(
+            "Def. 11.5 composite of g2 = constant true, f at (true, true): expected Ok, observed {got:?}"
+        );
+    };
     assert_kernel(
         "Def. 11.5 composite of g2 = constant true, f at (true, true)",
-        &conditional_composite(&bool_f, &b, &b, &bool_g2)?,
+        &composite,
         &bool_f,
     );
     assert!(
