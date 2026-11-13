@@ -6,6 +6,7 @@ module
 
 public import Mathlib.Algebra.BigOperators.Field
 public import Peluang.Conditional
+public import Peluang.Instances.FinStoch.Deterministic
 public import Peluang.Instances.FinStoch.Markov
 
 /-!
@@ -21,11 +22,14 @@ public import Peluang.Instances.FinStoch.Markov
 * `FinStoch.marginalFst_mass` - the entries of the first marginal of `f : A ⟶ X ⊗ Y`.
 * `FinStoch.isConditional_cond` - `cond f` is a conditional of `f` on `X`.
 * `FinStoch.instHasConditionals` - `FinStoch` has conditionals.
+* `FinStoch.isConditional_not_unique` - conditionals in `FinStoch` are not unique: some
+  `f : 𝟙_ FinStoch ⟶ boolObj ⊗ boolObj` has two distinct conditionals.
 
 ## References
 
 * [Fritz, *A synthetic approach to Markov kernels, conditional independence
-  and theorems on sufficient statistics*][fritz2020], Notation 2.8, Def. 11.5, Example 11.6.
+  and theorems on sufficient statistics*][fritz2020], Notation 2.8, Def. 11.5, Example 11.6,
+  Prop. 11.15.
 -/
 
 @[expose] public section
@@ -100,5 +104,22 @@ theorem isConditional_cond (f : A ⟶ X ⊗ Y) : IsConditional f (cond f) := by
 
 /-- `FinStoch` has conditionals, given by `cond` (Fritz 2020, Example 11.6). -/
 instance : HasConditionals FinStoch := ⟨fun f => ⟨cond f, isConditional_cond f⟩⟩
+
+/-- In `FinStoch`, conditionals are not unique: some `f : 𝟙_ FinStoch ⟶ boolObj ⊗ boolObj` has two
+distinct conditionals on `boolObj` (Fritz 2020, Prop. 11.15). -/
+theorem isConditional_not_unique :
+    ∃ (f : 𝟙_ FinStoch ⟶ boolObj ⊗ boolObj) (g₁ g₂ : boolObj ⊗ 𝟙_ FinStoch ⟶ boolObj),
+      IsConditional f g₁ ∧ IsConditional f g₂ ∧ g₁ ≠ g₂ := by
+  refine ⟨Hom.ofFun fun _ => (true, true), cond _, Hom.ofFun fun _ => true,
+    isConditional_cond _, ?_, fun h => ?_⟩
+  · unfold IsConditional
+    ext a ⟨x, y⟩ : 1
+    rw [conditional_form_mass, marginalFst_mass]
+    simp only [ofFun_mass]
+    cases x <;> cases y <;> erw [Fintype.sum_bool] <;> simp +decide [boolObj]
+  · have := congrArg (fun g : boolObj ⊗ 𝟙_ FinStoch ⟶ boolObj => g.mass (false, PUnit.unit) true) h
+    simp only [cond, ofFun_mass] at this
+    erw [Fintype.sum_bool] at this
+    simp +decide [boolObj] at this
 
 end FinStoch

@@ -68,3 +68,4 @@ a declaration.
 | FinStoch.marginalFst_mass | tests/formalization_lean/conditional_tests.rs::witness_marginal_fst_mass | Fritz 2020 Notation 2.8 |
 | FinStoch.isConditional_cond | tests/formalization_lean/conditional_tests.rs::witness_is_conditional_cond | Fritz 2020 Def. 11.5, Example 11.6 |
 | FinStoch.instHasConditionals | tests/formalization_lean/conditional_tests.rs::witness_has_conditionals | Fritz 2020 Example 11.6 |
+| FinStoch.isConditional_not_unique | tests/formalization_lean/conditional_tests.rs::witness_is_conditional_not_unique | Fritz 2020 Prop. 11.15 |

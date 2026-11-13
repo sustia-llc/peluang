@@ -11,7 +11,8 @@ use crate::prob::Prob;
 /// column of `f` at `x` agrees with that of `g` under `Prob::approx_eq`.
 /// Returns `Error::NotComposable` when the codomain of `p` differs from the
 /// domain of `f`, then `Error::NotParallel` when `f` and `g` differ in domain
-/// or codomain.
+/// or codomain. In the `f64` lane, underflow can turn a positive weight into
+/// zero, so a reached input can count as unreached.
 pub fn as_equal<P: Prob>(p: &Kernel<P>, f: &Kernel<P>, g: &Kernel<P>) -> Result<bool> {
     p.composable(f)?;
     if f.domain() != g.domain() || f.codomain() != g.codomain() {

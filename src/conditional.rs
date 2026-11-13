@@ -1,7 +1,7 @@
 //! Conditionals of finite kernels into a tensor product (Fritz 2020, Def. 11.5,
 //! Example 11.6).
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::finset::{FinObj, reserve};
 use crate::kernel::Kernel;
 use crate::markov::Compose;
@@ -14,8 +14,11 @@ use crate::prob::{Prob, sum};
 /// `1 / y.card()` at every output when `s == P::zero()`. Returns
 /// `Error::NotATensor` unless the codomain of `f` equals `x ⊗ y`,
 /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
-/// capacity fails, and otherwise the errors of `Kernel::new`, which builds the
-/// result. `prob::sum` states the effect of a parallel run on `f64` weights.
+/// capacity fails, and `Error::NoUniformWeight` when a column has
+/// `s == P::zero()` and `Prob::div_checked` returns `None` on `P::one()` over
+/// `P::one()` added `y.card()` times. `prob::sum` states the effect of a
+/// parallel run on `f64` weights. In the `f64` lane, underflow can turn a
+/// positive weight into zero, so a column with mass can count as zero-mass.
 pub fn conditional<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<Kernel<P>> {
     f.split(x, y)?;
     let dom = x.tensor(f.domain())?;
@@ -31,11 +34,10 @@ pub fn conditional<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<Ker
                 let weight = match &uniform {
                     Some(weight) => weight.clone(),
                     None => {
-                        let mut ones = reserve(ny, 1)?;
-                        ones.resize(ny, P::one());
-                        let weight = P::one().div_checked(&sum(&ones)).expect(
-                            "invariant: a column of f sums to one over x ⊗ y, so y is nonempty",
-                        );
+                        let card = (0..ny).fold(P::zero(), |acc, _| acc.add(&P::one()));
+                        let weight = P::one()
+                            .div_checked(&card)
+                            .ok_or(Error::NoUniformWeight { card: ny })?;
                         uniform = Some(weight.clone());
                         weight
                     }
@@ -51,5 +53,5 @@ pub fn conditional<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<Ker
             }
         }
     }
-    Kernel::new(dom, y.clone(), data)
+    Ok(Kernel::from_parts(dom, y.clone(), data))
 }

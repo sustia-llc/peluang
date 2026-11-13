@@ -61,6 +61,29 @@ fn copy_tensor(p: &Kernel<Exact>, f: &Kernel<Exact>, g: &Kernel<Exact>) -> Resul
         .compose(&Kernel::whisker_right(f, x)?.tensor(g)?)
 }
 
+/// The Def. 11.5 composite `Δ[A] ≫ (marginalFst f ▷ A) ≫ (Δ[x] ▷ A) ≫
+/// α[x, x, A] ≫ (x ◁ k)` with `A` the domain of `f : A → x ⊗ y`.
+fn conditional_composite(
+    f: &Kernel<Exact>,
+    x: &FinObj,
+    y: &FinObj,
+    k: &Kernel<Exact>,
+) -> Result<Kernel<Exact>> {
+    let a = f.domain();
+    Kernel::copy(a)?
+        .compose(&Kernel::whisker_right(&f.marginal_fst(x, y)?, a)?)?
+        .compose(&Kernel::whisker_right(&Kernel::copy(x)?, a)?)?
+        .compose(&Kernel::associator(x, x, a)?)?
+        .compose(&Kernel::whisker_left(x, k)?)
+}
+
+/// The Def. 13.1 composite `p ≫ Δ[W] ≫ (f ▷ W)` with `W` the domain of `f`.
+fn copy_whisker(p: &Kernel<Exact>, f: &Kernel<Exact>) -> Result<Kernel<Exact>> {
+    let w = f.domain();
+    p.compose(&Kernel::copy(w)?)?
+        .compose(&Kernel::whisker_right(f, w)?)
+}
+
 /// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
 #[track_caller]
 fn assert_as_equal(
@@ -101,7 +124,7 @@ fn assert_column(side: &str, k: &Kernel<Exact>, x: usize, expected: &[Exact]) {
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.almostSurelyEq_equivalence
 #[test]
 fn witness_almost_surely_eq_equivalence() -> Result<()> {
-    let (q, s, s1) = (q()?, s()?, s_prime()?);
+    let (q, s, s1, s3) = (q()?, s()?, s_prime()?, s_double_prime()?);
     let s2 = s_with_rainy([r(1, 2), r(1, 2)])?;
     assert_as_equal("refl: as_equal(q, s, s)", &q, &s, &s, true)?;
     let forward = as_equal(&q, &s1, &s)?;
@@ -109,6 +132,12 @@ fn witness_almost_surely_eq_equivalence() -> Result<()> {
     assert!(
         forward && backward,
         "symm: expected as_equal(q, s', s) = as_equal(q, s, s') = true, observed {forward} and {backward}"
+    );
+    let forward = as_equal(&q, &s3, &s)?;
+    let backward = as_equal(&q, &s, &s3)?;
+    assert!(
+        !forward && !backward,
+        "symm: expected as_equal(q, s'', s) = as_equal(q, s, s'') = false, observed {forward} and {backward}"
     );
     assert_as_equal("trans: as_equal(q, s, s')", &q, &s, &s1, true)?;
     assert_as_equal("trans: as_equal(q, s', s2)", &q, &s1, &s2, true)?;
@@ -128,6 +157,13 @@ fn witness_almost_surely_eq_comp() -> Result<()> {
         &s.compose(&e)?,
         true,
     )?;
+    assert_as_equal(
+        "as_equal(q, s'' ≫ e, s ≫ e)",
+        &q,
+        &s_double_prime()?.compose(&e)?,
+        &s.compose(&e)?,
+        false,
+    )?;
     Ok(())
 }
 
@@ -135,6 +171,7 @@ fn witness_almost_surely_eq_comp() -> Result<()> {
 #[test]
 fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
     let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
+    let g1 = s_with_rainy([r(1, 2), r(1, 2)])?;
     let (w, sp) = (obj_w()?, obj_s()?);
     let (on, off, zero) = ([r(1, 18), r(1, 9)], [r(1, 9), r(2, 9)], r(0, 1));
     let expected = Kernel::state(
@@ -152,14 +189,14 @@ fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
     let with_s = copy_tensor(&q, &s, &s)?;
     assert_kernel("q ≫ Δ ≫ (Δ ▷ W) ≫ ((s ▷ W) ⊗ₘ s)", &with_s, &expected);
     assert_kernel(
-        "q ≫ Δ ≫ (Δ ▷ W) ≫ ((s' ▷ W) ⊗ₘ s')",
-        &copy_tensor(&q, &s1, &s1)?,
+        "q ≫ Δ ≫ (Δ ▷ W) ≫ ((s' ▷ W) ⊗ₘ g')",
+        &copy_tensor(&q, &s1, &g1)?,
         &with_s,
     );
-    let control = copy_tensor(&q, &s2, &s2)?;
+    let control = copy_tensor(&q, &s2, &g1)?;
     assert!(
         control != with_s,
-        "control: expected q ≫ Δ ≫ (Δ ▷ W) ≫ ((s'' ▷ W) ⊗ₘ s'') != {}, observed equal",
+        "control: expected q ≫ Δ ≫ (Δ ▷ W) ≫ ((s'' ▷ W) ⊗ₘ g') != {}, observed equal",
         show(&with_s)
     );
     Ok(())
@@ -168,9 +205,27 @@ fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
 /// THEOREM_MAP: FinStoch.almostSurelyEq_iff
 #[test]
 fn witness_almost_surely_eq_iff() -> Result<()> {
-    let (q, s) = (q()?, s()?);
-    assert_as_equal("as_equal(q, s', s)", &q, &s_prime()?, &s, true)?;
-    assert_as_equal("as_equal(q, s'', s)", &q, &s_double_prime()?, &s, false)?;
+    let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
+    for (name, f, expected) in [("s'", &s1, true), ("s''", &s2, false), ("s", &s, true)] {
+        assert_as_equal(&format!("as_equal(q, {name}, s)"), &q, f, &s, expected)?;
+        let (lhs, rhs) = (copy_whisker(&q, f)?, copy_whisker(&q, &s)?);
+        let def = lhs == rhs;
+        assert_eq!(
+            def,
+            expected,
+            "Def. 13.1 for ({name}, s): expected q ≫ Δ[W] ≫ ({name} ▷ W) == q ≫ Δ[W] ≫ (s ▷ W) to be {expected}, observed {def}: {} vs {}",
+            show(&lhs),
+            show(&rhs)
+        );
+    }
+
+    assert_as_equal("as_equal(c, s'', s)", &c()?, &s2, &s, false)?;
+    let p = lit(
+        obj_t()?,
+        obj_w()?,
+        &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(1, 4), r(3, 4), r(0, 1)]],
+    )?;
+    assert_as_equal("as_equal(p, s', s), p missing rainy", &p, &s1, &s, true)?;
     Ok(())
 }
 
@@ -208,29 +263,80 @@ fn witness_is_conditional_cond() -> Result<()> {
         vec![r(1, 10), r(1, 10), r(0, 1), r(0, 1), r(1, 5), r(3, 5)],
     )?;
     assert_kernel("psi_t ≫ Δ[T] ≫ (T ◁ c)", &joint, &joint_literal);
+    let got = conditional(&joint, &t, &w);
+    let Ok(cond_joint) = got else {
+        panic!("(a) conditional(joint, T, W): expected Ok, observed {got:?}");
+    };
     assert_column(
         "(a) cond(joint) at (cold, unit)",
-        &conditional(&joint, &t, &w)?,
+        &cond_joint,
         1,
         &[r(0, 1), r(1, 4), r(3, 4)],
     );
 
     let f = f()?;
-    let cond = conditional(&f, &w, &sp)?;
-    let composite = Kernel::copy(&t)?
-        .compose(&Kernel::whisker_right(&f.marginal_fst(&w, &sp)?, &t)?)?
-        .compose(&Kernel::whisker_right(&Kernel::copy(&w)?, &t)?)?
-        .compose(&Kernel::associator(&w, &w, &t)?)?
-        .compose(&Kernel::whisker_left(&w, &cond)?)?;
+    let got = conditional(&f, &w, &sp);
+    let Ok(cond) = got else {
+        panic!("(b) conditional(f, W, S): expected Ok, observed {got:?}");
+    };
     assert_kernel(
         "(b) Δ[T] ≫ (marginalFst f ▷ T) ≫ (Δ[W] ▷ T) ≫ α ≫ (W ◁ cond f)",
-        &composite,
+        &conditional_composite(&f, &w, &sp, &cond)?,
         &f,
     );
 
     let uniform = [r(1, 2), r(1, 2)];
     assert_column("(c) cond(f) at (sunny, cold)", &cond, 1, &uniform);
     assert_column("(c) cond(f) at (rainy, hot)", &cond, 4, &uniform);
+
+    let g = lit(
+        t.clone(),
+        sp.tensor(&w)?,
+        &[
+            &[r(1, 2), r(1, 2), r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 4), r(1, 2), r(1, 4), r(0, 1)],
+        ],
+    )?;
+    let got = conditional(&g, &sp, &w);
+    let Ok(cond_g) = got else {
+        panic!("(d) conditional(g, S, W): expected Ok, observed {got:?}");
+    };
+    let third = r(1, 3);
+    assert_column(
+        "(d) cond(g : T → S ⊗ W) at (off, hot)",
+        &cond_g,
+        2,
+        &[third.clone(), third.clone(), third],
+    );
+    Ok(())
+}
+
+/// THEOREM_MAP: FinStoch.isConditional_not_unique
+#[test]
+fn witness_is_conditional_not_unique() -> Result<()> {
+    let (w, sp) = (obj_w()?, obj_s()?);
+    let f = f()?;
+    let g1 = conditional(&f, &w, &sp)?;
+    let mut data = Vec::new();
+    for x in 0..g1.domain().card() {
+        match g1.column(x) {
+            Some(_) if x == 1 => data.extend([r(1, 1), r(0, 1)]),
+            Some(column) => data.extend_from_slice(column),
+            None => panic!("column {x} of {} is missing", show(&g1)),
+        }
+    }
+    let g2 = Kernel::new(g1.domain().clone(), sp.clone(), data)?;
+    assert_kernel(
+        "Def. 11.5 composite of g1 = cond f",
+        &conditional_composite(&f, &w, &sp, &g1)?,
+        &f,
+    );
+    assert_kernel(
+        "Def. 11.5 composite of g2 = g1 with (sunny, cold) at (1, 0)",
+        &conditional_composite(&f, &w, &sp, &g2)?,
+        &f,
+    );
+    assert!(g1 != g2, "expected g1 != g2, observed both {}", show(&g1));
     Ok(())
 }
 
@@ -252,6 +358,15 @@ fn witness_has_conditionals() -> Result<()> {
             matches!(&got, Ok(g) if g.domain() == &dom && g.codomain() == y),
             "conditional({name}): expected Ok of a kernel {dom:?} → {y:?}, observed {got:?}"
         );
+        if let Ok(g) = &got
+            && k.domain().card() > 0
+        {
+            assert_kernel(
+                &format!("Def. 11.5 composite of conditional({name})"),
+                &conditional_composite(&k, x, y, g)?,
+                &k,
+            );
+        }
     }
     Ok(())
 }

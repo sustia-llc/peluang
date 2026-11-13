@@ -24,14 +24,17 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   `THEOREM_MAP.md` row.
 - In a copy-discard category, almost-sure equality with respect to `p : A ⟶ X`
   is an equivalence relation on `X ⟶ Y`, kept by postcomposition (Def. 13.1,
-  Lemma 13.4, Lemma 13.5). In FinStoch, it is equality of the rows that `p`
-  reaches (Example 13.2).
+  Lemma 13.4). Two pairs of almost surely equal morphisms give equal composites
+  after copying `X` into three outputs (Lemma 13.5). In FinStoch, almost-sure
+  equality is equality of the rows that `p` reaches (Example 13.2).
 - `instance : HasConditionals FinStoch`: the computable `FinStoch.cond` is a
   conditional of every morphism into a tensor product, with the uniform
-  distribution on rows of zero mass (Def. 11.5, Example 11.6).
+  distribution on rows of zero mass (Def. 11.5, Example 11.6). Conditionals in
+  FinStoch are not unique: one morphism has two distinct conditionals
+  (Prop. 11.15).
 
-At `v0.4.0`, `THEOREM_MAP.md` has 40 rows that pair a Lean id with a Rust test.
-The crate has 145 tests with all features on. The uniqueness of conditionals up
+At `v0.4.0`, `THEOREM_MAP.md` has 41 rows that pair a Lean id with a Rust test.
+The crate has 146 tests with all features on. The uniqueness of conditionals up
 to almost-sure equality, and conditional independence, are planned.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)

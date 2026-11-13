@@ -18,11 +18,17 @@ git tag is the authoritative pin.
 - `lean/Peluang/Instances/FinStoch/Conditional.lean`: the computable
   conditional `FinStoch.cond`, uniform on rows of zero mass, with
   `isConditional_cond` and `instance : HasConditionals FinStoch`
-  (Example 11.6).
+  (Example 11.6), and `isConditional_not_unique`: one FinStoch morphism has
+  two distinct conditionals (Prop. 11.15).
 - `almost_sure::as_equal` and `conditional::conditional`, and the error
-  variant `Error::NotParallel`.
-- `tests/formalization_lean/conditional_tests.rs` with 8 witness tests and
+  variants `Error::NotParallel` and `Error::NoUniformWeight`.
+- `tests/formalization_lean/conditional_tests.rs` with 9 witness tests and
   `THEOREM_MAP.md` rows.
+
+### Changed
+
+- `Error` has the new variants `NotParallel` and `NoUniformWeight`. A
+  downstream exhaustive `match` on `Error` no longer compiles.
 
 ## [0.3.0] - 2026-11-01
 

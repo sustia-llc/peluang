@@ -16,7 +16,8 @@ import PeluangLint
 `marginalFst_mass`, `conditional_form_mass` and `isConditional_cond` each applied once, the
 instance `HasConditionals FinStoch` found by instance search, the entry `3 / 4` of `cond` on the
 joint state of `FinStoch.mk (Fin 2) ⊗ FinStoch.mk (Fin 3)` with rows `(1/10, 1/10, 0)` and
-`(0, 1/5, 3/5)`, and the entry `(Fintype.card Bool)⁻¹` of `cond` on a zero-mass row.
+`(0, 1/5, 3/5)`, the entry `(Fintype.card Bool)⁻¹` of `cond` on a zero-mass row, and
+`isConditional_not_unique` applied once.
 -/
 
 public section
@@ -70,5 +71,10 @@ example :
       𝟙_ FinStoch ⟶ FinStoch.mk Bool ⊗ FinStoch.mk Bool)).mass (true, PUnit.unit) false =
       (Fintype.card Bool : ℚ≥0)⁻¹ := by
   simp [cond]
+
+example :
+    ∃ (f : 𝟙_ FinStoch ⟶ boolObj ⊗ boolObj) (g₁ g₂ : boolObj ⊗ 𝟙_ FinStoch ⟶ boolObj),
+      IsConditional f g₁ ∧ IsConditional f g₂ ∧ g₁ ≠ g₂ :=
+  isConditional_not_unique
 
 end FinStoch
