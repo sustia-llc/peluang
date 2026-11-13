@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-13
+
 ### Added
 
 - `lean/Peluang/AlmostSure.lean`: almost-sure equality in a copy-discard
