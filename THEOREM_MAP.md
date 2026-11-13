@@ -60,3 +60,11 @@ a declaration.
 | FinStoch.deterministic_iff_exists_ofFun | tests/formalization_lean/finstoch_tests.rs::witness_deterministic_iff_exists_of_fun | Fritz 2020 Example 10.3, T12 |
 | FinStoch.not_deterministic_bernoulli | tests/formalization_lean/finstoch_tests.rs::witness_not_deterministic_bernoulli | Fritz 2020 Def. 10.1 |
 | FinStoch.instMarkovCategory | tests/formalization_lean/finstoch_tests.rs::witness_markov_category | Fritz 2020 Example 2.5, T1 |
+| CategoryTheory.CopyDiscardCategory.almostSurelyEq_equivalence | tests/formalization_lean/conditional_tests.rs::witness_almost_surely_eq_equivalence | Fritz 2020 Def. 13.1 |
+| CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.comp | tests/formalization_lean/conditional_tests.rs::witness_almost_surely_eq_comp | Fritz 2020 Lemma 13.4 |
+| CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.copy_tensorHom | tests/formalization_lean/conditional_tests.rs::witness_almost_surely_eq_copy_tensor_hom | Fritz 2020 Lemma 13.5 |
+| FinStoch.almostSurelyEq_iff | tests/formalization_lean/conditional_tests.rs::witness_almost_surely_eq_iff | Fritz 2020 Example 13.2 |
+| FinStoch.copy_comp_whiskerRight_mass | tests/formalization_lean/conditional_tests.rs::witness_copy_comp_whisker_right_mass | Fritz 2020 Def. 13.1 |
+| FinStoch.marginalFst_mass | tests/formalization_lean/conditional_tests.rs::witness_marginal_fst_mass | Fritz 2020 Notation 2.8 |
+| FinStoch.isConditional_cond | tests/formalization_lean/conditional_tests.rs::witness_is_conditional_cond | Fritz 2020 Def. 11.5, Example 11.6 |
+| FinStoch.instHasConditionals | tests/formalization_lean/conditional_tests.rs::witness_has_conditionals | Fritz 2020 Example 11.6 |

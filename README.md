@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.3.0` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.4.0` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -22,10 +22,17 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 - In a Markov category, the deterministic morphisms form a wide subcategory that
   is again a Markov category (Remark 10.13). This instance has no
   `THEOREM_MAP.md` row.
+- In a copy-discard category, almost-sure equality with respect to `p : A ⟶ X`
+  is an equivalence relation on `X ⟶ Y`, kept by postcomposition (Def. 13.1,
+  Lemma 13.4, Lemma 13.5). In FinStoch, it is equality of the rows that `p`
+  reaches (Example 13.2).
+- `instance : HasConditionals FinStoch`: the computable `FinStoch.cond` is a
+  conditional of every morphism into a tensor product, with the uniform
+  distribution on rows of zero mass (Def. 11.5, Example 11.6).
 
-At `v0.3.0`, `THEOREM_MAP.md` has 32 rows that pair a Lean id with a Rust test.
-The crate has 135 tests with all features on. Almost-sure equality, conditionals
-and conditional independence are planned.
+At `v0.4.0`, `THEOREM_MAP.md` has 40 rows that pair a Lean id with a Rust test.
+The crate has 145 tests with all features on. The uniqueness of conditionals up
+to almost-sure equality, and conditional independence, are planned.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -33,12 +40,16 @@ and conditional independence are planned.
 
 ## Architecture
 
-- `src/`: `prob.rs` (the `Prob` carrier trait; exact rationals by
-  default, `f64` behind the `f64-prob` feature; `sum`), `finset.rs` (finite
-  objects, `tensor` as concatenation of factors), `kernel.rs` (`Kernel<P>`, a
-  stochastic matrix with `Kernel::new` testing its input), `markov.rs`
-  (`Compose`, `Tensor`, the structure maps, marginals), `deterministic.rs`
-  (`is_deterministic`), `exec.rs` (behind `async`), `error.rs`.
+- `src/`:
+  - `prob.rs`: the `Prob` carrier trait and `sum`. Exact rationals are the
+    default, and `f64` is behind the `f64-prob` feature.
+  - `finset.rs`: finite objects, with `tensor` as concatenation of factors.
+  - `kernel.rs`: `Kernel<P>`, a stochastic matrix. `Kernel::new` tests its input.
+  - `markov.rs`: `Compose`, `Tensor`, the structure maps and the marginals.
+  - `deterministic.rs`: `is_deterministic`.
+  - `almost_sure.rs`: `as_equal`.
+  - `conditional.rs`: `conditional`.
+  - `exec.rs` (behind `async`) and `error.rs`.
 - `lean/`: the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
   `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is
   the library root and imports every file under `lean/Peluang/`.

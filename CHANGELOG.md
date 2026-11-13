@@ -6,6 +6,24 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- `lean/Peluang/AlmostSure.lean`: almost-sure equality in a copy-discard
+  category (Fritz 2020 Def. 13.1), its equivalence relation, Lemma 13.4 and
+  Lemma 13.5.
+- `lean/Peluang/Conditional.lean`: `IsConditional` (Def. 11.5, input order
+  `X ⊗ A`) and the class `HasConditionals`.
+- `lean/Peluang/Instances/FinStoch/AlmostSure.lean`: almost-sure equality in
+  FinStoch is equality of the rows that `p` reaches (Example 13.2).
+- `lean/Peluang/Instances/FinStoch/Conditional.lean`: the computable
+  conditional `FinStoch.cond`, uniform on rows of zero mass, with
+  `isConditional_cond` and `instance : HasConditionals FinStoch`
+  (Example 11.6).
+- `almost_sure::as_equal` and `conditional::conditional`, and the error
+  variant `Error::NotParallel`.
+- `tests/formalization_lean/conditional_tests.rs` with 8 witness tests and
+  `THEOREM_MAP.md` rows.
+
 ## [0.3.0] - 2026-11-01
 
 ### Added
