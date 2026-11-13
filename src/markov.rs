@@ -210,7 +210,7 @@ impl<P: Prob> Kernel<P> {
 
     /// `Ok` exactly when the factors of the codomain are those of `x` followed
     /// by those of `y`.
-    fn split(&self, x: &FinObj, y: &FinObj) -> Result<()> {
+    pub(crate) fn split(&self, x: &FinObj, y: &FinObj) -> Result<()> {
         let matches = self
             .cod()
             .factors()

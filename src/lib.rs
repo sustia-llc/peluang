@@ -3,6 +3,8 @@
 //! the Lean theorems under `lean/` by `THEOREM_MAP.md`, whose rows pair each
 //! theorem with a witness test under `tests/`.
 
+pub mod almost_sure;
+pub mod conditional;
 pub mod deterministic;
 pub mod error;
 #[cfg(feature = "async")]

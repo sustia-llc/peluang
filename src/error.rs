@@ -57,7 +57,17 @@ pub enum Error {
         domain: FinObj,
     },
 
-    /// A marginal whose codomain is not `fst ⊗ snd`.
+    /// Two kernels compared as parallel morphisms whose domains or codomains
+    /// differ.
+    #[error("not parallel: {:?} → {:?} and {:?} → {:?}", .fst.0, .fst.1, .snd.0, .snd.1)]
+    NotParallel {
+        /// The domain and codomain of the first kernel.
+        fst: Box<(FinObj, FinObj)>,
+        /// The domain and codomain of the second kernel.
+        snd: Box<(FinObj, FinObj)>,
+    },
+
+    /// A marginal or conditional whose codomain is not `fst ⊗ snd`.
     #[error("codomain {codomain:?} is not the tensor of {fst:?} and {snd:?}")]
     NotATensor {
         /// The codomain of the kernel.
