@@ -6,9 +6,13 @@ module
 
 public import Mathlib.CategoryTheory.MarkovCategory.Basic
 public import Mathlib.Probability.Kernel.Category.Stoch
+public import Peluang.AlmostSure
+public import Peluang.Conditional
 public import Peluang.Deterministic.Lemmas
 public import Peluang.Deterministic.Wide
+public import Peluang.Instances.FinStoch.AlmostSure
 public import Peluang.Instances.FinStoch.Basic
+public import Peluang.Instances.FinStoch.Conditional
 public import Peluang.Instances.FinStoch.Deterministic
 public import Peluang.Instances.FinStoch.Markov
 public import Peluang.Instances.FinStoch.Monoidal
