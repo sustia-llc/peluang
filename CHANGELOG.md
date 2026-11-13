@@ -20,8 +20,7 @@ git tag is the authoritative pin.
   `isConditional_cond` and `instance : HasConditionals FinStoch`
   (Example 11.6), and `isConditional_not_unique`: one FinStoch morphism has
   two distinct conditionals (Prop. 11.15).
-- `almost_sure::as_equal` and `conditional::conditional`, and the error
-  variants `Error::NotParallel` and `Error::NoUniformWeight`.
+- `almost_sure::as_equal` and `conditional::conditional`.
 - `tests/formalization_lean/conditional_tests.rs` with 9 witness tests and
   `THEOREM_MAP.md` rows.
 

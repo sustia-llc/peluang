@@ -11,7 +11,9 @@ use crate::prob::{Prob, sum};
 /// ordered `x ⊗ A` with input `(i, a)` at index `i * A.card() + a`, whose
 /// column at `(i, a)` has weight `f((i, y) | a) / s` at output `y`, where
 /// `s = Σ_y' f((i, y') | a)` through `prob::sum`, and the uniform weight
-/// `1 / y.card()` at every output when `s == P::zero()`. Returns
+/// `1 / y.card()` at every output when `s == P::zero()`. The result is built
+/// without the column tests of `Kernel::new`, so it is not tested for
+/// normalization. Returns
 /// `Error::NotATensor` unless the codomain of `f` equals `x ⊗ y`,
 /// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
 /// capacity fails, and `Error::NoUniformWeight` when a column has

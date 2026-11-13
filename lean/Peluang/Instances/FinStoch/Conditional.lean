@@ -105,21 +105,49 @@ theorem isConditional_cond (f : A ⟶ X ⊗ Y) : IsConditional f (cond f) := by
 /-- `FinStoch` has conditionals, given by `cond` (Fritz 2020, Example 11.6). -/
 instance : HasConditionals FinStoch := ⟨fun f => ⟨cond f, isConditional_cond f⟩⟩
 
+-- WITNESS: none (step of isConditional_not_unique; witnessed through it)
+/-- For `x₀ : X.carrier` and `y₀ : Y.carrier`, the deterministic map `Hom.ofFun fun _ => y₀` is a
+conditional on `X` of the constant `Hom.ofFun fun _ => (x₀, y₀) : A ⟶ X ⊗ Y`
+(Fritz 2020, Def. 11.5). -/
+theorem isConditional_ofFun_const (x₀ : X.carrier) (y₀ : Y.carrier) :
+    IsConditional (C := FinStoch) (A := A) (Hom.ofFun fun _ => (x₀, y₀))
+      (Hom.ofFun fun _ => y₀) := by
+  have hpair (a c : X.carrier) (b d : Y.carrier) :
+      @Eq (X ⊗ Y).carrier (a, b) (c, d) ↔ a = c ∧ b = d := Prod.mk_inj
+  unfold IsConditional
+  ext a ⟨x, y⟩ : 1
+  rw [conditional_form_mass, marginalFst_mass]
+  simp only [ofFun_mass, hpair, ite_and]
+  split_ifs <;> simp
+
+-- WITNESS: none (step of isConditional_not_unique; witnessed through it)
+/-- For `x₀ ≠ x` in `X.carrier`, `y₀ y : Y.carrier` and `a : A.carrier`, the entry of
+`cond (Hom.ofFun fun _ => (x₀, y₀) : A ⟶ X ⊗ Y)` at input `(x, a)` and output `y` is
+`1 / |Y|` (Fritz 2020, Example 11.6). -/
+theorem cond_ofFun_const_mass_of_ne {x₀ x : X.carrier} (y₀ : Y.carrier) (a : A.carrier)
+    (y : Y.carrier) (h : x₀ ≠ x) :
+    (cond (A := A) (X := X) (Y := Y) (Hom.ofFun fun _ => (x₀, y₀))).mass (x, a) y =
+      (Fintype.card Y.carrier : ℚ≥0)⁻¹ := by
+  have hpair (a c : X.carrier) (b d : Y.carrier) :
+      @Eq (X ⊗ Y).carrier (a, b) (c, d) ↔ a = c ∧ b = d := Prod.mk_inj
+  simp [cond, ofFun_mass, hpair, h]
+
 /-- In `FinStoch`, conditionals are not unique: some `f : 𝟙_ FinStoch ⟶ boolObj ⊗ boolObj` has two
 distinct conditionals on `boolObj` (Fritz 2020, Prop. 11.15). -/
 theorem isConditional_not_unique :
     ∃ (f : 𝟙_ FinStoch ⟶ boolObj ⊗ boolObj) (g₁ g₂ : boolObj ⊗ 𝟙_ FinStoch ⟶ boolObj),
       IsConditional f g₁ ∧ IsConditional f g₂ ∧ g₁ ≠ g₂ := by
   refine ⟨Hom.ofFun fun _ => (true, true), cond _, Hom.ofFun fun _ => true,
-    isConditional_cond _, ?_, fun h => ?_⟩
-  · unfold IsConditional
-    ext a ⟨x, y⟩ : 1
-    rw [conditional_form_mass, marginalFst_mass]
-    simp only [ofFun_mass]
-    cases x <;> cases y <;> erw [Fintype.sum_bool] <;> simp +decide [boolObj]
-  · have := congrArg (fun g : boolObj ⊗ 𝟙_ FinStoch ⟶ boolObj => g.mass (false, PUnit.unit) true) h
-    simp only [cond, ofFun_mass] at this
-    erw [Fintype.sum_bool] at this
-    simp +decide [boolObj] at this
+    isConditional_cond _, isConditional_ofFun_const _ _, fun h => ?_⟩
+  have hc := cond_ofFun_const_mass_of_ne (A := 𝟙_ FinStoch) (X := boolObj) (Y := boolObj)
+    (x₀ := true) (x := false) true PUnit.unit true nofun
+  have hg : (Hom.ofFun fun _ => true : boolObj ⊗ 𝟙_ FinStoch ⟶ boolObj).mass (false, PUnit.unit)
+      true = 1 :=
+    (ofFun_mass _ _ _).trans (ite_eq_left rfl)
+  have hcard : Fintype.card boolObj.carrier = 2 := Fintype.card_bool
+  have e : (Fintype.card boolObj.carrier : ℚ≥0)⁻¹ = 1 :=
+    hc.symm.trans ((congrArg (fun g => g.mass (false, PUnit.unit) true) h).trans hg)
+  rw [hcard] at e
+  norm_num at e
 
 end FinStoch

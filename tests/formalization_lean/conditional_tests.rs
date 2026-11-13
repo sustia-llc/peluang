@@ -11,7 +11,9 @@ use peluang::kernel::Kernel;
 use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
 
-use crate::fixtures::{assert_kernel, c, e, f, lit, obj_s, obj_t, obj_w, psi_t, r, s, show};
+use crate::fixtures::{
+    assert_kernel, c, e, f, labels, lit, obj_s, obj_t, obj_w, psi_t, r, s, show,
+};
 
 /// `q : I → W`, `(1/2, 1/2, 0)`: the column of `c` at hot.
 fn q() -> Result<Kernel<Exact>> {
@@ -311,12 +313,23 @@ fn witness_is_conditional_cond() -> Result<()> {
     Ok(())
 }
 
+/// The running example `f`, and the instance of the Lean proof with `B` the
+/// object labeled `["false", "true"]`: index 0 is Lean's `false` and index 1
+/// is Lean's `true`, `f : I → B ⊗ B` has weight 1 at `(true, true)`,
+/// `g1 = cond f` and `g2 : B ⊗ I → B` sends every input to `true`.
 /// THEOREM_MAP: FinStoch.isConditional_not_unique
 #[test]
 fn witness_is_conditional_not_unique() -> Result<()> {
     let (w, sp) = (obj_w()?, obj_s()?);
     let f = f()?;
     let g1 = conditional(&f, &w, &sp)?;
+    let marginal = f.marginal_fst(&w, &sp)?;
+    let observed = marginal.column(1).and_then(|column| column.first());
+    assert!(
+        observed == Some(&r(0, 1)),
+        "marginalFst f at (cold, sunny): expected 0, observed {observed:?} in {}",
+        show(&marginal)
+    );
     let mut data = Vec::new();
     for x in 0..g1.domain().card() {
         match g1.column(x) {
@@ -337,6 +350,26 @@ fn witness_is_conditional_not_unique() -> Result<()> {
         &f,
     );
     assert!(g1 != g2, "expected g1 != g2, observed both {}", show(&g1));
+
+    let b = labels(&["false", "true"])?;
+    let bool_f = Kernel::state(b.tensor(&b)?, vec![r(0, 1), r(0, 1), r(0, 1), r(1, 1)])?;
+    let bool_g1 = conditional(&bool_f, &b, &b)?;
+    let bool_g2 = Kernel::from_fn(b.tensor(&FinObj::unit())?, b.clone(), |_| 1)?;
+    assert_kernel(
+        "Def. 11.5 composite of g1 = cond f, f at (true, true)",
+        &conditional_composite(&bool_f, &b, &b, &bool_g1)?,
+        &bool_f,
+    );
+    assert_kernel(
+        "Def. 11.5 composite of g2 = constant true, f at (true, true)",
+        &conditional_composite(&bool_f, &b, &b, &bool_g2)?,
+        &bool_f,
+    );
+    assert!(
+        bool_g1 != bool_g2,
+        "f at (true, true): expected cond f != constant true, observed both {}",
+        show(&bool_g1)
+    );
     Ok(())
 }
 
@@ -358,9 +391,7 @@ fn witness_has_conditionals() -> Result<()> {
             matches!(&got, Ok(g) if g.domain() == &dom && g.codomain() == y),
             "conditional({name}): expected Ok of a kernel {dom:?} → {y:?}, observed {got:?}"
         );
-        if let Ok(g) = &got
-            && k.domain().card() > 0
-        {
+        if let Ok(g) = &got {
             assert_kernel(
                 &format!("Def. 11.5 composite of conditional({name})"),
                 &conditional_composite(&k, x, y, g)?,
