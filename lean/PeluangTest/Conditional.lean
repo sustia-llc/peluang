@@ -13,7 +13,10 @@ import PeluangLint
 `IsConditional f g` unfolds to its equation, `HasConditionals.exists_isConditional` applied
 once, and `IsConditional f g` at `f : A ⟶ (X₁ ⊗ X₂) ⊗ Y` from a hypothesis written with
 `Δ[X₁ ⊗ X₂]`: `exact` fails, and closes after rewriting with
-`CopyDiscardCategory.comonObj_tensor`.
+`CopyDiscardCategory.comonObj_tensor`. Dot notation `hk.nest hh` and
+`h.deterministic_comp g` on `IsConditional` hypotheses, and `rw [CopyDiscardCategory.copy_tensor]`
+failing at a user-written `Δ[X ⊗ A]` and succeeding at
+`@ComonObj.comul C _ _ (X ⊗ A) (CopyDiscardCategory.comonObj (X ⊗ A))`.
 -/
 
 public section
@@ -42,5 +45,25 @@ example {A X₁ X₂ Y : C} (f : A ⟶ (X₁ ⊗ X₂) ⊗ Y) (g : (X₁ ⊗ X�
   unfold IsConditional
   rw [CopyDiscardCategory.comonObj_tensor]
   exact h
+
+example {A X Y Z : C} {f : A ⟶ X ⊗ (Y ⊗ Z)} {k : X ⊗ A ⟶ Y ⊗ Z} {h : Y ⊗ (X ⊗ A) ⟶ Z}
+    (hk : IsConditional f k) (hh : IsConditional k h) :
+    IsConditional (f ≫ (α_ X Y Z).inv) (((β_ X Y).hom ▷ A) ≫ (α_ Y X A).hom ≫ h) :=
+  hk.nest hh
+
+example {A A' X Y : C} {f : A' ⟶ X ⊗ Y} {k : X ⊗ A' ⟶ Y} (h : IsConditional f k)
+    (g : A ⟶ A') [Deterministic g] :
+    IsConditional (g ≫ f) ((X ◁ g) ≫ k) :=
+  h.deterministic_comp g
+
+example {A X : C} (g : (X ⊗ A) ⊗ (X ⊗ A) ⟶ X ⊗ A) :
+    Δ[X ⊗ A] ≫ g = Δ[X ⊗ A] ≫ g := by
+  fail_if_success rw [CopyDiscardCategory.copy_tensor]
+  rfl
+
+example {A X : C} (g : (X ⊗ A) ⊗ (X ⊗ A) ⟶ X ⊗ A) :
+    @ComonObj.comul C _ _ (X ⊗ A) (CopyDiscardCategory.comonObj (X ⊗ A)) ≫ g =
+      ((Δ[X] ⊗ₘ Δ[A]) ≫ tensorμ X X A A) ≫ g := by
+  rw [CopyDiscardCategory.copy_tensor]
 
 end CategoryTheory

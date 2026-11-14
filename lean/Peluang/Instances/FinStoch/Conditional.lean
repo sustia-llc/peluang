@@ -24,12 +24,15 @@ public import Peluang.Instances.FinStoch.Markov
 * `FinStoch.instHasConditionals` - `FinStoch` has conditionals.
 * `FinStoch.isConditional_not_unique` - conditionals in `FinStoch` are not unique: some
   `f : 𝟙_ FinStoch ⟶ boolObj ⊗ boolObj` has two distinct conditionals.
+* `FinStoch.not_isConditional_comp_of_coin` - for some state `g : 𝟙_ FinStoch ⟶ boolObj`, some
+  `f : boolObj ⟶ boolObj ⊗ boolObj` and a conditional `k` of `f` on `boolObj`,
+  `(boolObj ◁ g) ≫ k` is not a conditional of `g ≫ f`.
 
 ## References
 
 * [Fritz, *A synthetic approach to Markov kernels, conditional independence
-  and theorems on sufficient statistics*][fritz2020], Notation 2.8, Def. 11.5, Example 11.6,
-  Prop. 11.15.
+  and theorems on sufficient statistics*][fritz2020], Notation 2.8, Def. 10.1, Def. 11.5,
+  Example 11.6, Prop. 11.15.
 -/
 
 @[expose] public section
@@ -149,5 +152,32 @@ theorem isConditional_not_unique :
     hc.symm.trans ((congrArg (fun g => g.mass (false, PUnit.unit) true) h).trans hg)
   rw [hcard] at e
   norm_num at e
+
+/-- In `FinStoch`, for some state `g : 𝟙_ FinStoch ⟶ boolObj`, some
+`f : boolObj ⟶ boolObj ⊗ boolObj` and a conditional `k` of `f` on `boolObj`,
+`(boolObj ◁ g) ≫ k` is not a conditional of `g ≫ f` (the n-Category Café post
+"Introduction to Categorical Probability", T16; Fritz 2020, Def. 10.1, Def. 11.5). -/
+theorem not_isConditional_comp_of_coin :
+    ∃ (g : 𝟙_ FinStoch ⟶ boolObj) (f : boolObj ⟶ boolObj ⊗ boolObj)
+      (k : boolObj ⊗ boolObj ⟶ boolObj),
+      IsConditional f k ∧ ¬ IsConditional (g ≫ f) ((boolObj ◁ g) ≫ k) := by
+  have hpair (a c b d : boolObj.carrier) :
+      @Eq (boolObj ⊗ boolObj).carrier (a, b) (c, d) ↔ a = c ∧ b = d := Prod.mk_inj
+  refine ⟨bernoulli, Δ[boolObj], Hom.ofFun Prod.snd, ?_, fun hc => ?_⟩
+  · unfold IsConditional
+    rw [marginalFst_copy]
+    ext a ⟨x, y⟩ : 1
+    rw [conditional_form_mass]
+    simp only [copy_eq_ofFun, ofFun_mass, id_mass, hpair, ite_and]
+    split_ifs <;> simp_all
+  · have key (x y : boolObj.carrier) := (congrArg (fun k => k.mass PUnit.unit (x, y)) hc).trans
+      (conditional_form_mass _ _ _ _ _)
+    have e := key true false
+    simp only [marginalFst_comp, marginalFst_copy, Category.comp_id] at e
+    simp only [comp_mass, copy_eq_ofFun, ofFun_mass] at e
+    change (∑ b : Bool, (1 / 2 : ℚ≥0) * if ((b, b) : Bool × Bool) = (true, false) then 1 else 0) =
+      (1 / 2) * ∑ p : Bool × Bool,
+        ((if id true = p.1 then 1 else 0) * (1 / 2)) * (if p.2 = false then 1 else 0) at e
+    simp [Fintype.sum_prod_type] at e
 
 end FinStoch

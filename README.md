@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.4.0` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.4.1` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -32,10 +32,19 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   distribution on rows of zero mass (Def. 11.5, Example 11.6). Conditionals in
   FinStoch are not unique: one morphism has two distinct conditionals
   (Prop. 11.15).
+- In a copy-discard category, two conditionals of `f : A ⟶ X ⊗ Y` are almost
+  surely equal with respect to `Δ[A] ≫ (marginalFst f ▷ A)`. At `A = I`, two
+  conditionals `X ⟶ Y` of `ψ : I ⟶ X ⊗ Y` are almost surely equal with respect
+  to the marginal of `ψ` (Prop. 13.7).
+- The rewrite rules of conditionals: nesting (Lemma 11.11) and pre-composition
+  by a deterministic morphism (the Café post's third rule, Def. 10.1) in a
+  copy-discard category, and post-composition (Lemma 11.12) in a Markov
+  category. In FinStoch, pre-composition by the fair coin does not preserve a
+  conditional.
 
-At `v0.4.0`, `THEOREM_MAP.md` has 41 rows that pair a Lean id with a Rust test.
-The crate has 146 tests with all features on. The uniqueness of conditionals up
-to almost-sure equality, and conditional independence, are planned.
+At `v0.4.1`, `THEOREM_MAP.md` has 47 rows that pair a Lean id with a Rust test.
+The crate has 152 tests with all features on. Conditional independence is
+planned.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 

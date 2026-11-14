@@ -4,10 +4,12 @@
 
 #![allow(dead_code)]
 
+use peluang::almost_sure::as_equal;
 use peluang::deterministic::is_deterministic;
 use peluang::error::Result;
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
+use peluang::markov::Compose;
 use peluang::prob::{Exact, Prob};
 
 pub fn r(n: i64, d: i64) -> Exact {
@@ -125,6 +127,29 @@ pub fn e() -> Result<Kernel<Exact>> {
     points(obj_s()?, obj_t()?, &[0, 1])
 }
 
+/// The Def. 11.5 composite `Δ[A] ≫ (marginalFst f ▷ A) ≫ (Δ[x] ▷ A) ≫
+/// α[x, x, A] ≫ (x ◁ k)` with `A` the domain of `f : A → x ⊗ y`.
+pub fn conditional_composite(
+    f: &Kernel<Exact>,
+    x: &FinObj,
+    y: &FinObj,
+    k: &Kernel<Exact>,
+) -> Result<Kernel<Exact>> {
+    let a = f.domain();
+    Kernel::copy(a)?
+        .compose(&Kernel::whisker_right(&f.marginal_fst(x, y)?, a)?)?
+        .compose(&Kernel::whisker_right(&Kernel::copy(x)?, a)?)?
+        .compose(&Kernel::associator(x, x, a)?)?
+        .compose(&Kernel::whisker_left(x, k)?)
+}
+
+/// The Def. 13.1 composite `p ≫ Δ[W] ≫ (f ▷ W)` with `W` the domain of `f`.
+pub fn copy_whisker(p: &Kernel<Exact>, f: &Kernel<Exact>) -> Result<Kernel<Exact>> {
+    let w = f.domain();
+    p.compose(&Kernel::copy(w)?)?
+        .compose(&Kernel::whisker_right(f, w)?)
+}
+
 fn show_obj(x: &FinObj) -> String {
     let factors: Vec<String> = x
         .factors()
@@ -139,8 +164,6 @@ fn show_obj(x: &FinObj) -> String {
 
 /// `dom → cod`, then the columns in input order.
 pub fn show(k: &Kernel<Exact>) -> String {
-    use peluang::markov::Compose;
-
     let columns: Vec<String> = (0..k.domain().card())
         .filter_map(|x| k.column(x))
         .map(|column| {
@@ -165,6 +188,26 @@ pub fn assert_kernel(side: &str, observed: &Kernel<Exact>, expected: &Kernel<Exa
         show(expected),
         show(observed)
     );
+}
+
+/// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
+#[track_caller]
+pub fn assert_as_equal(
+    name: &str,
+    p: &Kernel<Exact>,
+    f: &Kernel<Exact>,
+    g: &Kernel<Exact>,
+    expected: bool,
+) -> Result<()> {
+    let observed = as_equal(p, f, g)?;
+    assert_eq!(
+        observed,
+        expected,
+        "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
+        show(f),
+        show(g)
+    );
+    Ok(())
 }
 
 /// Asserts `is_deterministic(k) == expected`, naming `name`.
