@@ -8,25 +8,14 @@
 
 use peluang::conditional::conditional;
 use peluang::error::Result;
-use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
 use peluang::markov::Compose;
 use peluang::prob::Exact;
 
 use crate::fixtures::{
-    assert_as_equal, assert_deterministic, assert_kernel, conditional_composite, d, e, f, h,
-    labels, lit, obj_s, obj_t, obj_w, points, r, show,
+    assert_as_equal, assert_deterministic, assert_differs, assert_kernel, coin,
+    conditional_composite, d, e, f, h, lit, obj_b, obj_s, obj_t, obj_w, points, r, show,
 };
-
-/// `B`: `{false, true}`.
-fn obj_b() -> Result<FinObj> {
-    labels(&["false", "true"])
-}
-
-/// `coin : I → B`, `(1/2, 1/2)`.
-fn coin() -> Result<Kernel<Exact>> {
-    Kernel::state(obj_b()?, vec![r(1, 2), r(1, 2)])
-}
 
 /// `snd : B ⊗ B → B`, the second projection.
 fn snd() -> Result<Kernel<Exact>> {
@@ -71,17 +60,6 @@ fn k2() -> Result<Kernel<Exact>> {
 /// `k₃`: `k₁` with the column at `(cloudy, cold)` replaced by `(0, 1)`.
 fn k3() -> Result<Kernel<Exact>> {
     with_column(&k1()?, 3, &[r(0, 1), r(1, 1)])
-}
-
-/// Asserts `observed != unexpected`, naming `side`.
-#[track_caller]
-fn assert_differs(side: &str, observed: &Kernel<Exact>, unexpected: &Kernel<Exact>) {
-    assert!(
-        observed != unexpected,
-        "{side}: expected a kernel != {}, observed {}",
-        show(unexpected),
-        show(observed)
-    );
 }
 
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.isConditional_unique_as

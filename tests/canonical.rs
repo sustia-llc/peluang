@@ -1,12 +1,15 @@
 //! Canonical integration tests. On `Exact` weights in every feature lane: the
 //! `Prob` trait (law verification, checked division and normalization), the
 //! rejections of each `Kernel` constructor and operation, `Kernel::approx_eq`,
-//! composition and tensor at literals, `is_deterministic`, results across
-//! `PAR_THRESHOLD`, size errors, and the post's eq. (9). In every feature lane:
-//! the `FinObj` object laws and rejections. On `f64` weights under `f64-prob`:
-//! the `Prob` trait, `Kernel::approx_eq`, the input tests of `Kernel::new`, and
-//! worked `compose`, `tensor`, marginals and `is_deterministic` under
-//! `Kernel::approx_eq`.
+//! composition and tensor at literals, `is_deterministic`, `is_independent` at
+//! a two-input kernel and at a 3×2 state, the rejection of a
+//! wrong split by `is_independent` and of misaligned domains by
+//! `cond_indep_form`, results across `PAR_THRESHOLD`, size
+//! errors, and the post's eq. (9). In every feature lane: the `FinObj` object
+//! laws and rejections. On `f64` weights under `f64-prob`: the `Prob` trait,
+//! `Kernel::approx_eq`, the input tests of `Kernel::new`, worked `compose`,
+//! `tensor`, marginals and `is_deterministic` under `Kernel::approx_eq`, and
+//! `is_independent` under `Prob::approx_eq`.
 
 mod common;
 #[path = "formalization_lean/fixtures.rs"]
@@ -244,11 +247,12 @@ mod kernels {
     use crate::c_tensor_s;
     use crate::common::{closed_form, telescoping};
     use crate::fixtures::{
-        assert_kernel, c, d, e, h, labels, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
+        assert_kernel, c, d, e, f, h, labels, lit, obj_s, obj_t, obj_w, points, psi_t, r, s, show,
     };
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
     use peluang::finset::FinObj;
+    use peluang::independence::{cond_indep_form, is_independent};
     use peluang::kernel::Kernel;
     use peluang::markov::{Compose, Tensor};
     use peluang::prob::{Exact, PAR_THRESHOLD, Prob};
@@ -637,6 +641,96 @@ mod kernels {
         Ok(())
     }
 
+    #[test]
+    fn is_independent_rejects_a_wrong_split() -> Result<()> {
+        let (w, sp, t) = (obj_w()?, obj_s()?, obj_t()?);
+        let joint = f()?;
+        let cod = w.tensor(&sp)?;
+        for (route, x, y) in [
+            ("factors swapped", &sp, &w),
+            ("mismatch only on snd", &w, &t),
+        ] {
+            let got = is_independent(&joint, x, y);
+            assert!(
+                matches!(&got, Err(Error::NotATensor { codomain, fst, snd })
+                    if *codomain == cod && fst == x && snd == y),
+                "is_independent(f), {route}: expected NotATensor {{ codomain: {cod:?}, fst: {x:?}, snd: {y:?} }}, observed {got:?}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn is_independent_reads_every_input() -> Result<()> {
+        let (sp, t) = (obj_s()?, obj_t()?);
+        let cod = t.tensor(&sp)?;
+        let quarters: &[Exact] = &[r(1, 4), r(1, 4), r(1, 4), r(1, 4)];
+        let product: &[Exact] = &[r(1, 6), r(1, 2), r(1, 12), r(1, 4)];
+        let diagonal: &[Exact] = &[r(1, 2), r(0, 1), r(0, 1), r(1, 2)];
+        for (name, columns, expected) in [
+            ("product at both inputs", [quarters, product], true),
+            ("product at input 0 only", [quarters, diagonal], false),
+        ] {
+            let kernel = lit(sp.clone(), cod.clone(), &columns)?;
+            let observed = is_independent(&kernel, &t, &sp)?;
+            assert_eq!(
+                observed,
+                expected,
+                "is_independent({name}) on {}: expected {expected}, observed {observed}",
+                show(&kernel)
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn is_independent_reads_every_output() -> Result<()> {
+        let cod = obj_w()?.tensor(&obj_s()?)?;
+        for (name, weights, expected) in [
+            (
+                "product of (1/2, 1/4, 1/4) and (1/2, 1/2)",
+                vec![r(1, 4), r(1, 4), r(1, 8), r(1, 8), r(1, 8), r(1, 8)],
+                true,
+            ),
+            (
+                "same marginals, factors at (sunny, on) only",
+                vec![r(1, 4), r(1, 4), r(1, 4), r(0, 1), r(0, 1), r(1, 4)],
+                false,
+            ),
+        ] {
+            let state = Kernel::state(cod.clone(), weights)?;
+            let observed = is_independent(&state, &obj_w()?, &obj_s()?)?;
+            assert_eq!(
+                observed,
+                expected,
+                "is_independent({name}) on {}: expected {expected}, observed {observed}",
+                show(&state)
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn cond_indep_form_rejects_misaligned_domains() -> Result<()> {
+        let (sp, t) = (obj_s()?, obj_t()?);
+        let (ts, st) = (t.tensor(&sp)?, sp.tensor(&t)?);
+        let ssst = sp.tensor(&st)?;
+        let g = h()?;
+        for (route, h_dom, k_dom, codomain, domain) in [
+            ("h on W ⊗ A", &st, &st, &ts, &st),
+            ("k on A ⊗ W", &ts, &ts, &st, &ts),
+            ("split shifted from h to k", &t, &ssst, &ts, &t),
+        ] {
+            let got = cond_indep_form(&g, &Kernel::del(h_dom)?, &Kernel::del(k_dom)?);
+            assert!(
+                matches!(&got, Err(Error::NotComposable { codomain: cod, domain: dom })
+                    if cod == codomain && dom == domain),
+                "cond_indep_form(h, del, del), {route}: expected NotComposable {{ codomain: {codomain:?}, domain: {domain:?} }}, observed {got:?}"
+            );
+        }
+        Ok(())
+    }
+
     /// `(on, off)` weights of the first `k` terms against the rest.
     fn split_weight(k: usize) -> Result<Kernel<Exact>> {
         let denominator = i64::try_from(k + 1).expect("invariant: test sizes fit in i64");
@@ -811,11 +905,12 @@ fn c_tensor_s() -> peluang::error::Result<peluang::kernel::Kernel<peluang::prob:
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
     use crate::c_tensor_s;
-    use crate::fixtures::{c, d, f, h, obj_s, obj_t, obj_w, s};
+    use crate::fixtures::{c, d, f, h, obj_p, obj_s, obj_t, obj_w, s};
     use num_traits::ToPrimitive;
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
     use peluang::finset::FinObj;
+    use peluang::independence::is_independent;
     use peluang::kernel::Kernel;
     use peluang::markov::{Compose, Tensor};
     use peluang::prob::{Exact, F64_TOLERANCE};
@@ -912,6 +1007,45 @@ mod float_kernels {
             assert_eq!(
                 observed, expected,
                 "is_deterministic({name}) on {kernel:?}: expected {expected}, observed {observed}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn is_independent_under_approx_eq() -> Result<()> {
+        let tp = obj_t()?.tensor(&obj_p()?)?;
+        let tilted =
+            |tilt: f64| Kernel::state(tp.clone(), vec![0.25 + tilt, 0.25 - tilt, 0.25, 0.25]);
+        let (within, beyond) = (F64_TOLERANCE / 4.0, 4.0 * F64_TOLERANCE);
+        let two_inputs = Kernel::new(
+            FinObj::new(2),
+            tp.clone(),
+            vec![
+                0.25 + within,
+                0.25 - within,
+                0.25,
+                0.25,
+                0.1 + beyond,
+                0.4 - beyond,
+                0.1,
+                0.4,
+            ],
+        )?;
+        for (name, kernel, expected) in [
+            ("uniform product", tilted(0.0)?, true),
+            ("tilted by F64_TOLERANCE / 4", tilted(within)?, true),
+            ("tilted by 4 · F64_TOLERANCE", tilted(beyond)?, false),
+            (
+                "input 0 tilted by F64_TOLERANCE / 4, input 1 by 4 · F64_TOLERANCE",
+                two_inputs,
+                false,
+            ),
+        ] {
+            let observed = is_independent(&kernel, &obj_t()?, &obj_p()?)?;
+            assert_eq!(
+                observed, expected,
+                "is_independent({name}) on {kernel:?}: expected {expected}, observed {observed}"
             );
         }
         Ok(())

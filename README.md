@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.4.1` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.4.2` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -41,10 +41,16 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   copy-discard category, and post-composition (Lemma 11.12) in a Markov
   category. In FinStoch, pre-composition by the fair coin does not preserve a
   conditional.
+- Independence `X ⊥ Y ‖ A` (Def. 12.12), conditional independence
+  `X ⊥ Y | W ‖ A` (Def. 12.16) and its output form (Def. 12.1), in a
+  copy-discard category. In a Markov category, `f` displays independence iff
+  `f = Δ[A] ≫ (g ⊗ₘ h)` for some `g`, `h` (Lemma 12.11), and Def. 12.16 at
+  `W = I` is Def. 12.12. In a copy-discard category, independence is the Café
+  post's conditional form D19, and Def. 12.16 at `A = I` is Def. 12.1. In
+  FinStoch, the copied fair coin does not display independence.
 
-At `v0.4.1`, `THEOREM_MAP.md` has 47 rows that pair a Lean id with a Rust test.
-The crate has 152 tests with all features on. Conditional independence is
-planned.
+At `v0.4.2`, `THEOREM_MAP.md` has 52 rows that pair a Lean id with a Rust test.
+The crate has 163 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -61,6 +67,7 @@ planned.
   - `deterministic.rs`: `is_deterministic`.
   - `almost_sure.rs`: `as_equal`.
   - `conditional.rs`: `conditional`.
+  - `independence.rs`: `is_independent` and `cond_indep_form`.
   - `exec.rs` (behind `async`) and `error.rs`.
 - `lean/`: the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
   `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is

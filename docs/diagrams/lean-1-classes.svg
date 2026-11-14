@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lean-1-classes-title lean-1-classes-desc" id="lean-1-classes-root">
         <title id="lean-1-classes-title">Mathlib classes and the main peluang declarations</title>
-        <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory through CopyDiscardCategory to MarkovCategory, the hub that PositiveCategory, Stoch and the main peluang declarations build on, with the deterministic wide subcategory, FinStoch, conditionals, almost-sure equality and isConditional_unique_as done and conditional independence planned.</desc>
+        <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory through CopyDiscardCategory to MarkovCategory, the hub that PositiveCategory, Stoch and the main peluang declarations build on, with the deterministic wide subcategory, FinStoch, conditionals, almost-sure equality, isConditional_unique_as and conditional independence done.</desc>
         <defs>
           <marker id="lean-1-classes-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
         </defs>
@@ -121,15 +121,15 @@
         <text x="160" y="440" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">FinStoch</text>
         <text x="160" y="458" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Ex. 2.5</text>
 
-        <!-- CI: conditional independence (planned) -->
+        <!-- CI: conditional independence (done) -->
         <rect x="300" y="400" width="200" height="76" rx="6" fill="#f5f5f5"/>
-        <rect x="300" y="400" width="200" height="76" rx="6" fill="#2d3142" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.02" stroke-opacity="0.20"/>
+        <rect x="300" y="400" width="200" height="76" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
         <rect x="308" y="406" width="28" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="322" y="415" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DEFS</text>
         <rect x="460" y="408" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="476" y="417" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">0 USE</text>
         <text x="400" y="440" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">X ⊥ Y ‖ A · X ⊥ Y | W ‖ A</text>
-        <text x="400" y="458" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Defs. 12.12, 12.16</text>
+        <text x="400" y="458" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Defs. 12.1, 12.12, 12.16</text>
 
         <!-- HC: HasConditionals C (done) -->
         <rect x="540" y="400" width="200" height="76" rx="6" fill="#f5f5f5"/>

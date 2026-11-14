@@ -8,6 +8,7 @@ public import PeluangTest.AlmostSure
 public import PeluangTest.Conditional
 public import PeluangTest.Deterministic.Lemmas
 public import PeluangTest.Deterministic.Wide
+public import PeluangTest.Independence
 public import PeluangTest.Instances.FinStoch.AlmostSure
 public import PeluangTest.Instances.FinStoch.Basic
 public import PeluangTest.Instances.FinStoch.Conditional
