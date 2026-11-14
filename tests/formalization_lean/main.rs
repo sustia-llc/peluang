@@ -6,4 +6,5 @@ mod conditional_tests;
 mod deterministic_tests;
 mod finstoch_tests;
 mod fixtures;
+mod independence_tests;
 mod marginal_tests;

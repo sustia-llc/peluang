@@ -1,6 +1,7 @@
 //! The running example as exact literals built with `Kernel::new`: the objects
-//! `W`, `T`, `S`, the kernels `psi_t`, `c`, `s`, `h`, `f`, `j`, `d`, `e`, and
-//! the comparisons that report observed and expected values.
+//! `W`, `T`, `S`, `P`, `B`, the kernels `psi_t`, `c`, `s`, `h`, `f`, `j`, `d`,
+//! `e`, `coin`, `p_ind`, `p_brk`, and the comparisons that report observed and
+//! expected values.
 
 #![allow(dead_code)]
 
@@ -8,8 +9,9 @@ use peluang::almost_sure::as_equal;
 use peluang::deterministic::is_deterministic;
 use peluang::error::Result;
 use peluang::finset::FinObj;
+use peluang::independence::is_independent;
 use peluang::kernel::Kernel;
-use peluang::markov::Compose;
+use peluang::markov::{Compose, Tensor};
 use peluang::prob::{Exact, Prob};
 
 pub fn r(n: i64, d: i64) -> Exact {
@@ -34,6 +36,11 @@ pub fn obj_t() -> Result<FinObj> {
 /// `S`: `{on, off}`.
 pub fn obj_s() -> Result<FinObj> {
     labels(&["on", "off"])
+}
+
+/// `P`: `{high, low}`.
+pub fn obj_p() -> Result<FinObj> {
+    labels(&["high", "low"])
 }
 
 /// The kernel `dom → cod` with `columns` in input order, through `Kernel::new`.
@@ -117,6 +124,22 @@ pub fn j() -> Result<Kernel<Exact>> {
     )
 }
 
+/// `p_ind : I → T ⊗ P`, `(8/25, 12/25, 2/25, 3/25)`.
+pub fn p_ind() -> Result<Kernel<Exact>> {
+    Kernel::state(
+        obj_t()?.tensor(&obj_p()?)?,
+        vec![r(8, 25), r(12, 25), r(2, 25), r(3, 25)],
+    )
+}
+
+/// `p_brk : I → T ⊗ P`, `(31/100, 49/100, 2/25, 3/25)`.
+pub fn p_brk() -> Result<Kernel<Exact>> {
+    Kernel::state(
+        obj_t()?.tensor(&obj_p()?)?,
+        vec![r(31, 100), r(49, 100), r(2, 25), r(3, 25)],
+    )
+}
+
 /// `d : W → S`: sunny to on, cloudy and rainy to off.
 pub fn d() -> Result<Kernel<Exact>> {
     points(obj_w()?, obj_s()?, &[0, 1, 1])
@@ -125,6 +148,16 @@ pub fn d() -> Result<Kernel<Exact>> {
 /// `e : S → T`: on to hot, off to cold.
 pub fn e() -> Result<Kernel<Exact>> {
     points(obj_s()?, obj_t()?, &[0, 1])
+}
+
+/// `B`: `{false, true}`.
+pub fn obj_b() -> Result<FinObj> {
+    labels(&["false", "true"])
+}
+
+/// `coin : I → B`, `(1/2, 1/2)`.
+pub fn coin() -> Result<Kernel<Exact>> {
+    Kernel::state(obj_b()?, vec![r(1, 2), r(1, 2)])
 }
 
 /// The Def. 11.5 composite `Δ[A] ≫ (marginalFst f ▷ A) ≫ (Δ[x] ▷ A) ≫
@@ -148,6 +181,36 @@ pub fn copy_whisker(p: &Kernel<Exact>, f: &Kernel<Exact>) -> Result<Kernel<Exact
     let w = f.domain();
     p.compose(&Kernel::copy(w)?)?
         .compose(&Kernel::whisker_right(f, w)?)
+}
+
+/// The Def. 12.16 composite `condIndepForm g h k = Δ[A] ≫ (A ◁ Δ[A]) ≫
+/// (A ◁ (g ▷ A)) ≫ (A ◁ ((Δ[W] ≫ (W ◁ Δ[W])) ▷ A)) ≫ (A ◁ α[W, W ⊗ W, A]) ≫
+/// (A ◁ W ◁ α[W, W, A]) ≫ α⁻¹[A, W, W ⊗ (W ⊗ A)] ≫ (h ⊗ (W ◁ k))` with
+/// `g : A → W`, `h : A ⊗ W → X`, `k : W ⊗ A → Y`; `Kernel::associator` stands
+/// for both `α` and `α⁻¹`.
+pub fn cond_indep_form(
+    g: &Kernel<Exact>,
+    h: &Kernel<Exact>,
+    k: &Kernel<Exact>,
+) -> Result<Kernel<Exact>> {
+    let (a, w) = (g.domain(), g.codomain());
+    let ww = w.tensor(w)?;
+    let wa = w.tensor(a)?;
+    let w_copy3 = Kernel::copy(w)?.compose(&Kernel::whisker_left(w, &Kernel::copy(w)?)?)?;
+    Kernel::copy(a)?
+        .compose(&Kernel::whisker_left(a, &Kernel::copy(a)?)?)?
+        .compose(&Kernel::whisker_left(a, &Kernel::whisker_right(g, a)?)?)?
+        .compose(&Kernel::whisker_left(
+            a,
+            &Kernel::whisker_right(&w_copy3, a)?,
+        )?)?
+        .compose(&Kernel::whisker_left(a, &Kernel::associator(w, &ww, a)?)?)?
+        .compose(&Kernel::whisker_left(
+            a,
+            &Kernel::whisker_left(w, &Kernel::associator(w, w, a)?)?,
+        )?)?
+        .compose(&Kernel::associator(a, w, &w.tensor(&wa)?)?)?
+        .compose(&h.tensor(&Kernel::whisker_left(w, k)?)?)
 }
 
 fn show_obj(x: &FinObj) -> String {
@@ -190,6 +253,17 @@ pub fn assert_kernel(side: &str, observed: &Kernel<Exact>, expected: &Kernel<Exa
     );
 }
 
+/// Asserts `observed != unexpected`, naming `side`.
+#[track_caller]
+pub fn assert_differs(side: &str, observed: &Kernel<Exact>, unexpected: &Kernel<Exact>) {
+    assert!(
+        observed != unexpected,
+        "{side}: expected a kernel != {}, observed {}",
+        show(unexpected),
+        show(observed)
+    );
+}
+
 /// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
 #[track_caller]
 pub fn assert_as_equal(
@@ -206,6 +280,25 @@ pub fn assert_as_equal(
         "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
         show(f),
         show(g)
+    );
+    Ok(())
+}
+
+/// Asserts `is_independent(k, x, y) == expected`, naming `name`.
+#[track_caller]
+pub fn assert_independent(
+    name: &str,
+    k: &Kernel<Exact>,
+    x: &FinObj,
+    y: &FinObj,
+    expected: bool,
+) -> Result<()> {
+    let observed = is_independent(k, x, y)?;
+    assert_eq!(
+        observed,
+        expected,
+        "is_independent({name}) on {}: expected {expected}, observed {observed}",
+        show(k)
     );
     Ok(())
 }

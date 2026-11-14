@@ -75,3 +75,8 @@ a declaration.
 | CategoryTheory.MarkovCategory.IsConditional.comp_whiskerLeft | tests/formalization_lean/conditional_rewrite_tests.rs::witness_is_conditional_comp_whisker_left | Fritz 2020 Lemma 11.12, T16 |
 | CategoryTheory.CopyDiscardCategory.IsConditional.deterministic_comp | tests/formalization_lean/conditional_rewrite_tests.rs::witness_is_conditional_deterministic_comp | T16; Fritz 2020 Def. 10.1, Def. 11.5 |
 | FinStoch.not_isConditional_comp_of_coin | tests/formalization_lean/conditional_rewrite_tests.rs::witness_not_is_conditional_comp_of_coin | T16; Fritz 2020 Def. 10.1 |
+| CategoryTheory.MarkovCategory.displaysIndep_iff_exists | tests/formalization_lean/independence_tests.rs::witness_displays_indep_iff_exists | Fritz 2020 Lemma 12.11, T17 |
+| CategoryTheory.CopyDiscardCategory.displaysIndep_iff_isConditional | tests/formalization_lean/independence_tests.rs::witness_displays_indep_iff_is_conditional | D19; Fritz 2020 Lemma 12.11, Def. 11.5 |
+| CategoryTheory.MarkovCategory.displaysCondIndep_unit_iff | tests/formalization_lean/independence_tests.rs::witness_displays_cond_indep_unit_iff | Fritz 2020 Def. 12.16, Def. 12.12 |
+| CategoryTheory.CopyDiscardCategory.displaysCondIndep_iff_state | tests/formalization_lean/independence_tests.rs::witness_displays_cond_indep_iff_state | Fritz 2020 Def. 12.16, Def. 12.1 |
+| FinStoch.not_displaysIndep_coin_copy | tests/formalization_lean/independence_tests.rs::witness_not_displays_indep_coin_copy | Fritz 2020 Def. 12.12, Lemma 12.11 |

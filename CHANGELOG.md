@@ -6,6 +6,26 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- `lean/Peluang/Independence.lean`: `DisplaysIndep` (Fritz 2020 Def. 12.12, in
+  the form of Lemma 12.11 (a)), `DisplaysCondIndep` (Def. 12.16) and
+  `DisplaysCondIndepState` (Def. 12.1), in a copy-discard category.
+- `lean/Peluang/Independence.lean`: in a Markov category, `DisplaysIndep f`
+  holds iff `f = Δ[A] ≫ (g ⊗ₘ h)` for some `g`, `h`
+  (`MarkovCategory.displaysIndep_iff_exists`, Lemma 12.11), and Def. 12.16 at
+  `W = 𝟙_ C` is Def. 12.12 (`MarkovCategory.displaysCondIndep_unit_iff`).
+- `lean/Peluang/Independence.lean`: the Café post's D19 in a copy-discard
+  category (`displaysIndep_iff_isConditional`). `DisplaysIndep f` holds iff
+  `(ε[X] ▷ A) ≫ (λ_ A).hom ≫ marginalSnd f` is a conditional of `f` on `X`.
+  Def. 12.16 at `A = 𝟙_ C` is Def. 12.1 (`displaysCondIndep_iff_state`).
+- `lean/Peluang/Instances/FinStoch/Independence.lean`:
+  `not_displaysIndep_coin_copy`: the copied fair coin does not display
+  independence.
+- `src/independence.rs`: `is_independent`.
+- `tests/formalization_lean/independence_tests.rs` with 5 witness tests and
+  `THEOREM_MAP.md` rows.
+
 ## [0.4.1] - 2026-11-14
 
 ### Added
