@@ -10,6 +10,7 @@ pub mod error;
 #[cfg(feature = "async")]
 pub mod exec;
 pub mod finset;
+pub mod independence;
 pub mod kernel;
 pub mod markov;
 pub mod prob;
