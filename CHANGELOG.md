@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-14
+
 ### Added
 
 - `lean/Peluang/Conditional.lean`: any two conditionals of `f : A ⟶ X ⊗ Y`
