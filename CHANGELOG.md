@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-14
+
 ### Added
 
 - `lean/Peluang/Independence.lean`: `DisplaysIndep` (Fritz 2020 Def. 12.12, in
