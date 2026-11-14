@@ -2,10 +2,10 @@
 //! (Fritz 2020, Def. 12.12, in the form of Lemma 12.11 (a)), and the composite
 //! of Def. 12.16 that displays conditional independence.
 
-use crate::error::Result;
-use crate::finset::FinObj;
+use crate::error::{Error, Result};
+use crate::finset::{FinObj, reserve};
 use crate::kernel::Kernel;
-use crate::markov::{Compose, Tensor};
+use crate::markov::Compose;
 use crate::prob::Prob;
 
 /// Whether `f : A → x ⊗ y` equals `copy(A)` followed by the tensor of the
@@ -36,31 +36,47 @@ pub fn is_independent<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<
 
 /// The composite of Fritz 2020, Def. 12.16, `Δ[A] ≫ (A ◁ Δ[A]) ≫
 /// (A ◁ (g ▷ A)) ≫ (A ◁ ((Δ[W] ≫ (W ◁ Δ[W])) ▷ A)) ≫ (A ◁ α[W, W ⊗ W, A]) ≫
-/// (A ◁ W ◁ α[W, W, A]) ≫ α⁻¹[A, W, W ⊗ (W ⊗ A)] ≫ (h ⊗ (W ◁ k))`, a kernel
-/// from `A` to the codomain of `h`, then `W`, then the codomain of `k`, for
-/// every `g : A → W` and every pair of kernels `h`, `k`;
-/// `Kernel::associator` stands for both `α` and `α⁻¹`. Returns
-/// `Error::NotComposable` unless the factors of the domain of `h`, then of
-/// `W`, then of the domain of `k` are those of `A ⊗ W ⊗ W ⊗ W ⊗ A`, or
-/// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
-/// capacity fails; no other allocation reports an error.
+/// (A ◁ W ◁ α[W, W, A]) ≫ α⁻¹[A, W, W ⊗ (W ⊗ A)] ≫ (h ⊗ (W ◁ k))`, for every
+/// `g : A → W`, `h : A ⊗ W → X` and `k : W ⊗ A → Y`: the kernel from `A` to
+/// `X ⊗ (W ⊗ Y)` whose weight of output `(x, w, y)` on input `a` is
+/// `g(w | a) · h(x | (a, w)) · k(y | (w, a))`, multiplied in that order, with
+/// the first factor major in every input and output. Returns
+/// `Error::NotComposable` with codomain `A ⊗ W` and domain the domain of `h`
+/// unless the factors of the domain of `h` are those of `A` followed by those
+/// of `W`, then `Error::NotComposable` with codomain `W ⊗ A` and domain the
+/// domain of `k` unless the factors of the domain of `k` are those of `W`
+/// followed by those of `A`, or `Error::TooLarge` when a product overflows
+/// `usize` or reserving a `Vec` capacity fails; no other allocation reports an
+/// error.
 pub fn cond_indep_form<P: Prob>(g: &Kernel<P>, h: &Kernel<P>, k: &Kernel<P>) -> Result<Kernel<P>> {
     let (a, w) = (g.domain(), g.codomain());
-    let ww = w.tensor(w)?;
+    let aw = a.tensor(w)?;
+    if *h.domain() != aw {
+        return Err(Error::NotComposable {
+            codomain: aw,
+            domain: h.domain().clone(),
+        });
+    }
     let wa = w.tensor(a)?;
-    let w_copy3 = Kernel::copy(w)?.compose(&Kernel::whisker_left(w, &Kernel::copy(w)?)?)?;
-    Kernel::copy(a)?
-        .compose(&Kernel::whisker_left(a, &Kernel::copy(a)?)?)?
-        .compose(&Kernel::whisker_left(a, &Kernel::whisker_right(g, a)?)?)?
-        .compose(&Kernel::whisker_left(
-            a,
-            &Kernel::whisker_right(&w_copy3, a)?,
-        )?)?
-        .compose(&Kernel::whisker_left(a, &Kernel::associator(w, &ww, a)?)?)?
-        .compose(&Kernel::whisker_left(
-            a,
-            &Kernel::whisker_left(w, &Kernel::associator(w, w, a)?)?,
-        )?)?
-        .compose(&Kernel::associator(a, w, &w.tensor(&wa)?)?)?
-        .compose(&h.tensor(&Kernel::whisker_left(w, k)?)?)
+    if *k.domain() != wa {
+        return Err(Error::NotComposable {
+            codomain: wa,
+            domain: k.domain().clone(),
+        });
+    }
+    let (x, y) = (h.codomain(), k.codomain());
+    let cod = x.tensor(&w.tensor(y)?)?;
+    let (na, nw, nx, ny) = (a.card(), w.card(), x.card(), y.card());
+    let mut data = reserve(na, cod.card())?;
+    for ia in 0..na {
+        for ix in 0..nx {
+            for iw in 0..nw {
+                let gh = g.weight(ia, iw).mul(h.weight(ia * nw + iw, ix));
+                for iy in 0..ny {
+                    data.push(gh.mul(k.weight(iw * na + ia, iy)));
+                }
+            }
+        }
+    }
+    Ok(Kernel::from_parts(a.clone(), cod, data))
 }

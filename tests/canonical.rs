@@ -1,8 +1,10 @@
 //! Canonical integration tests. On `Exact` weights in every feature lane: the
 //! `Prob` trait (law verification, checked division and normalization), the
 //! rejections of each `Kernel` constructor and operation, `Kernel::approx_eq`,
-//! composition and tensor at literals, `is_deterministic`, the rejection of a
-//! wrong split by `is_independent`, results across `PAR_THRESHOLD`, size
+//! composition and tensor at literals, `is_deterministic`, `is_independent` at
+//! a two-input kernel, the rejection of a
+//! wrong split by `is_independent` and of misaligned domains by
+//! `cond_indep_form`, results across `PAR_THRESHOLD`, size
 //! errors, and the post's eq. (9). In every feature lane: the `FinObj` object
 //! laws and rejections. On `f64` weights under `f64-prob`: the `Prob` trait,
 //! `Kernel::approx_eq`, the input tests of `Kernel::new`, worked `compose`,
@@ -250,7 +252,7 @@ mod kernels {
     use peluang::deterministic::is_deterministic;
     use peluang::error::{Error, Result};
     use peluang::finset::FinObj;
-    use peluang::independence::is_independent;
+    use peluang::independence::{cond_indep_form, is_independent};
     use peluang::kernel::Kernel;
     use peluang::markov::{Compose, Tensor};
     use peluang::prob::{Exact, PAR_THRESHOLD, Prob};
@@ -658,6 +660,50 @@ mod kernels {
         Ok(())
     }
 
+    #[test]
+    fn is_independent_reads_every_input() -> Result<()> {
+        let (sp, t) = (obj_s()?, obj_t()?);
+        let cod = t.tensor(&sp)?;
+        let quarters: &[Exact] = &[r(1, 4), r(1, 4), r(1, 4), r(1, 4)];
+        let product: &[Exact] = &[r(1, 6), r(1, 2), r(1, 12), r(1, 4)];
+        let diagonal: &[Exact] = &[r(1, 2), r(0, 1), r(0, 1), r(1, 2)];
+        for (name, columns, expected) in [
+            ("product at both inputs", [quarters, product], true),
+            ("product at input 0 only", [quarters, diagonal], false),
+        ] {
+            let kernel = lit(sp.clone(), cod.clone(), &columns)?;
+            let observed = is_independent(&kernel, &t, &sp)?;
+            assert_eq!(
+                observed,
+                expected,
+                "is_independent({name}) on {}: expected {expected}, observed {observed}",
+                show(&kernel)
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn cond_indep_form_rejects_misaligned_domains() -> Result<()> {
+        let (sp, t) = (obj_s()?, obj_t()?);
+        let (ts, st) = (t.tensor(&sp)?, sp.tensor(&t)?);
+        let ssst = sp.tensor(&st)?;
+        let g = h()?;
+        for (route, h_dom, k_dom, codomain, domain) in [
+            ("h on W ⊗ A", &st, &st, &ts, &st),
+            ("k on A ⊗ W", &ts, &ts, &st, &ts),
+            ("split shifted from h to k", &t, &ssst, &ts, &t),
+        ] {
+            let got = cond_indep_form(&g, &Kernel::del(h_dom)?, &Kernel::del(k_dom)?);
+            assert!(
+                matches!(&got, Err(Error::NotComposable { codomain: cod, domain: dom })
+                    if cod == codomain && dom == domain),
+                "cond_indep_form(h, del, del), {route}: expected NotComposable {{ codomain: {codomain:?}, domain: {domain:?} }}, observed {got:?}"
+            );
+        }
+        Ok(())
+    }
+
     /// `(on, off)` weights of the first `k` terms against the rest.
     fn split_weight(k: usize) -> Result<Kernel<Exact>> {
         let denominator = i64::try_from(k + 1).expect("invariant: test sizes fit in i64");
@@ -944,12 +990,31 @@ mod float_kernels {
         let tp = obj_t()?.tensor(&obj_p()?)?;
         let tilted =
             |tilt: f64| Kernel::state(tp.clone(), vec![0.25 + tilt, 0.25 - tilt, 0.25, 0.25]);
-        for (name, tilt, expected) in [
-            ("uniform product", 0.0, true),
-            ("tilted by F64_TOLERANCE / 4", F64_TOLERANCE / 4.0, true),
-            ("tilted by 4 · F64_TOLERANCE", 4.0 * F64_TOLERANCE, false),
+        let (within, beyond) = (F64_TOLERANCE / 4.0, 4.0 * F64_TOLERANCE);
+        let two_inputs = Kernel::new(
+            FinObj::new(2),
+            tp.clone(),
+            vec![
+                0.25 + within,
+                0.25 - within,
+                0.25,
+                0.25,
+                0.1 + beyond,
+                0.4 - beyond,
+                0.1,
+                0.4,
+            ],
+        )?;
+        for (name, kernel, expected) in [
+            ("uniform product", tilted(0.0)?, true),
+            ("tilted by F64_TOLERANCE / 4", tilted(within)?, true),
+            ("tilted by 4 · F64_TOLERANCE", tilted(beyond)?, false),
+            (
+                "input 0 tilted by F64_TOLERANCE / 4, input 1 by 4 · F64_TOLERANCE",
+                two_inputs,
+                false,
+            ),
         ] {
-            let kernel = tilted(tilt)?;
             let observed = is_independent(&kernel, &obj_t()?, &obj_p()?)?;
             assert_eq!(
                 observed, expected,

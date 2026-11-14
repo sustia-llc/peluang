@@ -5,7 +5,7 @@
 //! for both `α` and `α⁻¹`, and `Kernel::left_unitor`, `Kernel::right_unitor`
 //! stand for the unitors and their inverses. Because the engine's associator is
 //! the identity on the flattened object, these witnesses do not tell one
-//! associator in `cond_indep_form` from another.
+//! associator from another.
 
 use peluang::conditional::conditional;
 use peluang::error::Result;
@@ -17,7 +17,7 @@ use peluang::prob::Exact;
 
 use crate::fixtures::{
     assert_as_equal, assert_differs, assert_independent, assert_kernel, c, coin,
-    conditional_composite, f, h, j, obj_b, obj_p, obj_s, obj_t, obj_w, p_brk, p_ind, psi_t, r,
+    conditional_composite, f, h, j, lit, obj_b, obj_p, obj_s, obj_t, obj_w, p_brk, p_ind, psi_t, r,
 };
 
 /// THEOREM_MAP: CategoryTheory.MarkovCategory.displaysIndep_iff_exists
@@ -72,13 +72,19 @@ fn witness_displays_indep_iff_is_conditional() -> Result<()> {
     );
     let relativiser =
         Kernel::copy(&t)?.compose(&Kernel::whisker_right(&j.marginal_fst(&w, &sp)?, &t)?)?;
+    let conditional_j = conditional(&j, &w, &sp)?;
     assert_as_equal(
         "as_equal(Δ[T] ≫ (marginalFst j ▷ T), conditional(j, W, S), (del_W ▷ T) ≫ λ_T ≫ marginalSnd j)",
         &relativiser,
-        &conditional(&j, &w, &sp)?,
+        &conditional_j,
         &candidate(&j)?,
         true,
     )?;
+    assert_differs(
+        "control: conditional(j, W, S) against (del_W ▷ T) ≫ λ_T ≫ marginalSnd j",
+        &conditional_j,
+        &candidate(&j)?,
+    );
 
     let composite_f = conditional_composite(&f, &w, &sp, &candidate(&f)?)?;
     assert_kernel(
@@ -203,6 +209,59 @@ fn witness_displays_cond_indep_iff_state() -> Result<()> {
             &ts_marginal,
         );
     }
+    Ok(())
+}
+
+/// `cond_indep_form` at `A = T`, `W = S`, `g = h`, `h' : T ⊗ S → W`,
+/// `k' : S ⊗ T → S` equals the Def. 12.16 composite built from `copy`, the
+/// whiskers, the associators, `tensor` and `compose`.
+#[test]
+fn cond_indep_form_is_the_def_12_16_composite() -> Result<()> {
+    let (t, w, sp) = (obj_t()?, obj_w()?, obj_s()?);
+    let g = h()?;
+    let h2 = lit(
+        t.tensor(&sp)?,
+        w.clone(),
+        &[
+            &[r(1, 2), r(1, 2), r(0, 1)],
+            &[r(1, 3), r(1, 3), r(1, 3)],
+            &[r(0, 1), r(1, 4), r(3, 4)],
+            &[r(1, 1), r(0, 1), r(0, 1)],
+        ],
+    )?;
+    let k2 = lit(
+        sp.tensor(&t)?,
+        sp.clone(),
+        &[
+            &[r(1, 5), r(4, 5)],
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 1), r(0, 1)],
+            &[r(1, 3), r(2, 3)],
+        ],
+    )?;
+    let (a, ws) = (&t, &sp);
+    let ww = ws.tensor(ws)?;
+    let wa = ws.tensor(a)?;
+    let w_copy3 = Kernel::copy(ws)?.compose(&Kernel::whisker_left(ws, &Kernel::copy(ws)?)?)?;
+    let composite = Kernel::copy(a)?
+        .compose(&Kernel::whisker_left(a, &Kernel::copy(a)?)?)?
+        .compose(&Kernel::whisker_left(a, &Kernel::whisker_right(&g, a)?)?)?
+        .compose(&Kernel::whisker_left(
+            a,
+            &Kernel::whisker_right(&w_copy3, a)?,
+        )?)?
+        .compose(&Kernel::whisker_left(a, &Kernel::associator(ws, &ww, a)?)?)?
+        .compose(&Kernel::whisker_left(
+            a,
+            &Kernel::whisker_left(ws, &Kernel::associator(ws, ws, a)?)?,
+        )?)?
+        .compose(&Kernel::associator(a, ws, &ws.tensor(&wa)?)?)?
+        .compose(&h2.tensor(&Kernel::whisker_left(ws, &k2)?)?)?;
+    assert_kernel(
+        "cond_indep_form(h, h', k') against the Def. 12.16 composite",
+        &cond_indep_form(&g, &h2, &k2)?,
+        &composite,
+    );
     Ok(())
 }
 
