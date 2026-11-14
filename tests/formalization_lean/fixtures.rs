@@ -11,7 +11,7 @@ use peluang::error::Result;
 use peluang::finset::FinObj;
 use peluang::independence::is_independent;
 use peluang::kernel::Kernel;
-use peluang::markov::{Compose, Tensor};
+use peluang::markov::Compose;
 use peluang::prob::{Exact, Prob};
 
 pub fn r(n: i64, d: i64) -> Exact {
@@ -183,36 +183,6 @@ pub fn copy_whisker(p: &Kernel<Exact>, f: &Kernel<Exact>) -> Result<Kernel<Exact
         .compose(&Kernel::whisker_right(f, w)?)
 }
 
-/// The Def. 12.16 composite `condIndepForm g h k = Δ[A] ≫ (A ◁ Δ[A]) ≫
-/// (A ◁ (g ▷ A)) ≫ (A ◁ ((Δ[W] ≫ (W ◁ Δ[W])) ▷ A)) ≫ (A ◁ α[W, W ⊗ W, A]) ≫
-/// (A ◁ W ◁ α[W, W, A]) ≫ α⁻¹[A, W, W ⊗ (W ⊗ A)] ≫ (h ⊗ (W ◁ k))` with
-/// `g : A → W`, `h : A ⊗ W → X`, `k : W ⊗ A → Y`; `Kernel::associator` stands
-/// for both `α` and `α⁻¹`.
-pub fn cond_indep_form(
-    g: &Kernel<Exact>,
-    h: &Kernel<Exact>,
-    k: &Kernel<Exact>,
-) -> Result<Kernel<Exact>> {
-    let (a, w) = (g.domain(), g.codomain());
-    let ww = w.tensor(w)?;
-    let wa = w.tensor(a)?;
-    let w_copy3 = Kernel::copy(w)?.compose(&Kernel::whisker_left(w, &Kernel::copy(w)?)?)?;
-    Kernel::copy(a)?
-        .compose(&Kernel::whisker_left(a, &Kernel::copy(a)?)?)?
-        .compose(&Kernel::whisker_left(a, &Kernel::whisker_right(g, a)?)?)?
-        .compose(&Kernel::whisker_left(
-            a,
-            &Kernel::whisker_right(&w_copy3, a)?,
-        )?)?
-        .compose(&Kernel::whisker_left(a, &Kernel::associator(w, &ww, a)?)?)?
-        .compose(&Kernel::whisker_left(
-            a,
-            &Kernel::whisker_left(w, &Kernel::associator(w, w, a)?)?,
-        )?)?
-        .compose(&Kernel::associator(a, w, &w.tensor(&wa)?)?)?
-        .compose(&h.tensor(&Kernel::whisker_left(w, k)?)?)
-}
-
 fn show_obj(x: &FinObj) -> String {
     let factors: Vec<String> = x
         .factors()
@@ -284,23 +254,21 @@ pub fn assert_as_equal(
     Ok(())
 }
 
-/// Asserts `is_independent(k, x, y) == expected`, naming `name`.
+/// Asserts `is_independent(k, x, y) == Ok(expected)`, naming `name`.
 #[track_caller]
-pub fn assert_independent(
-    name: &str,
-    k: &Kernel<Exact>,
-    x: &FinObj,
-    y: &FinObj,
-    expected: bool,
-) -> Result<()> {
-    let observed = is_independent(k, x, y)?;
+pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj, expected: bool) {
+    let observed = is_independent(k, x, y).unwrap_or_else(|e| {
+        panic!(
+            "is_independent({name}) on {}: expected Ok({expected}), observed Err({e:?})",
+            show(k)
+        )
+    });
     assert_eq!(
         observed,
         expected,
         "is_independent({name}) on {}: expected {expected}, observed {observed}",
         show(k)
     );
-    Ok(())
 }
 
 /// Asserts `is_deterministic(k) == expected`, naming `name`.

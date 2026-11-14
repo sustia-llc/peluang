@@ -38,9 +38,7 @@ theorem not_displaysIndep_coin_copy : ¬ DisplaysIndep (bernoulli ≫ Δ[boolObj
     Category.comp_id] at hc
   have e := congrArg (fun k => k.mass PUnit.unit (true, false)) hc
   simp only [comp_mass, copy_eq_ofFun, ofFun_mass] at e
-  change (∑ b : Bool, (1 / 2 : ℚ≥0) * if ((b, b) : Bool × Bool) = (true, false) then 1 else 0) =
-    ∑ u : (𝟙_ FinStoch ⊗ 𝟙_ FinStoch).carrier,
-      (if (PUnit.unit, PUnit.unit) = u then 1 else 0) * ((1 / 2 : ℚ≥0) * (1 / 2)) at e
-  simp at e
+  simp [bernoulli, boolObj, Hom.tensor, MonoidalCategoryStruct.tensorHom,
+    MonoidalCategoryStruct.tensorObj] at e
 
 end FinStoch

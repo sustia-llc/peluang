@@ -18,11 +18,12 @@ git tag is the authoritative pin.
 - `lean/Peluang/Independence.lean`: the Café post's D19 in a copy-discard
   category (`displaysIndep_iff_isConditional`). `DisplaysIndep f` holds iff
   `(ε[X] ▷ A) ≫ (λ_ A).hom ≫ marginalSnd f` is a conditional of `f` on `X`.
-  Def. 12.16 at `A = 𝟙_ C` is Def. 12.1 (`displaysCondIndep_iff_state`).
+- `lean/Peluang/Independence.lean`: in a copy-discard category, Def. 12.16 at
+  `A = 𝟙_ C` is Def. 12.1 (`displaysCondIndep_iff_state`).
 - `lean/Peluang/Instances/FinStoch/Independence.lean`:
   `not_displaysIndep_coin_copy`: the copied fair coin does not display
   independence.
-- `src/independence.rs`: `is_independent`.
+- `src/independence.rs`: `is_independent` and `cond_indep_form`.
 - `tests/formalization_lean/independence_tests.rs` with 5 witness tests and
   `THEOREM_MAP.md` rows.
 

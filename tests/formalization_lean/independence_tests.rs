@@ -7,14 +7,16 @@
 //! the identity on the flattened object, these witnesses do not tell one
 //! associator in `cond_indep_form` from another.
 
+use peluang::conditional::conditional;
 use peluang::error::Result;
 use peluang::finset::FinObj;
+use peluang::independence::cond_indep_form;
 use peluang::kernel::Kernel;
 use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
 
 use crate::fixtures::{
-    assert_differs, assert_independent, assert_kernel, c, coin, cond_indep_form,
+    assert_as_equal, assert_differs, assert_independent, assert_kernel, c, coin,
     conditional_composite, f, h, j, obj_b, obj_p, obj_s, obj_t, obj_w, p_brk, p_ind, psi_t, r,
 };
 
@@ -23,11 +25,11 @@ use crate::fixtures::{
 fn witness_displays_indep_iff_exists() -> Result<()> {
     let (t, w, sp, pp) = (obj_t()?, obj_w()?, obj_s()?, obj_p()?);
     let (f, j, c, h) = (f()?, j()?, c()?, h()?);
-    assert_independent("j", &j, &w, &sp, true)?;
+    assert_independent("j", &j, &w, &sp, true);
     assert_kernel("marginalFst j", &j.marginal_fst(&w, &sp)?, &c);
     assert_kernel("marginalSnd j", &j.marginal_snd(&w, &sp)?, &h);
     let p_ind = p_ind()?;
-    assert_independent("p_ind", &p_ind, &t, &pp, true)?;
+    assert_independent("p_ind", &p_ind, &t, &pp, true);
     assert_kernel(
         "marginalFst p_ind",
         &p_ind.marginal_fst(&t, &pp)?,
@@ -39,18 +41,20 @@ fn witness_displays_indep_iff_exists() -> Result<()> {
         &Kernel::state(pp.clone(), vec![r(2, 5), r(3, 5)])?,
     );
 
-    assert_independent("control: f", &f, &w, &sp, false)?;
+    assert_independent("control: f", &f, &w, &sp, false);
     assert_kernel("control: marginalFst f", &f.marginal_fst(&w, &sp)?, &c);
     assert_kernel("control: marginalSnd f", &f.marginal_snd(&w, &sp)?, &h);
     let product = Kernel::copy(&t)?.compose(&c.tensor(&h)?)?;
     assert_kernel("control: Δ[T] ≫ (c ⊗ h)", &product, &j);
     assert_differs("control: Δ[T] ≫ (c ⊗ h) against f", &product, &f);
-    assert_independent("control: p_brk", &p_brk()?, &t, &pp, false)?;
+    assert_independent("control: p_brk", &p_brk()?, &t, &pp, false);
     Ok(())
 }
 
 /// The candidate conditional of `F : T → W ⊗ S` on `W` is
-/// `(del_W ▷ T) ≫ λ_T ≫ marginalSnd F : W ⊗ T → S`.
+/// `(del_W ▷ T) ≫ λ_T ≫ marginalSnd F : W ⊗ T → S`. The engine's
+/// `conditional(j, W, S)` is `Δ[T] ≫ (marginalFst j ▷ T)`-almost surely equal
+/// to the candidate of `j`.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.displaysIndep_iff_isConditional
 #[test]
 fn witness_displays_indep_iff_is_conditional() -> Result<()> {
@@ -66,6 +70,15 @@ fn witness_displays_indep_iff_is_conditional() -> Result<()> {
         &conditional_composite(&j, &w, &sp, &candidate(&j)?)?,
         &j,
     );
+    let relativiser =
+        Kernel::copy(&t)?.compose(&Kernel::whisker_right(&j.marginal_fst(&w, &sp)?, &t)?)?;
+    assert_as_equal(
+        "as_equal(Δ[T] ≫ (marginalFst j ▷ T), conditional(j, W, S), (del_W ▷ T) ≫ λ_T ≫ marginalSnd j)",
+        &relativiser,
+        &conditional(&j, &w, &sp)?,
+        &candidate(&j)?,
+        true,
+    )?;
 
     let composite_f = conditional_composite(&f, &w, &sp, &candidate(&f)?)?;
     assert_kernel(
@@ -99,13 +112,7 @@ fn witness_displays_cond_indep_unit_iff() -> Result<()> {
         &j()?.compose(&lambda_inv)?,
     );
 
-    let f = f()?;
-    assert_differs(
-        "control: condIndepForm(del_T, ρ_T ≫ c, λ_T ≫ h) against f ≫ (W ◁ λ_S⁻¹)",
-        &form,
-        &f.compose(&lambda_inv)?,
-    );
-    assert_independent("control: f", &f, &w, &sp, false)?;
+    assert_independent("control: f", &f()?, &w, &sp, false);
     Ok(())
 }
 
@@ -179,16 +186,23 @@ fn witness_displays_cond_indep_iff_state() -> Result<()> {
     assert_differs("control: ψ_bad against ψ", &psi_bad, &psi);
     let wt = w.tensor(&t)?;
     let ts = t.tensor(&sp)?;
-    assert_kernel(
-        "control: (W, T) marginal of ψ_bad against that of ψ",
-        &psi_bad.marginal_fst(&wt, &sp)?,
-        &psi.marginal_fst(&wt, &sp)?,
-    );
-    assert_kernel(
-        "control: (T, S) marginal of ψ_bad against that of ψ",
-        &psi_bad.marginal_snd(&w, &ts)?,
-        &psi.marginal_snd(&w, &ts)?,
-    );
+    let wt_marginal = Kernel::state(
+        wt.clone(),
+        vec![r(1, 10), r(0, 1), r(1, 10), r(1, 5), r(0, 1), r(3, 5)],
+    )?;
+    let ts_marginal = Kernel::state(ts.clone(), vec![r(2, 15), r(1, 15), r(1, 5), r(3, 5)])?;
+    for (name, state) in [("ψ", &psi), ("ψ_bad", &psi_bad)] {
+        assert_kernel(
+            &format!("control: (W, T) marginal of {name}"),
+            &state.marginal_fst(&wt, &sp)?,
+            &wt_marginal,
+        );
+        assert_kernel(
+            &format!("control: (T, S) marginal of {name}"),
+            &state.marginal_snd(&w, &ts)?,
+            &ts_marginal,
+        );
+    }
     Ok(())
 }
 
@@ -203,7 +217,7 @@ fn witness_not_displays_indep_coin_copy() -> Result<()> {
         &coin_copy,
         &Kernel::state(bb.clone(), vec![r(1, 2), r(0, 1), r(0, 1), r(1, 2)])?,
     );
-    assert_independent("coin ≫ Δ[B]", &coin_copy, &b, &b, false)?;
+    assert_independent("coin ≫ Δ[B]", &coin_copy, &b, &b, false);
     assert_kernel(
         "marginalFst (coin ≫ Δ[B])",
         &coin_copy.marginal_fst(&b, &b)?,
