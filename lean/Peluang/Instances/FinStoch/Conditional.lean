@@ -24,8 +24,8 @@ public import Peluang.Instances.FinStoch.Markov
 * `FinStoch.instHasConditionals` - `FinStoch` has conditionals.
 * `FinStoch.isConditional_not_unique` - conditionals in `FinStoch` are not unique: some
   `f : 𝟙_ FinStoch ⟶ boolObj ⊗ boolObj` has two distinct conditionals.
-* `FinStoch.not_isConditional_comp_of_coin` - pre-composition by a non-deterministic morphism
-  does not preserve conditionals: for some state `g`, `f` and a conditional `k` of `f`,
+* `FinStoch.not_isConditional_comp_of_coin` - for some state `g : 𝟙_ FinStoch ⟶ boolObj`, some
+  `f : boolObj ⟶ boolObj ⊗ boolObj` and a conditional `k` of `f` on `boolObj`,
   `(boolObj ◁ g) ≫ k` is not a conditional of `g ≫ f`.
 
 ## References
@@ -153,11 +153,10 @@ theorem isConditional_not_unique :
   rw [hcard] at e
   norm_num at e
 
-/-- In `FinStoch`, pre-composition by a non-deterministic morphism does not preserve
-conditionals: for some state `g : 𝟙_ FinStoch ⟶ boolObj`, some `f : boolObj ⟶ boolObj ⊗ boolObj`
-and a conditional `k` of `f` on `boolObj`, `(boolObj ◁ g) ≫ k` is not a conditional of `g ≫ f`
-(the n-Category Café post "Introduction to Categorical Probability", T16; Fritz 2020,
-Def. 10.1, Def. 11.5). -/
+/-- In `FinStoch`, for some state `g : 𝟙_ FinStoch ⟶ boolObj`, some
+`f : boolObj ⟶ boolObj ⊗ boolObj` and a conditional `k` of `f` on `boolObj`,
+`(boolObj ◁ g) ≫ k` is not a conditional of `g ≫ f` (the n-Category Café post
+"Introduction to Categorical Probability", T16; Fritz 2020, Def. 10.1, Def. 11.5). -/
 theorem not_isConditional_comp_of_coin :
     ∃ (g : 𝟙_ FinStoch ⟶ boolObj) (f : boolObj ⟶ boolObj ⊗ boolObj)
       (k : boolObj ⊗ boolObj ⟶ boolObj),

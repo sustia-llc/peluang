@@ -24,8 +24,12 @@ Conditionals of morphisms into a tensor product, in a copy-discard category.
 ## Main results
 
 * `CopyDiscardCategory.isConditional_unique_as` - two conditionals of `f : A ⟶ X ⊗ Y` on `X`
-  are almost surely equal with respect to `Δ[A] ≫ (marginalFst f ▷ A)` (Fritz 2020,
-  Prop. 13.7, the case `A = 𝟙_ C`).
+  are almost surely equal with respect to `Δ[A] ≫ (marginalFst f ▷ A)`;
+  `CopyDiscardCategory.isConditional_unique_as_unit` is its case `A = 𝟙_ C` (Fritz 2020,
+  Prop. 13.7).
+* `CopyDiscardCategory.isConditional_unique_as_unit` - for `ψ : 𝟙_ C ⟶ X ⊗ Y`, two
+  conditionals `g₁ g₂ : X ⟶ Y` of `ψ` on `X` (entering `IsConditional` through `(ρ_ X).hom`)
+  are `marginalFst ψ`-almost surely equal (Fritz 2020, Prop. 13.7).
 * `CopyDiscardCategory.IsConditional.nest` - a conditional of a conditional is a conditional
   on the tensor product (Fritz 2020, Lemma 11.11).
 * `CopyDiscardCategory.IsConditional.deterministic_comp` - pre-composing `f` with a
@@ -86,8 +90,8 @@ theorem copy_whiskerRight_copy_eq {A X Y : C} (m : A ⟶ X) (g : X ⊗ A ⟶ Y) 
   monoidal
 
 /-- For `f : A ⟶ X ⊗ Y`, any two conditionals `g₁ g₂ : X ⊗ A ⟶ Y` of `f` on `X` are almost
-surely equal with respect to `Δ[A] ≫ (marginalFst f ▷ A) : A ⟶ X ⊗ A` (Fritz 2020, Prop. 13.7,
-the case `A = 𝟙_ C`). -/
+surely equal with respect to `Δ[A] ≫ (marginalFst f ▷ A) : A ⟶ X ⊗ A`.
+`isConditional_unique_as_unit` is its case `A = 𝟙_ C` (Fritz 2020, Prop. 13.7). -/
 theorem isConditional_unique_as {A X Y : C} {f : A ⟶ X ⊗ Y} {g₁ g₂ : X ⊗ A ⟶ Y}
     (h₁ : IsConditional f g₁) (h₂ : IsConditional f g₂) :
     AlmostSurelyEq (Δ[A] ≫ (marginalFst f ▷ A)) g₁ g₂ := by
@@ -95,6 +99,26 @@ theorem isConditional_unique_as {A X Y : C} {f : A ⟶ X ⊗ Y} {g₁ g₂ : X �
   unfold IsConditional at h₁ h₂
   simp only [Category.assoc]
   rw [copy_whiskerRight_copy_eq, copy_whiskerRight_copy_eq, ← h₁, ← h₂]
+
+/-- For `ψ : 𝟙_ C ⟶ X ⊗ Y`, any two conditionals `g₁ g₂ : X ⟶ Y` of `ψ` on `X` (entering
+`IsConditional` through `(ρ_ X).hom`) are `marginalFst ψ`-almost surely equal (Fritz 2020,
+Prop. 13.7). -/
+theorem isConditional_unique_as_unit {X Y : C} {ψ : 𝟙_ C ⟶ X ⊗ Y} {g₁ g₂ : X ⟶ Y}
+    (h₁ : IsConditional ψ ((ρ_ X).hom ≫ g₁)) (h₂ : IsConditional ψ ((ρ_ X).hom ≫ g₂)) :
+    AlmostSurelyEq (marginalFst ψ) g₁ g₂ := by
+  have h := isConditional_unique_as h₁ h₂
+  unfold AlmostSurelyEq at h ⊢
+  have key : ∀ g : X ⟶ Y,
+      @ComonObj.comul C _ _ (𝟙_ C) (CopyDiscardCategory.comonObj (𝟙_ C)) ≫
+      (marginalFst ψ ▷ 𝟙_ C) ≫
+      @ComonObj.comul C _ _ (X ⊗ 𝟙_ C) (CopyDiscardCategory.comonObj (X ⊗ 𝟙_ C)) ≫
+      (((ρ_ X).hom ≫ g) ▷ (X ⊗ 𝟙_ C)) ≫ (Y ◁ (ρ_ X).hom) =
+      marginalFst ψ ≫ Δ[X] ≫ (g ▷ X) := by
+    intro g
+    rw [copy_tensor, copy_unit]
+    simp only [tensorμ, braiding_tensorUnit_right]
+    monoidal
+  rw [← key g₁, ← key g₂, reassoc_of% h]
 
 /-- For `f : A ⟶ X ⊗ (Y ⊗ Z)`, a conditional `k : X ⊗ A ⟶ Y ⊗ Z` of `f` on `X` and a
 conditional `h : Y ⊗ (X ⊗ A) ⟶ Z` of `k` on `Y`, `h` with its first two inputs swapped is a

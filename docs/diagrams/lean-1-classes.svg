@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lean-1-classes-title lean-1-classes-desc" id="lean-1-classes-root">
         <title id="lean-1-classes-title">Mathlib classes and the main peluang declarations</title>
-        <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory through CopyDiscardCategory to MarkovCategory, the hub that PositiveCategory, Stoch and the main peluang declarations build on, with the deterministic wide subcategory and FinStoch done and conditionals, almost-sure equality, conditional independence and conditional_unique_as planned.</desc>
+        <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory through CopyDiscardCategory to MarkovCategory, the hub that PositiveCategory, Stoch and the main peluang declarations build on, with the deterministic wide subcategory, FinStoch, conditionals, almost-sure equality and isConditional_unique_as done and conditional independence planned.</desc>
         <defs>
+      <style>#lean-1-classes-root { --color-paper:   #f5f5f5;   
+      --color-ink:     #2d3142;   
+      --color-muted:   #4f5d75;   
+      --color-accent:  #bf4520;   
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace; }
+      #lean-1-classes-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #lean-1-classes-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#lean-1-classes-root .diagram-container { overflow-x: visible; }
+}</style>
           <marker id="lean-1-classes-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="lean-1-classes-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="lean-1-classes-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#f5f5f5"/>
@@ -131,9 +145,9 @@
         <text x="400" y="440" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">X ⊥ Y ‖ A · X ⊥ Y | W ‖ A</text>
         <text x="400" y="458" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Defs. 12.12, 12.16</text>
 
-        <!-- HC: HasConditionals C (planned) -->
+        <!-- HC: HasConditionals C (done) -->
         <rect x="540" y="400" width="200" height="76" rx="6" fill="#f5f5f5"/>
-        <rect x="540" y="400" width="200" height="76" rx="6" fill="#2d3142" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.02" stroke-opacity="0.20"/>
+        <rect x="540" y="400" width="200" height="76" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
         <rect x="548" y="406" width="36" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="566" y="415" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">CLASS</text>
         <rect x="700" y="408" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
@@ -141,9 +155,9 @@
         <text x="640" y="440" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">HasConditionals C</text>
         <text x="640" y="458" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Def. 11.5</text>
 
-        <!-- AS: almost-sure equality (planned) -->
+        <!-- AS: almost-sure equality (done) -->
         <rect x="780" y="400" width="200" height="76" rx="6" fill="#f5f5f5"/>
-        <rect x="780" y="400" width="200" height="76" rx="6" fill="#2d3142" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.02" stroke-opacity="0.20"/>
+        <rect x="780" y="400" width="200" height="76" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
         <rect x="788" y="406" width="28" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="802" y="415" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DEF</text>
         <rect x="940" y="408" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
@@ -162,15 +176,15 @@
         <text x="1120" y="452" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">(WideSubcategory deterministic)</text>
         <text x="1120" y="466" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Mathlib has the CopyDiscard half</text>
 
-        <!-- UQ: conditional_unique_as (planned) -->
+        <!-- UQ: isConditional_unique_as (done) -->
         <rect x="660" y="524" width="200" height="76" rx="6" fill="#f5f5f5"/>
-        <rect x="660" y="524" width="200" height="76" rx="6" fill="#2d3142" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.02" stroke-opacity="0.20"/>
+        <rect x="660" y="524" width="200" height="76" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
         <rect x="668" y="530" width="28" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="682" y="539" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">THM</text>
         <rect x="820" y="532" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="836" y="541" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">0 USE</text>
-        <text x="760" y="564" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">conditional_unique_as</text>
-        <text x="760" y="582" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Prop. 13.7</text>
+        <text x="760" y="564" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">isConditional_unique_as</text>
+        <text x="760" y="582" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">_unit: Fritz Prop. 13.7</text>
 
         <!-- Legend strip -->
         <line x1="40" y1="644" x2="1240" y2="644" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.10"/>
@@ -180,7 +194,7 @@
         <text x="72" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">Mathlib declaration</text>
 
         <rect x="184" y="672" width="24" height="12" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
-        <text x="216" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">peluang, done (v0.3.0 · lean/Peluang/)</text>
+        <text x="216" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">peluang, done (lean/Peluang/)</text>
 
         <rect x="552" y="672" width="24" height="12" rx="2" fill="#2d3142" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.02" stroke-opacity="0.20"/>
         <text x="584" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">peluang, planned (dashed)</text>

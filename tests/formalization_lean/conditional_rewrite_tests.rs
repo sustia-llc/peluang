@@ -2,9 +2,10 @@
 //! rewrite rules of `Peluang.Conditional`, and of the countermodel of
 //! `Peluang.Instances.FinStoch.Conditional`, at the running example and at
 //! the two-element object `B`. The engine is strict: `Kernel::associator`
-//! stands for both `α` and `α⁻¹`.
+//! stands for both `α` and `α⁻¹`. Because the engine's associator is the
+//! identity on the flattened object, these witnesses do not tell `α` from
+//! `α⁻¹`.
 
-use peluang::almost_sure::as_equal;
 use peluang::conditional::conditional;
 use peluang::error::Result;
 use peluang::finset::FinObj;
@@ -13,8 +14,8 @@ use peluang::markov::Compose;
 use peluang::prob::Exact;
 
 use crate::fixtures::{
-    assert_deterministic, assert_kernel, conditional_composite, e, f, h, labels, lit, obj_s, obj_t,
-    obj_w, points, r, show,
+    assert_as_equal, assert_deterministic, assert_kernel, conditional_composite, d, e, f, h,
+    labels, lit, obj_s, obj_t, obj_w, points, r, show,
 };
 
 /// `B`: `{false, true}`.
@@ -46,6 +47,11 @@ fn k1() -> Result<Kernel<Exact>> {
 
 /// `k` with the column at input `x` replaced by `column`.
 fn with_column(k: &Kernel<Exact>, x: usize, column: &[Exact]) -> Result<Kernel<Exact>> {
+    assert!(
+        x < k.domain().card(),
+        "with_column: column index {x} is not below the domain cardinality of {}",
+        show(k)
+    );
     let mut data = Vec::new();
     for i in 0..k.domain().card() {
         match k.column(i) {
@@ -65,26 +71,6 @@ fn k2() -> Result<Kernel<Exact>> {
 /// `k₃`: `k₁` with the column at `(cloudy, cold)` replaced by `(0, 1)`.
 fn k3() -> Result<Kernel<Exact>> {
     with_column(&k1()?, 3, &[r(0, 1), r(1, 1)])
-}
-
-/// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
-#[track_caller]
-fn assert_as_equal(
-    name: &str,
-    p: &Kernel<Exact>,
-    f: &Kernel<Exact>,
-    g: &Kernel<Exact>,
-    expected: bool,
-) -> Result<()> {
-    let observed = as_equal(p, f, g)?;
-    assert_eq!(
-        observed,
-        expected,
-        "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
-        show(f),
-        show(g)
-    );
-    Ok(())
 }
 
 /// Asserts `observed != unexpected`, naming `side`.
@@ -129,6 +115,47 @@ fn witness_is_conditional_unique_as() -> Result<()> {
     let u = lit(t.clone(), w, &[&uniform, &uniform])?;
     let p_u = Kernel::copy(&t)?.compose(&Kernel::whisker_right(&u, &t)?)?;
     assert_as_equal("control: as_equal(p_u, k₁, k₂)", &p_u, &k1, &k2, false)?;
+    Ok(())
+}
+
+/// `ψ = cold ≫ f : I → W ⊗ S`, `g₁ = conditional(ψ, W, S) : W ⊗ I → S` (the
+/// engine's `W ⊗ I` is `W`), `g₂` and `g₃` are `g₁` with the column at sunny
+/// and at cloudy replaced.
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.isConditional_unique_as_unit
+#[test]
+fn witness_is_conditional_unique_as_unit() -> Result<()> {
+    let (t, w, sp) = (obj_t()?, obj_w()?, obj_s()?);
+    let psi = Kernel::state(t, vec![r(0, 1), r(1, 1)])?.compose(&f()?)?;
+    let g1 = conditional(&psi, &w, &sp)?;
+    let g2 = with_column(&g1, 0, &[r(1, 1), r(0, 1)])?;
+    let g3 = with_column(&g1, 1, &[r(0, 1), r(1, 1)])?;
+    assert_differs("g₂ against g₁", &g2, &g1);
+    assert_differs("g₃ against g₁", &g3, &g1);
+    assert_kernel(
+        "Def. 11.5 composite of g₁ for ψ",
+        &conditional_composite(&psi, &w, &sp, &g1)?,
+        &psi,
+    );
+    assert_kernel(
+        "Def. 11.5 composite of g₂ for ψ",
+        &conditional_composite(&psi, &w, &sp, &g2)?,
+        &psi,
+    );
+    let p = psi.marginal_fst(&w, &sp)?;
+    assert_as_equal("as_equal(marginalFst ψ, g₁, g₂)", &p, &g1, &g2, true)?;
+
+    assert_differs(
+        "control: Def. 11.5 composite of g₃ for ψ",
+        &conditional_composite(&psi, &w, &sp, &g3)?,
+        &psi,
+    );
+    assert_as_equal(
+        "control: as_equal(marginalFst ψ, g₁, g₃)",
+        &p,
+        &g1,
+        &g3,
+        false,
+    )?;
     Ok(())
 }
 
@@ -219,23 +246,17 @@ fn witness_is_conditional_deterministic_comp() -> Result<()> {
         &ef,
     );
 
-    let (b, coin) = (obj_b()?, coin()?);
-    assert_deterministic("coin", &coin, false)?;
-    let coin_copy = coin.compose(&Kernel::copy(&b)?)?;
-    let correlated = Kernel::state(b.tensor(&b)?, vec![r(1, 2), r(0, 1), r(0, 1), r(1, 2)])?;
-    assert_kernel("control: coin ≫ Δ[B]", &coin_copy, &correlated);
-    let candidate = Kernel::whisker_left(&b, &coin)?.compose(&snd()?)?;
-    let composite = conditional_composite(&coin_copy, &b, &b, &candidate)?;
+    let g = d()?.compose(&e)?;
+    assert_deterministic("g = d ≫ e", &g, true)?;
+    let gf = g.compose(&f()?)?;
+    let candidate = Kernel::whisker_left(&w, &g)?.compose(&k1()?)?;
     assert_kernel(
-        "control: Def. 11.5 composite of (B ◁ coin) ≫ snd for coin ≫ Δ[B]",
-        &composite,
-        &quarters()?,
+        "Def. 11.5 composite of (W ◁ g) ≫ k₁ for g ≫ f, g = d ≫ e",
+        &conditional_composite(&gf, &w, &sp, &candidate)?,
+        &gf,
     );
-    assert_differs(
-        "control: Def. 11.5 composite of (B ◁ coin) ≫ snd against coin ≫ Δ[B]",
-        &composite,
-        &coin_copy,
-    );
+
+    assert_deterministic("coin", &coin()?, false)?;
     Ok(())
 }
 
@@ -244,6 +265,7 @@ fn witness_is_conditional_deterministic_comp() -> Result<()> {
 #[test]
 fn witness_not_is_conditional_comp_of_coin() -> Result<()> {
     let (b, coin, snd) = (obj_b()?, coin()?, snd()?);
+    assert_deterministic("coin", &coin, false)?;
     let copy = Kernel::copy(&b)?;
     assert_kernel("Δ[B]", &copy, &points(b.clone(), b.tensor(&b)?, &[0, 3])?);
     assert_kernel(
@@ -252,25 +274,17 @@ fn witness_not_is_conditional_comp_of_coin() -> Result<()> {
         &copy,
     );
     let coin_copy = coin.compose(&copy)?;
+    assert_kernel(
+        "coin ≫ Δ[B]",
+        &coin_copy,
+        &Kernel::state(b.tensor(&b)?, vec![r(1, 2), r(0, 1), r(0, 1), r(1, 2)])?,
+    );
     let candidate = Kernel::whisker_left(&b, &coin)?.compose(&snd)?;
     let composite = conditional_composite(&coin_copy, &b, &b, &candidate)?;
     assert_kernel(
         "Def. 11.5 composite of (B ◁ coin) ≫ snd for coin ≫ Δ[B]",
         &composite,
         &quarters()?,
-    );
-    let (observed, unexpected) = (composite.column(0), coin_copy.column(0));
-    assert!(
-        observed.and_then(|column| column.get(2)) == Some(&r(1, 4))
-            && unexpected.and_then(|column| column.get(2)) == Some(&r(0, 1)),
-        "weight at (true, false): expected 1/4 in the composite and 0 in coin ≫ Δ[B], observed {} and {}",
-        show(&composite),
-        show(&coin_copy)
-    );
-    assert_differs(
-        "Def. 11.5 composite of (B ◁ coin) ≫ snd against coin ≫ Δ[B]",
-        &composite,
-        &coin_copy,
     );
     Ok(())
 }

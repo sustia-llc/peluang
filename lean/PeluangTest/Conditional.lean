@@ -15,7 +15,8 @@ once, and `IsConditional f g` at `f : A ⟶ (X₁ ⊗ X₂) ⊗ Y` from a hypoth
 `Δ[X₁ ⊗ X₂]`: `exact` fails, and closes after rewriting with
 `CopyDiscardCategory.comonObj_tensor`. Dot notation `hk.nest hh` and
 `h.deterministic_comp g` on `IsConditional` hypotheses, and `rw [CopyDiscardCategory.copy_tensor]`
-failing at a user-written `Δ[X ⊗ A]`.
+failing at a user-written `Δ[X ⊗ A]` and succeeding at
+`@ComonObj.comul C _ _ (X ⊗ A) (CopyDiscardCategory.comonObj (X ⊗ A))`.
 -/
 
 public section
@@ -59,5 +60,10 @@ example {A X : C} (g : (X ⊗ A) ⊗ (X ⊗ A) ⟶ X ⊗ A) :
     Δ[X ⊗ A] ≫ g = Δ[X ⊗ A] ≫ g := by
   fail_if_success rw [CopyDiscardCategory.copy_tensor]
   rfl
+
+example {A X : C} (g : (X ⊗ A) ⊗ (X ⊗ A) ⟶ X ⊗ A) :
+    @ComonObj.comul C _ _ (X ⊗ A) (CopyDiscardCategory.comonObj (X ⊗ A)) ≫ g =
+      ((Δ[X] ⊗ₘ Δ[A]) ≫ tensorμ X X A A) ≫ g := by
+  rw [CopyDiscardCategory.copy_tensor]
 
 end CategoryTheory

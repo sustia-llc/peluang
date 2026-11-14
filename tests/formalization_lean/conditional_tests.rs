@@ -12,8 +12,8 @@ use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
 
 use crate::fixtures::{
-    assert_kernel, c, conditional_composite, copy_whisker, e, f, labels, lit, obj_s, obj_t, obj_w,
-    psi_t, r, s, show,
+    assert_as_equal, assert_kernel, c, conditional_composite, copy_whisker, e, f, labels, lit,
+    obj_s, obj_t, obj_w, psi_t, r, s, show,
 };
 
 /// `q : I → W`, `(1/2, 1/2, 0)`: the column of `c` at hot.
@@ -62,26 +62,6 @@ fn copy_tensor(p: &Kernel<Exact>, f: &Kernel<Exact>, g: &Kernel<Exact>) -> Resul
     p.compose(&Kernel::copy(x)?)?
         .compose(&Kernel::whisker_right(&Kernel::copy(x)?, x)?)?
         .compose(&Kernel::whisker_right(f, x)?.tensor(g)?)
-}
-
-/// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
-#[track_caller]
-fn assert_as_equal(
-    name: &str,
-    p: &Kernel<Exact>,
-    f: &Kernel<Exact>,
-    g: &Kernel<Exact>,
-    expected: bool,
-) -> Result<()> {
-    let observed = as_equal(p, f, g)?;
-    assert_eq!(
-        observed,
-        expected,
-        "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
-        show(f),
-        show(g)
-    );
-    Ok(())
 }
 
 /// Asserts the column of `k` at input `x` equals `expected`, naming `side`.

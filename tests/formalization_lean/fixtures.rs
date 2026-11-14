@@ -4,6 +4,7 @@
 
 #![allow(dead_code)]
 
+use peluang::almost_sure::as_equal;
 use peluang::deterministic::is_deterministic;
 use peluang::error::Result;
 use peluang::finset::FinObj;
@@ -187,6 +188,26 @@ pub fn assert_kernel(side: &str, observed: &Kernel<Exact>, expected: &Kernel<Exa
         show(expected),
         show(observed)
     );
+}
+
+/// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
+#[track_caller]
+pub fn assert_as_equal(
+    name: &str,
+    p: &Kernel<Exact>,
+    f: &Kernel<Exact>,
+    g: &Kernel<Exact>,
+    expected: bool,
+) -> Result<()> {
+    let observed = as_equal(p, f, g)?;
+    assert_eq!(
+        observed,
+        expected,
+        "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
+        show(f),
+        show(g)
+    );
+    Ok(())
 }
 
 /// Asserts `is_deterministic(k) == expected`, naming `name`.
