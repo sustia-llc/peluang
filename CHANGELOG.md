@@ -6,6 +6,24 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- `lean/Peluang/Conditional.lean`: any two conditionals of `f : A ⟶ X ⊗ Y`
+  are almost surely equal relative to `Δ[A] ≫ (marginalFst f ▷ A)`, in a
+  copy-discard category (`isConditional_unique_as`; Fritz 2020 Prop. 13.7 is
+  the case `A = I`).
+- `lean/Peluang/Conditional.lean`: the three rewrite rules of conditionals.
+  Nesting (`IsConditional.nest`, Lemma 11.11) and pre-composition by a
+  deterministic morphism (`IsConditional.deterministic_comp`, Def. 10.1) hold
+  in a copy-discard category. Post-composition
+  (`MarkovCategory.IsConditional.comp_whiskerLeft`, Lemma 11.12) holds in a
+  Markov category.
+- `lean/Peluang/Instances/FinStoch/Conditional.lean`:
+  `not_isConditional_comp_of_coin`: pre-composition by the fair coin does not
+  preserve a conditional.
+- `tests/formalization_lean/conditional_rewrite_tests.rs` with 5 witness tests
+  and `THEOREM_MAP.md` rows.
+
 ## [0.4.0] - 2026-11-13
 
 ### Added

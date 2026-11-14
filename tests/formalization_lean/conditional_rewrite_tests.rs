@@ -1,0 +1,276 @@
+//! Witnesses of the almost-sure uniqueness of conditionals and of the three
+//! rewrite rules of `Peluang.Conditional`, and of the countermodel of
+//! `Peluang.Instances.FinStoch.Conditional`, at the running example and at
+//! the two-element object `B`. The engine is strict: `Kernel::associator`
+//! stands for both `α` and `α⁻¹`.
+
+use peluang::almost_sure::as_equal;
+use peluang::conditional::conditional;
+use peluang::error::Result;
+use peluang::finset::FinObj;
+use peluang::kernel::Kernel;
+use peluang::markov::Compose;
+use peluang::prob::Exact;
+
+use crate::fixtures::{
+    assert_deterministic, assert_kernel, conditional_composite, e, f, h, labels, lit, obj_s, obj_t,
+    obj_w, points, r, show,
+};
+
+/// `B`: `{false, true}`.
+fn obj_b() -> Result<FinObj> {
+    labels(&["false", "true"])
+}
+
+/// `coin : I → B`, `(1/2, 1/2)`.
+fn coin() -> Result<Kernel<Exact>> {
+    Kernel::state(obj_b()?, vec![r(1, 2), r(1, 2)])
+}
+
+/// `snd : B ⊗ B → B`, the second projection.
+fn snd() -> Result<Kernel<Exact>> {
+    let b = obj_b()?;
+    points(b.tensor(&b)?, b, &[0, 1, 0, 1])
+}
+
+/// The state on `B ⊗ B` with weight `1/4` at every output.
+fn quarters() -> Result<Kernel<Exact>> {
+    let b = obj_b()?;
+    Kernel::state(b.tensor(&b)?, vec![r(1, 4), r(1, 4), r(1, 4), r(1, 4)])
+}
+
+/// `k₁ = conditional(f, W, S) : W ⊗ T → S`.
+fn k1() -> Result<Kernel<Exact>> {
+    conditional(&f()?, &obj_w()?, &obj_s()?)
+}
+
+/// `k` with the column at input `x` replaced by `column`.
+fn with_column(k: &Kernel<Exact>, x: usize, column: &[Exact]) -> Result<Kernel<Exact>> {
+    let mut data = Vec::new();
+    for i in 0..k.domain().card() {
+        match k.column(i) {
+            Some(_) if i == x => data.extend_from_slice(column),
+            Some(current) => data.extend_from_slice(current),
+            None => panic!("column {i} of {} is missing", show(k)),
+        }
+    }
+    Kernel::new(k.domain().clone(), k.codomain().clone(), data)
+}
+
+/// `k₂`: `k₁` with the column at `(sunny, cold)` replaced by `(1, 0)`.
+fn k2() -> Result<Kernel<Exact>> {
+    with_column(&k1()?, 1, &[r(1, 1), r(0, 1)])
+}
+
+/// `k₃`: `k₁` with the column at `(cloudy, cold)` replaced by `(0, 1)`.
+fn k3() -> Result<Kernel<Exact>> {
+    with_column(&k1()?, 3, &[r(0, 1), r(1, 1)])
+}
+
+/// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
+#[track_caller]
+fn assert_as_equal(
+    name: &str,
+    p: &Kernel<Exact>,
+    f: &Kernel<Exact>,
+    g: &Kernel<Exact>,
+    expected: bool,
+) -> Result<()> {
+    let observed = as_equal(p, f, g)?;
+    assert_eq!(
+        observed,
+        expected,
+        "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
+        show(f),
+        show(g)
+    );
+    Ok(())
+}
+
+/// Asserts `observed != unexpected`, naming `side`.
+#[track_caller]
+fn assert_differs(side: &str, observed: &Kernel<Exact>, unexpected: &Kernel<Exact>) {
+    assert!(
+        observed != unexpected,
+        "{side}: expected a kernel != {}, observed {}",
+        show(unexpected),
+        show(observed)
+    );
+}
+
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.isConditional_unique_as
+#[test]
+fn witness_is_conditional_unique_as() -> Result<()> {
+    let (t, w, sp, f) = (obj_t()?, obj_w()?, obj_s()?, f()?);
+    let (k1, k2, k3) = (k1()?, k2()?, k3()?);
+    assert_differs("k₂ against k₁", &k2, &k1);
+    assert_differs("k₃ against k₁", &k3, &k1);
+    assert_kernel(
+        "Def. 11.5 composite of k₁",
+        &conditional_composite(&f, &w, &sp, &k1)?,
+        &f,
+    );
+    assert_kernel(
+        "Def. 11.5 composite of k₂",
+        &conditional_composite(&f, &w, &sp, &k2)?,
+        &f,
+    );
+    let p = Kernel::copy(&t)?.compose(&Kernel::whisker_right(&f.marginal_fst(&w, &sp)?, &t)?)?;
+    assert_as_equal("as_equal(p, k₁, k₂)", &p, &k1, &k2, true)?;
+
+    assert_differs(
+        "control: Def. 11.5 composite of k₃",
+        &conditional_composite(&f, &w, &sp, &k3)?,
+        &f,
+    );
+    assert_as_equal("control: as_equal(p, k₁, k₃)", &p, &k1, &k3, false)?;
+    let third = r(1, 3);
+    let uniform = [third.clone(), third.clone(), third];
+    let u = lit(t.clone(), w, &[&uniform, &uniform])?;
+    let p_u = Kernel::copy(&t)?.compose(&Kernel::whisker_right(&u, &t)?)?;
+    assert_as_equal("control: as_equal(p_u, k₁, k₂)", &p_u, &k1, &k2, false)?;
+    Ok(())
+}
+
+/// `F = Δ[T] ≫ (h ▷ T) ≫ (S ◁ (f ≫ swap)) : T → S ⊗ (S ⊗ W)`, `k` its
+/// conditional on `S`, `n` the conditional of `k` on `S`.
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.IsConditional.nest
+#[test]
+fn witness_is_conditional_nest() -> Result<()> {
+    let (t, w, sp, f) = (obj_t()?, obj_w()?, obj_s()?, f()?);
+    let (sw, ss) = (sp.tensor(&w)?, sp.tensor(&sp)?);
+    let big_f = Kernel::copy(&t)?
+        .compose(&Kernel::whisker_right(&h()?, &t)?)?
+        .compose(&Kernel::whisker_left(
+            &sp,
+            &f.compose(&Kernel::swap(&w, &sp)?)?,
+        )?)?;
+    let k = conditional(&big_f, &sp, &sw)?;
+    let n = conditional(&k, &sp, &w)?;
+    assert_kernel(
+        "hk: Def. 11.5 composite of k for F",
+        &conditional_composite(&big_f, &sp, &sw, &k)?,
+        &big_f,
+    );
+    assert_kernel(
+        "hh: Def. 11.5 composite of n for k",
+        &conditional_composite(&k, &sp, &w, &n)?,
+        &k,
+    );
+    let lhs = big_f.compose(&Kernel::associator(&sp, &sp, &w)?)?;
+    let nested = Kernel::whisker_right(&Kernel::swap(&sp, &sp)?, &t)?
+        .compose(&Kernel::associator(&sp, &sp, &t)?)?
+        .compose(&n)?;
+    assert_kernel(
+        "Def. 11.5 composite of (swap ▷ T) ≫ α ≫ n for F ≫ α⁻¹",
+        &conditional_composite(&lhs, &ss, &w, &nested)?,
+        &lhs,
+    );
+
+    let unswapped = Kernel::associator(&sp, &sp, &t)?.compose(&n)?;
+    assert_differs(
+        "control: Def. 11.5 composite of α ≫ n for F ≫ α⁻¹",
+        &conditional_composite(&lhs, &ss, &w, &unswapped)?,
+        &lhs,
+    );
+    Ok(())
+}
+
+/// `g : S ⊗ T → S` sends `(on, hot)` and `(off, cold)` to on, `(on, cold)`
+/// and `(off, hot)` to off.
+/// THEOREM_MAP: CategoryTheory.MarkovCategory.IsConditional.comp_whiskerLeft
+#[test]
+fn witness_is_conditional_comp_whisker_left() -> Result<()> {
+    let (t, w, sp, f) = (obj_t()?, obj_w()?, obj_s()?, f()?);
+    let g = points(sp.tensor(&t)?, sp.clone(), &[0, 1, 1, 0])?;
+    let lhs = Kernel::whisker_right(&f, &t)?
+        .compose(&Kernel::associator(&w, &sp, &t)?)?
+        .compose(&Kernel::whisker_left(&w, &g)?)?;
+    let candidate = |k: &Kernel<Exact>| -> Result<Kernel<Exact>> {
+        Kernel::associator(&w, &t, &t)?
+            .compose(&Kernel::whisker_right(k, &t)?)?
+            .compose(&g)
+    };
+    let (k1, k3) = (k1()?, k3()?);
+    assert_kernel(
+        "Def. 11.5 composite of α⁻¹ ≫ (k₁ ▷ T) ≫ g for (f ▷ T) ≫ α ≫ (W ◁ g)",
+        &conditional_composite(&lhs, &w, &sp, &candidate(&k1)?)?,
+        &lhs,
+    );
+
+    assert_differs(
+        "control: Def. 11.5 composite of α⁻¹ ≫ (k₃ ▷ T) ≫ g for (f ▷ T) ≫ α ≫ (W ◁ g)",
+        &conditional_composite(&lhs, &w, &sp, &candidate(&k3)?)?,
+        &lhs,
+    );
+    Ok(())
+}
+
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.IsConditional.deterministic_comp
+#[test]
+fn witness_is_conditional_deterministic_comp() -> Result<()> {
+    let (w, sp, e) = (obj_w()?, obj_s()?, e()?);
+    assert_deterministic("e", &e, true)?;
+    let ef = e.compose(&f()?)?;
+    let candidate = Kernel::whisker_left(&w, &e)?.compose(&k1()?)?;
+    assert_kernel(
+        "Def. 11.5 composite of (W ◁ e) ≫ k₁ for e ≫ f",
+        &conditional_composite(&ef, &w, &sp, &candidate)?,
+        &ef,
+    );
+
+    let (b, coin) = (obj_b()?, coin()?);
+    assert_deterministic("coin", &coin, false)?;
+    let coin_copy = coin.compose(&Kernel::copy(&b)?)?;
+    let correlated = Kernel::state(b.tensor(&b)?, vec![r(1, 2), r(0, 1), r(0, 1), r(1, 2)])?;
+    assert_kernel("control: coin ≫ Δ[B]", &coin_copy, &correlated);
+    let candidate = Kernel::whisker_left(&b, &coin)?.compose(&snd()?)?;
+    let composite = conditional_composite(&coin_copy, &b, &b, &candidate)?;
+    assert_kernel(
+        "control: Def. 11.5 composite of (B ◁ coin) ≫ snd for coin ≫ Δ[B]",
+        &composite,
+        &quarters()?,
+    );
+    assert_differs(
+        "control: Def. 11.5 composite of (B ◁ coin) ≫ snd against coin ≫ Δ[B]",
+        &composite,
+        &coin_copy,
+    );
+    Ok(())
+}
+
+/// `f = Δ[B]`, `k = snd`, `g = coin`.
+/// THEOREM_MAP: FinStoch.not_isConditional_comp_of_coin
+#[test]
+fn witness_not_is_conditional_comp_of_coin() -> Result<()> {
+    let (b, coin, snd) = (obj_b()?, coin()?, snd()?);
+    let copy = Kernel::copy(&b)?;
+    assert_kernel("Δ[B]", &copy, &points(b.clone(), b.tensor(&b)?, &[0, 3])?);
+    assert_kernel(
+        "Def. 11.5 composite of snd for Δ[B]",
+        &conditional_composite(&copy, &b, &b, &snd)?,
+        &copy,
+    );
+    let coin_copy = coin.compose(&copy)?;
+    let candidate = Kernel::whisker_left(&b, &coin)?.compose(&snd)?;
+    let composite = conditional_composite(&coin_copy, &b, &b, &candidate)?;
+    assert_kernel(
+        "Def. 11.5 composite of (B ◁ coin) ≫ snd for coin ≫ Δ[B]",
+        &composite,
+        &quarters()?,
+    );
+    let (observed, unexpected) = (composite.column(0), coin_copy.column(0));
+    assert!(
+        observed.and_then(|column| column.get(2)) == Some(&r(1, 4))
+            && unexpected.and_then(|column| column.get(2)) == Some(&r(0, 1)),
+        "weight at (true, false): expected 1/4 in the composite and 0 in coin ≫ Δ[B], observed {} and {}",
+        show(&composite),
+        show(&coin_copy)
+    );
+    assert_differs(
+        "Def. 11.5 composite of (B ◁ coin) ≫ snd against coin ≫ Δ[B]",
+        &composite,
+        &coin_copy,
+    );
+    Ok(())
+}
