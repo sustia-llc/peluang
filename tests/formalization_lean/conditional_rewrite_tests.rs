@@ -118,9 +118,10 @@ fn witness_is_conditional_unique_as() -> Result<()> {
     Ok(())
 }
 
-/// `ψ = cold ≫ f : I → W ⊗ S`, `g₁ = conditional(ψ, W, S) : W ⊗ I → S` (the
+/// `ψ = cold ≫ f : I → W ⊗ S`, `g₁ = conditional(ψ, W, S) : W → S` (the
 /// engine's `W ⊗ I` is `W`), `g₂` and `g₃` are `g₁` with the column at sunny
-/// and at cloudy replaced.
+/// and at cloudy replaced. Each `gᵢ` enters the Def. 11.5 composite as
+/// `ρ_W ≫ gᵢ`.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.isConditional_unique_as_unit
 #[test]
 fn witness_is_conditional_unique_as_unit() -> Result<()> {
@@ -131,22 +132,23 @@ fn witness_is_conditional_unique_as_unit() -> Result<()> {
     let g3 = with_column(&g1, 1, &[r(0, 1), r(1, 1)])?;
     assert_differs("g₂ against g₁", &g2, &g1);
     assert_differs("g₃ against g₁", &g3, &g1);
+    let rho = Kernel::right_unitor(&w)?;
     assert_kernel(
-        "Def. 11.5 composite of g₁ for ψ",
-        &conditional_composite(&psi, &w, &sp, &g1)?,
+        "Def. 11.5 composite of ρ_W ≫ g₁ for ψ",
+        &conditional_composite(&psi, &w, &sp, &rho.compose(&g1)?)?,
         &psi,
     );
     assert_kernel(
-        "Def. 11.5 composite of g₂ for ψ",
-        &conditional_composite(&psi, &w, &sp, &g2)?,
+        "Def. 11.5 composite of ρ_W ≫ g₂ for ψ",
+        &conditional_composite(&psi, &w, &sp, &rho.compose(&g2)?)?,
         &psi,
     );
     let p = psi.marginal_fst(&w, &sp)?;
     assert_as_equal("as_equal(marginalFst ψ, g₁, g₂)", &p, &g1, &g2, true)?;
 
     assert_differs(
-        "control: Def. 11.5 composite of g₃ for ψ",
-        &conditional_composite(&psi, &w, &sp, &g3)?,
+        "control: Def. 11.5 composite of ρ_W ≫ g₃ for ψ",
+        &conditional_composite(&psi, &w, &sp, &rho.compose(&g3)?)?,
         &psi,
     );
     assert_as_equal(
@@ -236,25 +238,17 @@ fn witness_is_conditional_comp_whisker_left() -> Result<()> {
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.IsConditional.deterministic_comp
 #[test]
 fn witness_is_conditional_deterministic_comp() -> Result<()> {
-    let (w, sp, e) = (obj_w()?, obj_s()?, e()?);
-    assert_deterministic("e", &e, true)?;
-    let ef = e.compose(&f()?)?;
-    let candidate = Kernel::whisker_left(&w, &e)?.compose(&k1()?)?;
-    assert_kernel(
-        "Def. 11.5 composite of (W ◁ e) ≫ k₁ for e ≫ f",
-        &conditional_composite(&ef, &w, &sp, &candidate)?,
-        &ef,
-    );
-
-    let g = d()?.compose(&e)?;
-    assert_deterministic("g = d ≫ e", &g, true)?;
-    let gf = g.compose(&f()?)?;
-    let candidate = Kernel::whisker_left(&w, &g)?.compose(&k1()?)?;
-    assert_kernel(
-        "Def. 11.5 composite of (W ◁ g) ≫ k₁ for g ≫ f, g = d ≫ e",
-        &conditional_composite(&gf, &w, &sp, &candidate)?,
-        &gf,
-    );
+    let (w, sp) = (obj_w()?, obj_s()?);
+    for (name, g) in [("e", e()?), ("d ≫ e", d()?.compose(&e()?)?)] {
+        assert_deterministic(name, &g, true)?;
+        let gf = g.compose(&f()?)?;
+        let candidate = Kernel::whisker_left(&w, &g)?.compose(&k1()?)?;
+        assert_kernel(
+            &format!("Def. 11.5 composite of (W ◁ g) ≫ k₁ for g ≫ f, g = {name}"),
+            &conditional_composite(&gf, &w, &sp, &candidate)?,
+            &gf,
+        );
+    }
 
     assert_deterministic("coin", &coin()?, false)?;
     Ok(())

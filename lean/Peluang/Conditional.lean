@@ -24,9 +24,7 @@ Conditionals of morphisms into a tensor product, in a copy-discard category.
 ## Main results
 
 * `CopyDiscardCategory.isConditional_unique_as` - two conditionals of `f : A ⟶ X ⊗ Y` on `X`
-  are almost surely equal with respect to `Δ[A] ≫ (marginalFst f ▷ A)`;
-  `CopyDiscardCategory.isConditional_unique_as_unit` is its case `A = 𝟙_ C` (Fritz 2020,
-  Prop. 13.7).
+  are almost surely equal with respect to `Δ[A] ≫ (marginalFst f ▷ A)`.
 * `CopyDiscardCategory.isConditional_unique_as_unit` - for `ψ : 𝟙_ C ⟶ X ⊗ Y`, two
   conditionals `g₁ g₂ : X ⟶ Y` of `ψ` on `X` (entering `IsConditional` through `(ρ_ X).hom`)
   are `marginalFst ψ`-almost surely equal (Fritz 2020, Prop. 13.7).
