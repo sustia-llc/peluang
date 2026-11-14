@@ -2,7 +2,7 @@
 //! `Prob` trait (law verification, checked division and normalization), the
 //! rejections of each `Kernel` constructor and operation, `Kernel::approx_eq`,
 //! composition and tensor at literals, `is_deterministic`, `is_independent` at
-//! a two-input kernel, the rejection of a
+//! a two-input kernel and at a 3×2 state, the rejection of a
 //! wrong split by `is_independent` and of misaligned domains by
 //! `cond_indep_form`, results across `PAR_THRESHOLD`, size
 //! errors, and the post's eq. (9). In every feature lane: the `FinObj` object
@@ -678,6 +678,33 @@ mod kernels {
                 expected,
                 "is_independent({name}) on {}: expected {expected}, observed {observed}",
                 show(&kernel)
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn is_independent_reads_every_output() -> Result<()> {
+        let cod = obj_w()?.tensor(&obj_s()?)?;
+        for (name, weights, expected) in [
+            (
+                "product of (1/2, 1/4, 1/4) and (1/2, 1/2)",
+                vec![r(1, 4), r(1, 4), r(1, 8), r(1, 8), r(1, 8), r(1, 8)],
+                true,
+            ),
+            (
+                "same marginals, factors at (sunny, on) only",
+                vec![r(1, 4), r(1, 4), r(1, 4), r(0, 1), r(0, 1), r(1, 4)],
+                false,
+            ),
+        ] {
+            let state = Kernel::state(cod.clone(), weights)?;
+            let observed = is_independent(&state, &obj_w()?, &obj_s()?)?;
+            assert_eq!(
+                observed,
+                expected,
+                "is_independent({name}) on {}: expected {expected}, observed {observed}",
+                show(&state)
             );
         }
         Ok(())
