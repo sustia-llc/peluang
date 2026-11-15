@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.4.2` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.0` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -49,8 +49,8 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   post's conditional form D19, and Def. 12.16 at `A = I` is Def. 12.1. In
   FinStoch, the copied fair coin does not display independence.
 
-At `v0.4.2`, `THEOREM_MAP.md` has 52 rows that pair a Lean id with a Rust test.
-The crate has 163 tests with all features on.
+At `v0.5.0`, `THEOREM_MAP.md` has 52 rows that pair a Lean id with a Rust test.
+The crate has 176 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -80,7 +80,9 @@ The crate has 163 tests with all features on.
   `THEOREM_MAP.md` row with an existing witness, or a `-- WITNESS: none`
   opt-out.
 - `scripts/print_axioms.py`: the axioms of every constant defined in the
-  `Peluang` library, allowlist `{propext, Classical.choice, Quot.sound}`.
+  `Peluang` library, allowlist `{propext, Classical.choice, Quot.sound}`,
+  and the Lean id of each `THEOREM_MAP.md` row without the `mathlib:`
+  prefix, which must name a constant of the library.
 - `scripts/probe_selftest.py`: `print_axioms.py` against a planted module
   of `sorry` and `native_decide` constants.
 - `scripts/check_lean_source.py`: `sorry`/`admit` terms and `axiom`
@@ -152,6 +154,19 @@ env -C lean lake build > /tmp/lake-build.log 2>&1
 rg -c 'peluangTest audit: [0-9]+ files' /tmp/lake-build.log   # must print 1
 python3 -I scripts/print_axioms.py
 python3 -I scripts/probe_selftest.py
+```
+
+## Examples
+
+`examples/weather_sprinkler.rs` builds the running example on `Exact`
+weights through the public API: the temperature state `psi_t : I → T`, the
+weather kernel `c : T → W` and the sprinkler kernel `s : W → S`. It prints
+the weather state, the sprinkler state, the joint state on `W ⊗ S` and its
+two marginals. It returns an error when a marginal differs from its
+composite. CI runs it.
+
+```sh
+cargo run --example weather_sprinkler
 ```
 
 ## Documentation

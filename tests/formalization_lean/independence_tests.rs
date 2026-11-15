@@ -79,7 +79,7 @@ fn witness_displays_indep_iff_is_conditional() -> Result<()> {
         &conditional_j,
         &candidate(&j)?,
         true,
-    )?;
+    );
     assert_differs(
         "control: conditional(j, W, S) against (del_W ▷ T) ≫ λ_T ≫ marginalSnd j",
         &conditional_j,

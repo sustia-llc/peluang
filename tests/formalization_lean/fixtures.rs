@@ -195,13 +195,55 @@ fn show_obj(x: &FinObj) -> String {
     format!("[{}]", factors.join(" ⊗ "))
 }
 
-/// `dom → cod`, then the columns in input order.
+/// The largest `dom.card() · cod.card()` that `show` prints in full.
+const SHOW_LIMIT: usize = 4096;
+
+/// The number of weights `show` prints for a kernel above `SHOW_LIMIT`.
+const SHOW_HEAD: usize = 16;
+
+/// The text `show` prints in place of the column at input `x` when
+/// `Kernel::column` returns `None` for it.
+fn missing_column(x: usize) -> String {
+    format!("<column {x} missing>")
+}
+
+/// `dom → cod`, then the columns in input order. Above `SHOW_LIMIT` weights:
+/// `dom → cod`, the dimensions, the first `SHOW_HEAD` entries in input order
+/// and `dom.card() · cod.card()` minus the number of entries printed, or
+/// `overflow` in place of that number when `dom.card() · cod.card()`
+/// overflows `usize`. An entry is a weight or,
+/// for an input whose column `Kernel::column` does not return, the text
+/// `<column x missing>`, which stands in that column's place in both forms.
 pub fn show(k: &Kernel<Exact>) -> String {
-    let columns: Vec<String> = (0..k.domain().card())
-        .filter_map(|x| k.column(x))
-        .map(|column| {
-            let weights: Vec<String> = column.iter().map(ToString::to_string).collect();
-            format!("({})", weights.join(", "))
+    let (dom, cod) = (k.domain().card(), k.codomain().card());
+    let total = dom.checked_mul(cod);
+    if total.is_none_or(|total| total > SHOW_LIMIT) {
+        let head: Vec<String> = (0..dom)
+            .flat_map(|x| match k.column(x) {
+                Some(column) => column.iter().map(ToString::to_string).collect(),
+                None => vec![missing_column(x)],
+            })
+            .take(SHOW_HEAD)
+            .collect();
+        let rest = total.map_or_else(
+            || String::from("overflow"),
+            |total| format!("{} more", total - head.len()),
+        );
+        return format!(
+            "{} → {}: {dom}×{cod} weights, first {}: ({}) … {rest}",
+            show_obj(k.domain()),
+            show_obj(k.codomain()),
+            head.len(),
+            head.join(", "),
+        );
+    }
+    let columns: Vec<String> = (0..dom)
+        .map(|x| match k.column(x) {
+            Some(column) => {
+                let weights: Vec<String> = column.iter().map(ToString::to_string).collect();
+                format!("({})", weights.join(", "))
+            }
+            None => missing_column(x),
         })
         .collect();
     format!(
@@ -234,7 +276,8 @@ pub fn assert_differs(side: &str, observed: &Kernel<Exact>, unexpected: &Kernel<
     );
 }
 
-/// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
+/// Asserts `as_equal(p, f, g) == Ok(expected)`, naming the call `name`; panics
+/// with `name` and the error when the engine returns an error.
 #[track_caller]
 pub fn assert_as_equal(
     name: &str,
@@ -242,8 +285,15 @@ pub fn assert_as_equal(
     f: &Kernel<Exact>,
     g: &Kernel<Exact>,
     expected: bool,
-) -> Result<()> {
-    let observed = as_equal(p, f, g)?;
+) {
+    let observed = match as_equal(p, f, g) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "{name} with f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            show(f),
+            show(g)
+        ),
+    };
     assert_eq!(
         observed,
         expected,
@@ -251,18 +301,19 @@ pub fn assert_as_equal(
         show(f),
         show(g)
     );
-    Ok(())
 }
 
-/// Asserts `is_independent(k, x, y) == Ok(expected)`, naming `name`.
+/// Asserts `is_independent(k, x, y) == Ok(expected)`, naming `name`; panics
+/// with `name` and the error when the engine returns an error.
 #[track_caller]
 pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj, expected: bool) {
-    let observed = is_independent(k, x, y).unwrap_or_else(|e| {
-        panic!(
+    let observed = match is_independent(k, x, y) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
             "is_independent({name}) on {}: expected Ok({expected}), observed Err({e:?})",
             show(k)
-        )
-    });
+        ),
+    };
     assert_eq!(
         observed,
         expected,
@@ -271,15 +322,35 @@ pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj,
     );
 }
 
-/// Asserts `is_deterministic(k) == expected`, naming `name`.
+/// `is_deterministic(k)`; panics with `name`, `expected` (the text inside
+/// `Ok(…)`) and the error when the engine returns an error.
 #[track_caller]
-pub fn assert_deterministic(name: &str, k: &Kernel<Exact>, expected: bool) -> Result<()> {
-    let observed = is_deterministic(k)?;
+fn deterministic_or_panic(name: &str, k: &Kernel<Exact>, expected: &str) -> bool {
+    match is_deterministic(k) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "is_deterministic({name}) on {}: expected Ok({expected}), observed Err({e:?})",
+            show(k)
+        ),
+    }
+}
+
+/// `is_deterministic(k)`; panics with `name` and the error when the engine
+/// returns an error.
+#[track_caller]
+pub fn deterministic(name: &str, k: &Kernel<Exact>) -> bool {
+    deterministic_or_panic(name, k, "_")
+}
+
+/// Asserts `is_deterministic(k) == Ok(expected)`, naming `name`; panics with
+/// `name`, `expected` and the error when the engine returns an error.
+#[track_caller]
+pub fn assert_deterministic(name: &str, k: &Kernel<Exact>, expected: bool) {
+    let observed = deterministic_or_panic(name, k, &expected.to_string());
     assert_eq!(
         observed,
         expected,
         "is_deterministic({name}) on {}: expected {expected}, observed {observed}",
         show(k)
     );
-    Ok(())
 }

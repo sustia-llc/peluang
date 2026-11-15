@@ -21,31 +21,50 @@ fn q() -> Result<Kernel<Exact>> {
     Kernel::state(obj_w()?, vec![r(1, 2), r(1, 2), r(0, 1)])
 }
 
+/// `s` with the column at input `at` replaced by `column`, the other columns
+/// read from `s()`, for every index `at`. Returns an error naming `at` and the
+/// domain card when `at` is not below the domain card of `s`, and an error
+/// naming the input and `s` when `s` has no column at an input below its
+/// domain card.
+fn s_with_column(at: usize, column: [Exact; 2]) -> anyhow::Result<Kernel<Exact>> {
+    let s = s()?;
+    let card = s.domain().card();
+    anyhow::ensure!(
+        at < card,
+        "s_with_column: expected an index below the domain card {card} of s, observed {at}"
+    );
+    let mut data = Vec::new();
+    for x in 0..card {
+        let Some(own) = s.column(x) else {
+            anyhow::bail!("column {x} of {} is missing", show(&s));
+        };
+        if x == at {
+            data.extend_from_slice(&column);
+        } else {
+            data.extend_from_slice(own);
+        }
+    }
+    Ok(Kernel::new(s.domain().clone(), s.codomain().clone(), data)?)
+}
+
 /// `s` with the column at rainy replaced by `rainy`.
-fn s_with_rainy(rainy: [Exact; 2]) -> Result<Kernel<Exact>> {
-    lit(
-        obj_w()?,
-        obj_s()?,
-        &[&[r(1, 3), r(2, 3)], &[r(1, 1), r(0, 1)], &rainy],
-    )
+fn s_with_rainy(rainy: [Exact; 2]) -> anyhow::Result<Kernel<Exact>> {
+    s_with_column(2, rainy)
+}
+
+/// `s` with the column at sunny replaced by `sunny`.
+fn s_with_sunny(sunny: [Exact; 2]) -> anyhow::Result<Kernel<Exact>> {
+    s_with_column(0, sunny)
 }
 
 /// `s'`: `s` with the column at rainy `(1, 0)`.
-fn s_prime() -> Result<Kernel<Exact>> {
+fn s_prime() -> anyhow::Result<Kernel<Exact>> {
     s_with_rainy([r(1, 1), r(0, 1)])
 }
 
 /// `s''`: `s` with the column at sunny `(1, 0)`.
-fn s_double_prime() -> Result<Kernel<Exact>> {
-    lit(
-        obj_w()?,
-        obj_s()?,
-        &[
-            &[r(1, 1), r(0, 1)],
-            &[r(1, 1), r(0, 1)],
-            &[r(0, 1), r(1, 1)],
-        ],
-    )
+fn s_double_prime() -> anyhow::Result<Kernel<Exact>> {
+    s_with_sunny([r(1, 1), r(0, 1)])
 }
 
 /// `psi_t ≫ Δ[T] ≫ (T ◁ c) : I → T ⊗ W`.
@@ -83,10 +102,10 @@ fn assert_column(side: &str, k: &Kernel<Exact>, x: usize, expected: &[Exact]) {
 
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.almostSurelyEq_equivalence
 #[test]
-fn witness_almost_surely_eq_equivalence() -> Result<()> {
+fn witness_almost_surely_eq_equivalence() -> anyhow::Result<()> {
     let (q, s, s1, s3) = (q()?, s()?, s_prime()?, s_double_prime()?);
     let s2 = s_with_rainy([r(1, 2), r(1, 2)])?;
-    assert_as_equal("refl: as_equal(q, s, s)", &q, &s, &s, true)?;
+    assert_as_equal("refl: as_equal(q, s, s)", &q, &s, &s, true);
     let forward = as_equal(&q, &s1, &s)?;
     let backward = as_equal(&q, &s, &s1)?;
     assert!(
@@ -99,41 +118,41 @@ fn witness_almost_surely_eq_equivalence() -> Result<()> {
         !forward && !backward,
         "symm: expected as_equal(q, s'', s) = as_equal(q, s, s'') = false, observed {forward} and {backward}"
     );
-    assert_as_equal("trans: as_equal(q, s, s')", &q, &s, &s1, true)?;
-    assert_as_equal("trans: as_equal(q, s', s2)", &q, &s1, &s2, true)?;
-    assert_as_equal("trans: as_equal(q, s, s2)", &q, &s, &s2, true)?;
+    assert_as_equal("trans: as_equal(q, s, s')", &q, &s, &s1, true);
+    assert_as_equal("trans: as_equal(q, s', s2)", &q, &s1, &s2, true);
+    assert_as_equal("trans: as_equal(q, s, s2)", &q, &s, &s2, true);
     Ok(())
 }
 
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.comp
 #[test]
-fn witness_almost_surely_eq_comp() -> Result<()> {
+fn witness_almost_surely_eq_comp() -> anyhow::Result<()> {
     let (q, s, s1, e) = (q()?, s()?, s_prime()?, e()?);
-    assert_as_equal("as_equal(q, s', s)", &q, &s1, &s, true)?;
+    assert_as_equal("as_equal(q, s', s)", &q, &s1, &s, true);
     assert_as_equal(
         "as_equal(q, s' ≫ e, s ≫ e)",
         &q,
         &s1.compose(&e)?,
         &s.compose(&e)?,
         true,
-    )?;
+    );
     assert_as_equal(
         "as_equal(q, s'' ≫ e, s ≫ e)",
         &q,
         &s_double_prime()?.compose(&e)?,
         &s.compose(&e)?,
         false,
-    )?;
+    );
     Ok(())
 }
 
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.copy_tensorHom
 #[test]
-fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
+fn witness_almost_surely_eq_copy_tensor_hom() -> anyhow::Result<()> {
     let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
     let g1 = s_with_rainy([r(1, 2), r(1, 2)])?;
-    assert_as_equal("hf: as_equal(q, s', s)", &q, &s1, &s, true)?;
-    assert_as_equal("hg: as_equal(q, g', s)", &q, &g1, &s, true)?;
+    assert_as_equal("hf: as_equal(q, s', s)", &q, &s1, &s, true);
+    assert_as_equal("hg: as_equal(q, g', s)", &q, &g1, &s, true);
     let (w, sp) = (obj_w()?, obj_s()?);
     let (on, off, zero) = ([r(1, 18), r(1, 9)], [r(1, 9), r(2, 9)], r(0, 1));
     let expected = Kernel::state(
@@ -166,10 +185,33 @@ fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
 
 /// THEOREM_MAP: FinStoch.almostSurelyEq_iff
 #[test]
-fn witness_almost_surely_eq_iff() -> Result<()> {
+fn witness_almost_surely_eq_iff() -> anyhow::Result<()> {
     let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
-    for (name, f, expected) in [("s'", &s1, true), ("s''", &s2, false), ("s", &s, true)] {
-        assert_as_equal(&format!("as_equal(q, {name}, s)"), &q, f, &s, expected)?;
+    let s_flip = s_with_sunny([r(2, 3), r(1, 3)])?;
+    assert_column("q, sunny reached", &q, 0, &[r(1, 2), r(1, 2), r(0, 1)]);
+    assert_column("s at sunny", &s, 0, &[r(1, 3), r(2, 3)]);
+    assert_column("s_flip at sunny", &s_flip, 0, &[r(2, 3), r(1, 3)]);
+    for (name, k) in [("s''", &s2), ("s_flip", &s_flip)] {
+        for x in 1..s.domain().card() {
+            let Some(own) = s.column(x) else {
+                panic!("column {x} of {} is missing", show(&s));
+            };
+            assert_column(&format!("{name} at input {x}, as s"), k, x, own);
+        }
+    }
+    for (name, label, f, expected) in [
+        ("s'", "differs only at rainy, unreached", &s1, true),
+        ("s''", "differs at sunny, reached", &s2, false),
+        ("s", "identical", &s, true),
+        ("s_flip", "equal support at sunny", &s_flip, false),
+    ] {
+        assert_as_equal(
+            &format!("as_equal(q, {name}, s), {label}"),
+            &q,
+            f,
+            &s,
+            expected,
+        );
         let (lhs, rhs) = (copy_whisker(&q, f)?, copy_whisker(&q, &s)?);
         let def = lhs == rhs;
         assert_eq!(
@@ -181,20 +223,20 @@ fn witness_almost_surely_eq_iff() -> Result<()> {
         );
     }
 
-    assert_as_equal("as_equal(c, s'', s)", &c()?, &s2, &s, false)?;
+    assert_as_equal("as_equal(c, s'', s)", &c()?, &s2, &s, false);
     assert_as_equal(
         "as_equal(c, s', s), rainy reached only from cold",
         &c()?,
         &s1,
         &s,
         false,
-    )?;
+    );
     let p = lit(
         obj_t()?,
         obj_w()?,
         &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(1, 4), r(3, 4), r(0, 1)]],
     )?;
-    assert_as_equal("as_equal(p, s', s), p missing rainy", &p, &s1, &s, true)?;
+    assert_as_equal("as_equal(p, s', s), p missing rainy", &p, &s1, &s, true);
 
     let (third, one, zero) = (r(1, 3), r(1, 1), r(0, 1));
     let rest: [&[Exact]; 2] = [
@@ -221,7 +263,7 @@ fn witness_almost_surely_eq_iff() -> Result<()> {
         &k1,
         &k2,
         false,
-    )?;
+    );
     let (lhs, rhs) = (copy_whisker(&q, &k1)?, copy_whisker(&q, &k2)?);
     let def = lhs == rhs;
     assert!(
@@ -464,6 +506,30 @@ fn as_equal_rejects_mismatched_shapes() -> Result<()> {
                 if **fst == s_shape && **snd == g_shape),
             "{name}: expected NotParallel {{ fst: {s_shape:?}, snd: {g_shape:?} }}, observed {got:?}"
         );
+    }
+    Ok(())
+}
+
+#[test]
+fn s_with_column_rejects_the_domain_card() -> anyhow::Result<()> {
+    let card = s()?.domain().card();
+    let prefix = "s_with_column: expected an index below the domain card";
+    for at in [card, card + 1] {
+        match s_with_column(at, [r(1, 1), r(0, 1)]) {
+            Ok(k) => panic!(
+                "s_with_column({at}) with domain card {card}: expected Err, observed Ok({})",
+                show(&k)
+            ),
+            Err(err) => {
+                let msg = err.to_string();
+                let naming = format!("observed {at}");
+                let card_naming = format!("domain card {card} of s");
+                assert!(
+                    msg.starts_with(prefix) && msg.contains(&card_naming) && msg.ends_with(&naming),
+                    "s_with_column({at}): expected a message starting with {prefix:?}, containing {card_naming:?} and ending with {naming:?}, observed {msg:?}"
+                );
+            }
+        }
     }
     Ok(())
 }

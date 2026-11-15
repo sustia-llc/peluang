@@ -6,13 +6,19 @@ The Rust test pins the engine at worked examples. `tests/laws.rs` pins identity,
 associativity, interchange, naturality of `swap`, of the associator, of both
 unitors and of `del` at property-generated inputs. It also tests the `copy` laws,
 counit, `copy_tensor` and `discard_tensor` at each cardinality from 0 to 4.
+It tests these five laws once at `FinObj::unit()`, the two tensor laws at the
+pair of it with itself. It tests naturality of the associator at one fixed
+triple of endomorphisms on the cardinalities (2, 3, 4).
 `lean/Peluang/Instances/FinStoch/` proves the FinStoch instance of the abstract
 statements in the `CategoryTheory.*` rows.
 `scripts/check_theorem_map.py` enforces: every `theorem` or `lemma`
 under `lean/Peluang/` has a row whose test exists (exactly one `#[test]` under
 `tests/formalization_lean/` carrying `/// THEOREM_MAP: <id>`), or an opt-out
 comment `-- WITNESS: none (<reason>)` separated from the declaration only by
-blank lines, comments, docstrings and attributes.
+blank lines, comments, docstrings and attributes. It also fails on a
+malformed table line, and when a test target that holds a witness file has
+`required-features`, `test = false` or `harness = false`. The module
+docstring of the script states the full rule.
 
 Comparison rule: a theorem stated up to almost-sure equality is witnessed with
 `as_equal`; an equality theorem with `==` on the exact carrier. Witness tests
@@ -23,8 +29,8 @@ prefixed `mathlib:` and are optional.
 
 Anchor format: `Fritz 2020 Def./Prop./Thm./Lemma/Remark/Notation/Example N.M`
 (arXiv:1908.07021) and/or the Café post's `D`/`T` id. A row can name an
-instance, and `check_theorem_map.py` does not test that a row's Lean id names
-a declaration.
+instance. `scripts/print_axioms.py` fails when the Lean id of a row that is
+not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 
 | Lean id | Rust test | anchor |
 |---|---|---|

@@ -3,9 +3,9 @@
 //! an allocator that refuses allocations of at least the bytes of 64 `Exact`
 //! weights: each returns `Error::TooLarge` with the sizes of the refused
 //! reservation and a `TryReserveError` source, for the buffer of the result,
-//! the buffer of the terms of `compose` and `marginal_snd`, and the two factor
-//! list routes, the factor list of `FinObj::tensor` and the domain factor list
-//! of `Tensor::tensor`, which reserve `Factor`s of that byte size. `compose` on
+//! the buffer of the terms of `compose` and `marginal_snd`, and the three factor
+//! list routes, the factor list of `FinObj::tensor` and the domain and codomain
+//! factor lists of `Tensor::tensor`, which reserve `Factor`s of that byte size. `compose` on
 //! an empty domain and `marginal_fst` reserve no terms under it. `refusing`
 //! restores the limit when `op` panics.
 
@@ -146,6 +146,15 @@ fn tensors_report_a_refused_reservation() -> Result<()> {
     let g = point_mass(FinObj::unit())?;
     assert_refused(
         "Tensor::tensor, domain factor list",
+        &refusing(|| f.tensor(&g)),
+        factors,
+        1,
+    );
+
+    let f = point_mass(list)?;
+    let g = point_mass(FinObj::unit())?;
+    assert_refused(
+        "Tensor::tensor, codomain factor list",
         &refusing(|| f.tensor(&g)),
         factors,
         1,

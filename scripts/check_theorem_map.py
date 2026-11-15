@@ -14,9 +14,33 @@ comment other than a tag, or a single-line `#[...]` attribute is the `fn`, and
 no attribute line in between is `#[ignore]` or `#[should_panic]`; and when no
 line of a `.rs` file under tests/formalization_lean/, comments included,
 contains the text `f64-prob` or the text `cfg` at the start of a word (which
-covers `cfg_attr`). Exit 1 otherwise, printing each failure (each misplaced tag,
-and each line holding that text once, with its file and line and the text
-matched) on its own line.
+covers `cfg_attr`); and when THEOREM_MAP.md has a `| Lean id` header line and
+every line of its table (the lines after the header up to the first line not
+starting with `|`) is a separator or a row of three cells; and
+when Cargo.toml exists and is valid TOML, and every file under
+tests/formalization_lean/ holding a tag line is in the module tree of a test
+target, and no target whose module tree holds such a file comes from a
+`[[test]]` table with a non-empty `required-features`, `test = false` or
+`harness = false`, and, under `autotests = false`, some `[[test]]` table's
+module tree holds such a file. The test targets are the `[[test]]` tables,
+whose root file is the table's `path`, else `tests/<name>.rs` when it exists,
+else `tests/<name>/main.rs`, and, unless `autotests = false`, each
+`tests/<name>.rs` and `tests/<name>/main.rs` whose name no table has and
+which is no table's root file. A module tree follows, with comments
+stripped, the `mod x;` declarations from the root whose enclosing braces are
+all inline `mod` blocks (brace depth counted on every line, at any
+indentation) and which neither carry a `#[cfg(…)]` attribute nor sit in an
+inline block that carries one: under inline blocks `a`, …, `b`, to `x.rs`,
+else `x/mod.rs`, under `D/a/…/b`, where `D` is the directory of the declaring
+file when it is the root, a `mod.rs` or a file loaded through `#[path]`, and
+`foo/` for any other `foo.rs`; with a `#[path = "p"]` attribute directly
+before the declaration (same line or lines above), to `p` under the
+directory of the declaring file outside any inline block and under
+`D/a/…/b` inside one. Exit 1 otherwise, printing
+each failure (each misplaced tag, each line holding that text once, with its
+file and line and the text matched, each malformed table line with its line,
+each such `[[test]]` table with its name, each unreached tagged file) on its
+own line.
 
 Usage: check_theorem_map.py [REPO_ROOT]
 """
@@ -25,6 +49,7 @@ from __future__ import annotations
 
 import re
 import sys
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,6 +68,13 @@ MUTUAL_RE = re.compile(r"^\s*mutual\s*$")
 END_RE = re.compile(r"^\s*end(?:\s+([\w.]+))?\s*$")
 OPT_OUT_RE = re.compile(r"^\s*--\s*WITNESS:\s*none\s*\(.+\)\s*$")
 ROW_RE = re.compile(r"^\|\s*(?P<id>[^|]+?)\s*\|\s*(?P<test>[^|]+?)\s*\|\s*(?P<anchor>[^|]*?)\s*\|\s*$")
+SEPARATOR_RE = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+\s*$")
+MOD_ITEM_RE = re.compile(r"(?:pub(?:\s*\([^)]*\))?\s+)?mod\s+(?:r#)?(\w+)\s*([;{])")
+PATH_ATTR_RE = re.compile(r'^#\[\s*path\s*=\s*"([^"]*)"\s*\]$')
+CFG_ATTR_RE = re.compile(r"^#\[\s*cfg\s*\(")
+RAW_STR_START_RE = re.compile(r'b?r(#*)"')
+STR_START_RE = re.compile(r'b?"')
+CHAR_RE = re.compile(r"b?'(?:\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]{1,6}\}|.)|[^\\'\n])'")
 TEST_REF_RE = re.compile(r"^tests/formalization_lean/(?P<file>[\w/]+\.rs)::(?P<fn>\w+)$")
 TAG_RE = re.compile(r"^\s*///\s*THEOREM_MAP:\s*(\S+)\s*$")
 TEST_FN_RE = re.compile(
@@ -150,34 +182,43 @@ def lean_decls(paths: list[Path]) -> list[Decl]:
 
 
 def map_rows(map_path: Path) -> tuple[dict[str, tuple[str, int]], list[str]]:
+    """The rows of the table that starts at the first `| Lean id` line and ends before the first later line not
+    starting with `|`, as Lean id → (test column, line), and the failures: each duplicate id, each line of the
+    table after the header that is neither a separator nor a row of three cells, and a missing `| Lean id`
+    header. Lines after the table are not read."""
     rows: dict[str, tuple[str, int]] = {}
-    duplicates: list[str] = []
+    failures: list[str] = []
     in_table = False
     for i, line in enumerate(map_path.read_text(encoding="utf-8").splitlines()):
-        if line.startswith("| Lean id"):
-            in_table = True
+        if not in_table:
+            in_table = line.startswith("| Lean id")
             continue
-        if not in_table or not line.startswith("|"):
-            continue
-        if re.match(r"^\|\s*-+\s*\|", line):
+        if not line.startswith("|"):
+            break
+        if SEPARATOR_RE.match(line):
             continue
         m = ROW_RE.match(line)
-        if m:
-            lean_id = m.group("id")
-            if lean_id in rows:
-                duplicates.append(
-                    f"THEOREM_MAP.md:{i + 1}: duplicate row for `{lean_id}` (first at line {rows[lean_id][1]})"
-                )
-                continue
-            rows[lean_id] = (m.group("test"), i + 1)
-    return rows, duplicates
+        if not m:
+            failures.append(f"THEOREM_MAP.md:{i + 1}: table line is not a row `| <id> | <test> | <anchor> |`")
+            continue
+        lean_id = m.group("id")
+        if lean_id in rows:
+            failures.append(f"THEOREM_MAP.md:{i + 1}: duplicate row for `{lean_id}` (first at line {rows[lean_id][1]})")
+            continue
+        rows[lean_id] = (m.group("test"), i + 1)
+    if not in_table:
+        failures.append("THEOREM_MAP.md: no `| Lean id` table header")
+    return rows, failures
 
 
-def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], list[str]]:
+def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], set[Path], list[str]]:
+    """The placed tags (id → (file, fn)), the resolved files holding a tag line, and the tag-placement and
+    forbidden-text failures, over the `.rs` files under `tests_root`."""
     tags: dict[str, list[tuple[Path, str]]] = {}
+    tagged: set[Path] = set()
     failures: list[str] = []
     if not tests_root.is_dir():
-        return tags, failures
+        return tags, tagged, failures
     for path in sorted(tests_root.rglob("*.rs")):
         lines = path.read_text(encoding="utf-8").splitlines()
         for i, line in enumerate(lines):
@@ -187,6 +228,7 @@ def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], l
             m = TAG_RE.match(line)
             if not m:
                 continue
+            tagged.add(path.resolve())
             fm = None
             blocking: list[str] = []
             if i + 1 < len(lines) and TEST_ATTR_RE.match(lines[i + 1]):
@@ -208,7 +250,255 @@ def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], l
                     f"{path}:{i + 1}: `/// THEOREM_MAP: {m.group(1)}` is not on the line directly above "
                     "`#[test]` on a fn"
                 )
-    return tags, failures
+    return tags, tagged, failures
+
+
+def target_root(root: Path, table: dict[str, object]) -> Path | None:
+    """The root file of a `[[test]]` table: `path`, else `tests/<name>.rs` when it exists, else `tests/<name>/main.rs`."""
+    path = table.get("path")
+    if isinstance(path, str):
+        return (root / path).resolve()
+    name = table.get("name")
+    if not isinstance(name, str):
+        return None
+    flat = root / "tests" / f"{name}.rs"
+    return (flat if flat.is_file() else root / "tests" / name / "main.rs").resolve()
+
+
+@dataclass(frozen=True)
+class Target:
+    name: str
+    root: Path
+    table: dict[str, object] | None  # None for a target Cargo discovers without a `[[test]]` table
+
+
+def test_targets(root: Path, manifest: dict[str, object]) -> tuple[list[Target], bool]:
+    """The test targets of `manifest` and whether `autotests` is on: each `[[test]]` table with its root file, and,
+    when `package.autotests` is not `false`, each `tests/<name>.rs` and `tests/<name>/main.rs` whose name no table
+    has and which is no table's root file: a table whose root is such a file suppresses its auto target under any
+    table name."""
+    targets: list[Target] = []
+    tables = manifest.get("test", [])
+    for table in tables if isinstance(tables, list) else []:
+        if not isinstance(table, dict):
+            continue
+        target = target_root(root, table)
+        if target is not None:
+            targets.append(Target(str(table.get("name", target)), target, table))
+    package = manifest.get("package")
+    autotests = not (isinstance(package, dict) and package.get("autotests") is False)
+    tests_dir = root / "tests"
+    if autotests and tests_dir.is_dir():
+        names = {t.name for t in targets}
+        roots = {t.root for t in targets}
+        for path in sorted(tests_dir.glob("*.rs")) + sorted(tests_dir.glob("*/main.rs")):
+            name = path.stem if path.parent == tests_dir else path.parent.name
+            if name not in names and path.resolve() not in roots:
+                targets.append(Target(name, path.resolve(), None))
+    return targets, autotests
+
+
+def literal_end(text: str, i: int) -> int | None:
+    """The end index of the Rust string, raw string, byte string or char literal starting at `i`, else `None`."""
+    if i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_"):
+        return None
+    m = RAW_STR_START_RE.match(text, i)
+    if m:
+        close = text.find('"' + m.group(1), m.end())
+        return len(text) if close < 0 else close + 1 + len(m.group(1))
+    m = STR_START_RE.match(text, i)
+    if m:
+        j = m.end()
+        while j < len(text) and text[j] != '"':
+            j += 2 if text[j] == "\\" else 1
+        return min(j + 1, len(text))
+    m = CHAR_RE.match(text, i)
+    return m.end() if m else None
+
+
+def strip_rust_comments(text: str) -> str:
+    """`text` with each `//` line comment and each (nested) `/* … */` block comment replaced by spaces, its
+    newlines kept, and string and char literals left as written."""
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            out.append(" " * (j - i))
+            i = j
+        elif text.startswith("/*", i):
+            depth, j = 1, i + 2
+            while j < n and depth:
+                if text.startswith("/*", j):
+                    depth, j = depth + 1, j + 2
+                elif text.startswith("*/", j):
+                    depth, j = depth - 1, j + 2
+                else:
+                    j += 1
+            out.append(re.sub(r"[^\n]", " ", text[i:j]))
+            i = j
+        else:
+            end = literal_end(text, i)
+            j = end if end is not None else i + 1
+            out.append(text[i:j])
+            i = j
+    return "".join(out)
+
+
+def attribute_end(text: str, i: int) -> int:
+    """The index after the `]` closing the attribute whose `[` is at `i` (string and char literals skipped)."""
+    depth, j = 0, i
+    while j < len(text):
+        end = literal_end(text, j)
+        if end is not None:
+            j = end
+            continue
+        depth += (text[j] == "[") - (text[j] == "]")
+        j += 1
+        if depth == 0:
+            return j
+    return len(text)
+
+
+@dataclass(frozen=True)
+class ModDecl:
+    name: str
+    scopes: tuple[str, ...]  # names of the enclosing inline `mod` blocks, outermost first
+    path: str | None  # the value of a `#[path = "…"]` attribute on it
+
+
+def mod_decls(text: str) -> list[ModDecl]:
+    """The `mod x;` declarations of the Rust source `text` whose enclosing braces are all inline `mod` blocks, and
+    which neither carry a `#[cfg(…)]` attribute nor sit in an inline `mod` block that carries one. Comments are
+    stripped first. Every `{` and `}` outside string and char literals opens and closes a brace block, on any line
+    and at any indentation; a block opened by `mod foo {` is an inline `mod` block. The attributes of an item are
+    the outer `#[…]` attributes directly before it, separated by whitespace only."""
+    code = strip_rust_comments(text)
+    decls: list[ModDecl] = []
+    stack: list[tuple[str, bool] | None] = []  # (name, gated) for an inline `mod` block, None for any other block
+    path: str | None = None
+    gated = False
+    at_item = True
+    i, n = 0, len(code)
+    while i < n:
+        ch = code[i]
+        if ch.isspace():
+            i += 1
+            continue
+        if at_item and code.startswith("#[", i):
+            j = attribute_end(code, i + 1)
+            attr = code[i:j]
+            pm = PATH_ATTR_RE.match(attr)
+            if pm:
+                path = pm.group(1)
+            elif CFG_ATTR_RE.match(attr):
+                gated = True
+            i = j
+            continue
+        m = MOD_ITEM_RE.match(code, i) if at_item else None
+        if m:
+            inside = all(s is not None for s in stack)
+            scope_gated = any(s is not None and s[1] for s in stack)
+            if m.group(2) == "{":
+                stack.append((m.group(1), gated or scope_gated))
+            elif inside and not gated and not scope_gated:
+                decls.append(ModDecl(m.group(1), tuple(s[0] for s in stack if s is not None), path))
+            path, gated, at_item = None, False, True
+            i = m.end()
+            continue
+        if code.startswith("#![", i):
+            i = attribute_end(code, i + 2)
+            continue
+        path, gated = None, False
+        end = literal_end(code, i)
+        if end is not None:
+            at_item, i = False, end
+            continue
+        if ch == "{":
+            stack.append(None)
+        elif ch == "}" and stack:
+            stack.pop()
+        at_item = ch in "{};"
+        i += 1
+    return decls
+
+
+def mod_children(path: Path, base: Path) -> list[tuple[Path, Path]]:
+    """The (file, base) pairs of the `mod x;` declarations (`mod_decls`) of the file `path` whose `mod x;`
+    children resolve under `base`. Under the inline `mod` blocks `a`, …, `b`, a declaration resolves to `x.rs`,
+    else `x/mod.rs`, under `base/a/…/b`; with `#[path = "p"]` it resolves to `p` under the directory of `path`
+    outside any inline block and under `base/a/…/b` inside one. The base of a resolved `mod.rs` or `#[path]` file
+    is its directory and that of any other file `foo.rs` is `foo/`."""
+    children: list[tuple[Path, Path]] = []
+    for d in mod_decls(path.read_text(encoding="utf-8")):
+        scope = base.joinpath(*d.scopes)
+        if d.path is not None:
+            child = ((scope if d.scopes else path.parent) / d.path).resolve()
+            children.append((child, child.parent))
+        else:
+            flat = scope / f"{d.name}.rs"
+            child = (flat if flat.is_file() else scope / d.name / "mod.rs").resolve()
+            children.append((child, child.parent if child.name == "mod.rs" else child.with_suffix("")))
+    return children
+
+
+def module_tree(target: Path, cache: dict[tuple[Path, Path], list[tuple[Path, Path]]] | None = None) -> set[Path]:
+    """The resolved files of the module tree rooted at the crate root `target`, whose `mod x;` children resolve
+    under the directory of `target` and each file's under the base `mod_children` gives it. `cache` maps each
+    (file, base) pair already parsed to its `mod_children`, shared across calls that pass the same dict."""
+    cache = {} if cache is None else cache
+    reached: set[Path] = set()
+    stack: list[tuple[Path, Path]] = [(target, target.parent)]
+    while stack:
+        path, base = stack.pop()
+        if path in reached or not path.is_file():
+            continue
+        reached.add(path)
+        if (path, base) not in cache:
+            cache[(path, base)] = mod_children(path, base)
+        stack.extend(cache[(path, base)])
+    return reached
+
+
+def witness_target_failures(root: Path, tagged: set[Path]) -> list[str]:
+    """Failures of the test targets over the resolved files `tagged` holding a THEOREM_MAP tag: a missing or invalid
+    Cargo.toml; a target whose module tree holds a tagged file and that has a non-empty `required-features`,
+    `test = false` or `harness = false`; `autotests = false` with no `[[test]]` table whose tree holds a tagged
+    file; each tagged file that no target's module tree holds."""
+    cargo = root / "Cargo.toml"
+    if not cargo.is_file():
+        return [f"{cargo}: missing"]
+    try:
+        manifest = tomllib.loads(cargo.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as error:
+        return [f"{cargo}: not valid TOML: {error}"]
+    failures: list[str] = []
+    targets, autotests = test_targets(root, manifest)
+    reached: set[Path] = set()
+    table_holds = False
+    cache: dict[tuple[Path, Path], list[tuple[Path, Path]]] = {}
+    for t in targets:
+        held = module_tree(t.root, cache) & tagged
+        if not held:
+            continue
+        reached |= held
+        if t.table is None:
+            continue
+        table_holds = True
+        features = t.table.get("required-features")
+        if features:
+            failures.append(
+                f"{cargo}: [[test]] `{t.name}` holds THEOREM_MAP witnesses and has required-features {features}"
+            )
+        for key in ("test", "harness"):
+            if t.table.get(key) is False:
+                failures.append(f"{cargo}: [[test]] `{t.name}` holds THEOREM_MAP witnesses and has {key} = false")
+    if tagged and not autotests and not table_holds:
+        failures.append(f"{cargo}: autotests = false and no [[test]] table holds the THEOREM_MAP witnesses")
+    for path in sorted(tagged - reached):
+        failures.append(f"{path}: holds a THEOREM_MAP tag and no mod declaration from a test target root reaches it")
+    return failures
 
 
 def check(root: Path) -> list[str]:
@@ -216,10 +506,11 @@ def check(root: Path) -> list[str]:
     map_path = root / "THEOREM_MAP.md"
     if not map_path.is_file():
         return [f"{map_path}: missing"]
-    rows, duplicates = map_rows(map_path)
-    failures.extend(duplicates)
-    tags, test_failures = tagged_tests(root / "tests" / "formalization_lean")
+    rows, row_failures = map_rows(map_path)
+    failures.extend(row_failures)
+    tags, tagged, test_failures = tagged_tests(root / "tests" / "formalization_lean")
     failures.extend(test_failures)
+    failures.extend(witness_target_failures(root, tagged))
 
     decls = library_decls(root / "lean")
     for d in decls:

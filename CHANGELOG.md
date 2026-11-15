@@ -6,6 +6,55 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
+### Added
+
+- `examples/weather_sprinkler.rs`: the running example composed and
+  marginalized through the public API, and a README Examples section.
+- `scripts/print_axioms.py` fails when the Lean id of a `THEOREM_MAP.md` row
+  without the `mathlib:` prefix is not a constant of a `Peluang` /
+  `Peluang.*` module.
+- `scripts/check_theorem_map.py` fails when a `[[test]]` target with
+  `required-features` holds a placed witness tag.
+- `lean/PeluangTest/Markov/Derived.lean`: the generic `marginalFst` case at
+  a nested tensor codomain `X ⊗ (Y₁ ⊗ Y₂)`.
+- Pool tests: an `Exact` sum and compose inside `Executor::run`, and a sum
+  at `PAR_THRESHOLD` on a 1-thread executor.
+- Law tests: the associator law at cards `(2, 3, 4)`, and the `copy` and
+  `del` laws at `FinObj::unit()`.
+- `tests/too_large.rs`: the refused codomain reservation of
+  `Tensor::tensor`.
+- Witness test: same support with different weights at a reached input is
+  not almost surely equal.
+- Fixture tests: on an engine error, the assert helpers name the call and
+  the expected value.
+- `tests/formalization_lean/conditional_tests.rs`: `s_with_column` returns
+  an error on an index outside the domain.
+- Script tests: `#[path]` and `mod` inside an inline `mod` block resolve at
+  the locations that rustc accepts; `print_axioms.py` reports a map with no
+  `| Lean id` header.
+
+### Changed
+
+- Breaking: `Error` is `#[non_exhaustive]`. A downstream `match` on it
+  needs a wildcard arm.
+- `Kernel::approx_eq` returns `false` when the data lengths differ.
+- The `Executor::run` docstring states that a future dropped before its
+  first poll does not run `f`. A future dropped after its first poll
+  discards the return value of `f`, and a panic of `f` then reaches only the
+  panic hook.
+- `Kernel` construction inside the crate checks the data length with
+  `debug_assert_eq!`.
+- `linter.peluangTest.verbose` turns on only when a top-level `set_option`
+  sets it to `true`; `linter.all` does not set it. The `PeluangTest` audit names modules with
+  `Lean.moduleNameOfFileName`.
+- The CI Lean build step no longer removes `Audit.trace`.
+- `docs/diagrams/lean-1-classes.svg`: `HasConditionals`, almost-sure
+  equality and the independence definitions build on `CopyDiscardCategory`,
+  which is now the hub. The badge counts match the arrows, and the legend
+  has no "planned" entry.
+
 ## [0.4.2] - 2026-11-14
 
 ### Added
@@ -293,7 +342,12 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/sustia-llc/peluang/compare/v0.4.2...v0.5.0
+[0.4.2]: https://github.com/sustia-llc/peluang/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/sustia-llc/peluang/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/sustia-llc/peluang/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/sustia-llc/peluang/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/sustia-llc/peluang/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/sustia-llc/peluang/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/sustia-llc/peluang/compare/v0.2.0...v0.2.1

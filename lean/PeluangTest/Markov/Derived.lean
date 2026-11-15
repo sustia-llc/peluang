@@ -14,6 +14,12 @@ import PeluangLint
 of copying and of `Δ[A] ≫ (g ⊗ₘ h)`, the marginals of `k ≫ f`, of `f ⊗ₘ g`, of `f ▷ B` and
 of `A ◁ g`, and `k ≫ marginalFst (f ⊗ₘ g) ≫ h` and `k ≫ marginalSnd (f ⊗ₘ g) ≫ h` for
 arbitrary `k` and `h`.
+
+For `f : A ⟶ X ⊗ (Y₁ ⊗ Y₂)`: `ε[Y₁ ⊗ Y₂]` elaborates at `Comon.instComonObjTensorObj`;
+`marginalFst f = f ≫ X ◁ ε[Y₁ ⊗ Y₂] ≫ (ρ_ X).hom` fails by `rfl` and holds by
+`rw [marginalFst, comonObj_tensor]`; `simp [marginalFst, comonObj_tensor]` and
+`simp [marginalFst]` leave the same goal, whose left side keeps the counit at
+`CopyDiscardCategory.comonObj (Y₁ ⊗ Y₂)`; `simp` closes `marginalFst f ≫ ε[X] = ε[A]`.
 -/
 
 public section
@@ -85,6 +91,37 @@ example {A B Y : C} (g : B ⟶ Y) : marginalFst (A ◁ g) = A ◁ ε[B] ≫ (ρ_
   simp
 
 example {A B Y : C} (g : B ⟶ Y) : marginalSnd (A ◁ g) = ε[A] ▷ B ≫ (λ_ B).hom ≫ g := by
+  simp
+
+example {A X Y₁ Y₂ : C} (f : A ⟶ X ⊗ (Y₁ ⊗ Y₂)) :
+    marginalFst f = f ≫ X ◁ ε[Y₁ ⊗ Y₂] ≫ (ρ_ X).hom := by
+  guard_target =ₛ marginalFst f =
+    f ≫ X ◁ @ComonObj.counit C _ _ (Y₁ ⊗ Y₂) (Comon.instComonObjTensorObj Y₁ Y₂) ≫ (ρ_ X).hom
+  fail_if_success rfl
+  rw [marginalFst, comonObj_tensor]
+
+set_option linter.flexible false in
+set_option linter.unusedSimpArgs false in
+example {A X Y₁ Y₂ : C} (f : A ⟶ X ⊗ (Y₁ ⊗ Y₂))
+    (h : f ≫ X ◁ @ComonObj.counit C _ _ (Y₁ ⊗ Y₂) (comonObj (Y₁ ⊗ Y₂)) ≫ (ρ_ X).hom =
+      f ≫ X ◁ (ε[Y₁] ⊗ₘ ε[Y₂]) ≫ X ◁ (λ_ (𝟙_ C)).hom ≫ (ρ_ X).hom) :
+    marginalFst f = f ≫ X ◁ ε[Y₁ ⊗ Y₂] ≫ (ρ_ X).hom := by
+  simp [marginalFst, comonObj_tensor]
+  guard_target =ₛ f ≫ X ◁ @ComonObj.counit C _ _ (Y₁ ⊗ Y₂) (comonObj (Y₁ ⊗ Y₂)) ≫ (ρ_ X).hom =
+    f ≫ X ◁ (ε[Y₁] ⊗ₘ ε[Y₂]) ≫ X ◁ (λ_ (𝟙_ C)).hom ≫ (ρ_ X).hom
+  exact h
+
+set_option linter.flexible false in
+example {A X Y₁ Y₂ : C} (f : A ⟶ X ⊗ (Y₁ ⊗ Y₂))
+    (h : f ≫ X ◁ @ComonObj.counit C _ _ (Y₁ ⊗ Y₂) (comonObj (Y₁ ⊗ Y₂)) ≫ (ρ_ X).hom =
+      f ≫ X ◁ (ε[Y₁] ⊗ₘ ε[Y₂]) ≫ X ◁ (λ_ (𝟙_ C)).hom ≫ (ρ_ X).hom) :
+    marginalFst f = f ≫ X ◁ ε[Y₁ ⊗ Y₂] ≫ (ρ_ X).hom := by
+  simp [marginalFst]
+  guard_target =ₛ f ≫ X ◁ @ComonObj.counit C _ _ (Y₁ ⊗ Y₂) (comonObj (Y₁ ⊗ Y₂)) ≫ (ρ_ X).hom =
+    f ≫ X ◁ (ε[Y₁] ⊗ₘ ε[Y₂]) ≫ X ◁ (λ_ (𝟙_ C)).hom ≫ (ρ_ X).hom
+  exact h
+
+example {A X Y₁ Y₂ : C} (f : A ⟶ X ⊗ (Y₁ ⊗ Y₂)) : marginalFst f ≫ ε[X] = ε[A] := by
   simp
 
 end CategoryTheory

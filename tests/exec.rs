@@ -3,33 +3,162 @@
 //! for `0`), and resume their panics on the awaiting task. Over
 //! `PAR_THRESHOLD` unit terms inside `Executor::run`, `prob::sum` and
 //! `prob::sum_with(_, true)` record more adds than a sequential run, each on
-//! a `peluang-exec-*` thread that reports the executor's pool size. Over the
+//! a `peluang-exec-*` thread that reports the executor's pool size, on an
+//! executor of 1 thread and of the global pool size plus 1. Over the
 //! same terms outside it, they run no add on `peluang-exec-*`, the last add on
 //! the calling thread, and every other add on a worker that reports the global
 //! pool size. Inside `Executor::run`, `prob::sum_with(_, true)` over 1 and 2
 //! terms runs every add on `peluang-exec-*`. `Executor` supports `#[derive(Debug)]` on a struct that holds
 //! it. `Compose::compose` inside `Executor::run` with a middle object of
 //! `PAR_THRESHOLD` elements records more adds than a sequential run, each on a
-//! `peluang-exec-*` thread that reports the executor's pool size.
+//! `peluang-exec-*` thread that reports the executor's pool size. On `Exact`
+//! weights inside `Executor::run`, `prob::sum` and `prob::sum_with(_, true)`
+//! over the telescoping terms of `PAR_THRESHOLD - 1`, `PAR_THRESHOLD` and
+//! `3 * PAR_THRESHOLD + 7` elements equal their closed form, and a state on
+//! such an object composed with `Kernel::del` is the weight 1. On a 1-thread
+//! executor, a future of `Executor::run` dropped unpolled does not run its
+//! closure before a later `run` on the same executor completes; one dropped
+//! after one `Pending` poll runs its closure and drops the return value on
+//! `peluang-exec-0`; and a panic of the closure of such a future reaches the
+//! panic hook on `peluang-exec-0` and does not unwind the thread that dropped
+//! it.
 
 #![cfg(feature = "async")]
 
+mod common;
 mod probe;
 
+use std::any::Any;
 use std::collections::BTreeSet;
-use std::sync::Arc;
+use std::future::Future;
+use std::panic::{self, AssertUnwindSafe};
+use std::pin::{Pin, pin};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
+use std::task::{Context, Poll, Waker};
+use std::time::Duration;
 
+use common::{closed_form, telescoping};
 use peluang::error::Result;
 use peluang::exec::Executor;
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
 use peluang::markov::Compose;
-use peluang::prob::{PAR_THRESHOLD, sum_with};
+use peluang::prob::{Exact, PAR_THRESHOLD, Prob, sum, sum_with};
 use probe::{AddLog, ROUTES, add_sites, names, off_worker, point_mass, thread_name, unit_terms};
 use tokio_rayon::rayon;
 
 fn on_exec_thread(name: Option<&str>) -> bool {
     name.is_some_and(|n| n.starts_with("peluang-exec-"))
+}
+
+/// How long a test waits for a pool thread before it reports a timeout.
+const WAIT: Duration = Duration::from_secs(10);
+
+/// Polls `fut` once with a waker that does nothing, discarding a ready value.
+fn poll_once<F: Future>(fut: Pin<&mut F>) -> Poll<()> {
+    fut.poll(&mut Context::from_waker(Waker::noop())).map(drop)
+}
+
+/// The text of a `&str` or `String` panic payload.
+fn payload_text(payload: &(dyn Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|s| (*s).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "<non-string payload>".to_owned())
+}
+
+/// A return value that sends the name of the thread that drops it.
+struct DropProbe(mpsc::Sender<Option<String>>);
+
+impl Drop for DropProbe {
+    fn drop(&mut self) {
+        let _sent = self.0.send(thread_name());
+    }
+}
+
+#[tokio::test]
+async fn future_dropped_unpolled_does_not_run_f() -> Result<()> {
+    let exec = Executor::with_num_threads(1)?;
+    let ran = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&ran);
+    drop(exec.run(move || flag.store(true, Ordering::SeqCst)));
+    let barrier = exec.run(|| 7).await;
+    let observed = ran.load(Ordering::SeqCst);
+    assert!(
+        barrier == 7 && !observed,
+        "expected the later run to return 7 and the dropped future's closure not to have run, observed (later run, closure ran) = ({barrier}, {observed})"
+    );
+    Ok(())
+}
+
+#[test]
+fn future_dropped_after_first_poll_runs_f_and_drops_its_value_on_the_pool() -> Result<()> {
+    let exec = Executor::with_num_threads(1)?;
+    let (go_tx, go_rx) = mpsc::channel::<()>();
+    let (drop_tx, drop_rx) = mpsc::channel();
+    let polled = {
+        let mut fut = pin!(exec.run(move || {
+            let _gate = go_rx.recv_timeout(WAIT);
+            DropProbe(drop_tx)
+        }));
+        poll_once(fut.as_mut())
+    };
+    let released = go_tx.send(()).is_ok();
+    let dropped_on = drop_rx.recv_timeout(WAIT);
+    assert_eq!(
+        (polled, released, dropped_on.clone()),
+        (Poll::Pending, true, Ok(Some("peluang-exec-0".to_owned()))),
+        "expected the first poll Pending, the closure still waiting after the future was dropped, and its return value dropped on peluang-exec-0, observed (first poll, closure still waiting, dropping thread) = {:?}",
+        (polled, released, dropped_on)
+    );
+    Ok(())
+}
+
+#[test]
+fn panic_after_drop_reaches_only_the_panic_hook() -> Result<()> {
+    const MESSAGE: &str = "peluang-exec orphaned panic";
+    let (seen_tx, seen_rx) = mpsc::channel::<String>();
+    let seen_tx = Mutex::new(seen_tx);
+    let previous = Arc::new(panic::take_hook());
+    let chained = Arc::clone(&previous);
+    panic::set_hook(Box::new(move |info| {
+        let text = payload_text(info.payload());
+        if text == MESSAGE {
+            if let Ok(tx) = seen_tx.lock() {
+                let _sent = tx.send(format!("{}: {text}", thread_name().unwrap_or_default()));
+            }
+        } else {
+            chained(info);
+        }
+    }));
+
+    let exec = Executor::with_num_threads(1)?;
+    let (go_tx, go_rx) = mpsc::channel::<()>();
+    let outcome = panic::catch_unwind(AssertUnwindSafe(|| {
+        let mut fut = pin!(exec.run(move || {
+            let _gate = go_rx.recv_timeout(WAIT);
+            panic!("{MESSAGE}");
+        }));
+        let polled = poll_once(fut.as_mut());
+        go_tx
+            .send(())
+            .expect("the closure holds the receiver until it runs");
+        polled
+    }))
+    .map_err(|payload| payload_text(&*payload));
+    let seen = seen_rx.recv_timeout(WAIT);
+
+    drop(panic::take_hook());
+    panic::set_hook(Box::new(move |info| previous(info)));
+    assert_eq!(
+        (outcome.clone(), seen.clone()),
+        (Ok(Poll::Pending), Ok(format!("peluang-exec-0: {MESSAGE}"))),
+        "expected the dropping thread not to unwind after a Pending first poll and the hook to see the panic on peluang-exec-0, observed (dropping thread, hook) = {:?}",
+        (outcome, seen)
+    );
+    Ok(())
 }
 
 #[tokio::test]
@@ -75,9 +204,11 @@ async fn run_resumes_panic_on_awaiting_task() {
     exec.run(|| panic!("peluang-exec job panicked")).await;
 }
 
-#[tokio::test]
-async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
-    let exec_size = rayon::current_num_threads() + 1;
+/// Asserts that `prob::sum` and `prob::sum_with(_, true)` over `PAR_THRESHOLD`
+/// unit terms inside `Executor::run` on an executor of `exec_size` threads
+/// total `PAR_THRESHOLD`, record more adds than a sequential run, and run each
+/// add on `peluang-exec-*` seeing the pool size `exec_size`.
+async fn assert_sum_inside_run_stays_on_pool(exec_size: usize) -> Result<()> {
     let exec = Executor::with_num_threads(exec_size)?;
     let mut observed = Vec::new();
     for (route, reduce) in ROUTES {
@@ -98,6 +229,48 @@ async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
         "expected total = {PAR_THRESHOLD}, more than {} records (a sequential run records exactly that many), every add on peluang-exec-* and every add seeing the executor size {exec_size}, observed (held, route, total, records, off-pool names, pool sizes): {observed:?}",
         PAR_THRESHOLD + 1
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
+    assert_sum_inside_run_stays_on_pool(rayon::current_num_threads() + 1).await
+}
+
+#[tokio::test]
+async fn sum_inside_run_on_one_thread_executor_stays_on_it() -> Result<()> {
+    assert_sum_inside_run_stays_on_pool(1).await
+}
+
+#[tokio::test]
+async fn exact_sums_inside_run_are_exact() -> Result<()> {
+    let exec = Executor::new()?;
+    type ExactRoute = fn(&[Exact]) -> Exact;
+    let routes: [(&str, ExactRoute); 2] =
+        [("sum", sum), ("sum_with", |terms| sum_with(terms, true))];
+    for n in [PAR_THRESHOLD - 1, PAR_THRESHOLD, 3 * PAR_THRESHOLD + 7] {
+        let want = closed_form(n);
+        for (route, reduce) in routes {
+            let terms = telescoping(n);
+            let total = exec.run(move || reduce(&terms)).await;
+            assert_eq!(
+                total, want,
+                "{route} over {n} telescoping terms inside run: expected {want}, observed {total}"
+            );
+        }
+        let mut weights = telescoping(n - 1);
+        weights.push(Exact::new(1.into(), n.into()));
+        let state = Kernel::state(FinObj::new(n), weights)?;
+        let discarded = exec
+            .run(move || state.compose(&Kernel::del(state.codomain())?))
+            .await?;
+        let weight = discarded.column(0).map(<[Exact]>::to_vec);
+        assert_eq!(
+            weight,
+            Some(vec![Exact::one()]),
+            "state on {n} elements composed with del inside run: expected the column [1], observed {weight:?}"
+        );
+    }
     Ok(())
 }
 
