@@ -143,12 +143,20 @@ class MapRows(unittest.TestCase):
         failures = pa.unresolved_rows(r, {"Peluang.Linter.allowedAxioms": 7})
         self.assertEqual(failures, [f"THEOREM_MAP.md:7: `Peluang.Linter.allowedAxioms` {NOT_A_CONSTANT}"])
 
+    def test_private_constant_resolves_only_by_its_full_name(self) -> None:
+        full = "_private.Peluang.X.0.Peluang.h"
+        r = probe("MODULE\tPeluang.X", f"CONST\t{full}\tPeluang.X\ttrue\t-\t")
+        failures = pa.unresolved_rows(r, {"Peluang.h": 9, full: 10})
+        self.assertEqual(failures, [f"THEOREM_MAP.md:9: `Peluang.h` {NOT_A_CONSTANT}"])
+
     def test_current_table_passes_and_each_row_is_checked(self) -> None:
         rows = {i: line for i, (_, line) in pa.ctm.map_rows(REPO / "THEOREM_MAP.md")[0].items()}
         self.assertIn("CategoryTheory.Deterministic.instCopy", rows, f"rows: {sorted(rows)}")
         consts = [f"CONST\t{i}\tPeluang.X\tfalse\t-\t" for i in rows]
         self.assertEqual(pa.unresolved_rows(probe("MODULE\tPeluang.X", *consts), rows), [])
         for lean_id, line in rows.items():
+            if lean_id.startswith(pa.MATHLIB_PREFIX):
+                continue
             rest = [c for c in consts if c.split("\t")[1] != lean_id]
             failures = pa.unresolved_rows(probe("MODULE\tPeluang.X", *rest), rows)
             self.assertEqual(failures, [f"THEOREM_MAP.md:{line}: `{lean_id}` {NOT_A_CONSTANT}"])
@@ -178,6 +186,17 @@ class MapRows(unittest.TestCase):
             _, failures = pa.check(root)
         self.assertEqual(failures, [f"{root / 'THEOREM_MAP.md'}: missing"])
 
+    def test_check_reports_malformed_table_line(self) -> None:
+        output = f"{ALLOWED_ROW}\nMODULE\tPeluang\n"
+        table = "| Lean id | Rust test | anchor |\n|---|---|---|\n| broken row |\n"
+        with mock.patch.object(pa, "run_lake", lake_ok(output)), tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "lean").mkdir()
+            (root / "lean" / "Peluang.lean").write_text("", encoding="utf-8")
+            (root / "THEOREM_MAP.md").write_text(table, encoding="utf-8")
+            _, failures = pa.check(root)
+        self.assertEqual(failures, ["THEOREM_MAP.md:3: table line is not a row `| <id> | <test> | <anchor> |`"])
+
 
 class Layout(unittest.TestCase):
     def test_module_names_match_library_files(self) -> None:
@@ -194,22 +213,33 @@ class Layout(unittest.TestCase):
         self.assertEqual(pa.module_file(Path("/l"), "Peluang.Markov.Derived"), Path("/l/Peluang/Markov/Derived.lean"))
 
 
+def lake_stale(calls: list[list[str]]):
+    def fake_run_lake(args: list[str], lean_dir: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
+        return subprocess.CompletedProcess(["lake", *args], 1, "", "stale")
+
+    return fake_run_lake
+
+
 class Freshness(unittest.TestCase):
     def test_stale_check_targets_peluang_and_peluanglint(self) -> None:
         calls: list[list[str]] = []
-
-        def fake_run_lake(
-            args: list[str], lean_dir: Path, env: dict[str, str] | None = None
-        ) -> subprocess.CompletedProcess[str]:
-            calls.append(args)
-            return subprocess.CompletedProcess(["lake", *args], 1, "", "stale")
-
-        with mock.patch.object(pa, "run_lake", fake_run_lake), tempfile.TemporaryDirectory() as tmp:
+        with mock.patch.object(pa, "run_lake", lake_stale(calls)), tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "lean").mkdir()
+            (Path(tmp) / "THEOREM_MAP.md").write_text("| Lean id | Rust test | anchor |\n|---|---|---|\n", encoding="utf-8")
             _, failures = pa.check(Path(tmp))
         self.assertEqual(calls, [["build", "--no-build", "Peluang", "PeluangLint"]], f"lake calls were {calls}")
         self.assertEqual(len(failures), 1, f"failures: {failures}")
         self.assertIn("stale", failures[0])
+
+    def test_stale_build_still_reports_missing_map(self) -> None:
+        with mock.patch.object(pa, "run_lake", lake_stale([])), tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "lean").mkdir()
+            _, failures = pa.check(Path(tmp))
+            missing = f"{Path(tmp) / 'THEOREM_MAP.md'}: missing"
+        self.assertEqual(len(failures), 2, f"failures: {failures}")
+        self.assertIn("stale", failures[0])
+        self.assertEqual(failures[1], missing, f"failures: {failures}")
 
 
 if __name__ == "__main__":

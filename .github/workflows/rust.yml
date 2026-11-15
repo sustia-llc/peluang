@@ -46,6 +46,7 @@ jobs:
       - run: cargo nextest run --features parallel
       - run: cargo nextest run --features async
       - run: cargo nextest run --all-features
+      - run: cargo run --example weather_sprinkler
 
   wasm-check:
     runs-on: ubuntu-latest

@@ -26,13 +26,17 @@ git tag is the authoritative pin.
 
 ### Changed
 
-- `Error` is `#[non_exhaustive]`. A downstream `match` on it needs a
-  wildcard arm.
+- Breaking: `Error` is `#[non_exhaustive]`. A downstream `match` on it
+  needs a wildcard arm.
 - `Kernel::approx_eq` returns `false` when the data lengths differ.
-- The `Executor::run` docstring states that a future dropped before it
-  resolves discards the return value and the panic of `f`.
-- `linter.peluangTest.verbose` turns on only when set to `true`;
-  `linter.all` does not set it. The `PeluangTest` audit names modules with
+- The `Executor::run` docstring states that a future dropped before its
+  first poll does not run `f`. A future dropped after its first poll
+  discards the return value of `f`, and a panic of `f` then reaches only the
+  panic hook.
+- `Kernel` construction inside the crate checks the data length with
+  `debug_assert_eq!`.
+- `linter.peluangTest.verbose` turns on only when a top-level `set_option`
+  sets it to `true`; `linter.all` does not set it. The `PeluangTest` audit names modules with
   `Lean.moduleNameOfFileName`.
 - The CI Lean build step no longer removes `Audit.trace`.
 

@@ -244,13 +244,14 @@ pub fn assert_as_equal(
     g: &Kernel<Exact>,
     expected: bool,
 ) {
-    let observed = as_equal(p, f, g).unwrap_or_else(|e| {
-        panic!(
+    let observed = match as_equal(p, f, g) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
             "{name} with f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
             show(f),
             show(g)
-        )
-    });
+        ),
+    };
     assert_eq!(
         observed,
         expected,
@@ -264,12 +265,13 @@ pub fn assert_as_equal(
 /// with `name` and the error when the engine returns an error.
 #[track_caller]
 pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj, expected: bool) {
-    let observed = is_independent(k, x, y).unwrap_or_else(|e| {
-        panic!(
+    let observed = match is_independent(k, x, y) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
             "is_independent({name}) on {}: expected Ok({expected}), observed Err({e:?})",
             show(k)
-        )
-    });
+        ),
+    };
     assert_eq!(
         observed,
         expected,
@@ -282,24 +284,20 @@ pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj,
 /// returns an error.
 #[track_caller]
 pub fn deterministic(name: &str, k: &Kernel<Exact>) -> bool {
-    is_deterministic(k).unwrap_or_else(|e| {
-        panic!(
+    match is_deterministic(k) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
             "is_deterministic({name}) on {}: expected Ok(_), observed Err({e:?})",
             show(k)
-        )
-    })
+        ),
+    }
 }
 
 /// Asserts `is_deterministic(k) == Ok(expected)`, naming `name`; panics with
 /// `name` and the error when the engine returns an error.
 #[track_caller]
 pub fn assert_deterministic(name: &str, k: &Kernel<Exact>, expected: bool) {
-    let observed = is_deterministic(k).unwrap_or_else(|e| {
-        panic!(
-            "is_deterministic({name}) on {}: expected Ok({expected}), observed Err({e:?})",
-            show(k)
-        )
-    });
+    let observed = deterministic(name, k);
     assert_eq!(
         observed,
         expected,

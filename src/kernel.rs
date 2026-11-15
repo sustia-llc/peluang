@@ -98,8 +98,17 @@ impl<P: Prob> Kernel<P> {
                 .all(|(a, b)| a.approx_eq(b))
     }
 
-    /// The kernel with exactly these fields, under no test.
+    /// The kernel with exactly these fields. Under `debug_assertions` it
+    /// panics when `data.len()` is not `dom.card() * cod.card()`; it runs no
+    /// other test.
     pub(crate) fn from_parts(dom: FinObj, cod: FinObj, data: Vec<P>) -> Self {
+        debug_assert_eq!(
+            Some(data.len()),
+            dom.card().checked_mul(cod.card()),
+            "from_parts: data length vs dom.card() * cod.card() ({} * {})",
+            dom.card(),
+            cod.card()
+        );
         Self { dom, cod, data }
     }
 
@@ -131,7 +140,11 @@ mod tests {
         let one = Exact::one;
         let zero = Exact::zero;
         let full = Kernel::from_parts(dom.clone(), cod.clone(), vec![one(), zero(), one(), zero()]);
-        let short = Kernel::from_parts(dom, cod, vec![one(), zero()]);
+        let short = Kernel {
+            dom,
+            cod,
+            data: vec![one(), zero()],
+        };
         let observed = (full.approx_eq(&short), short.approx_eq(&full));
         assert_eq!(
             observed,
@@ -139,5 +152,13 @@ mod tests {
             "approx_eq between data of length 4 and its prefix of length 2 under equal \
              domain and codomain: expected (false, false), observed {observed:?}"
         );
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "from_parts: data length vs dom.card() * cod.card() (2 * 2)")]
+    fn from_parts_panics_on_a_short_data() {
+        let short = vec![Exact::one(), Exact::zero()];
+        let _ = Kernel::from_parts(FinObj::new(2), FinObj::new(2), short);
     }
 }

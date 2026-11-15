@@ -2,6 +2,7 @@
 //! `psi_t : I → T`, the weather kernel `c : T → W` and the sprinkler kernel
 //! `s : W → S`, composed into the weather and sprinkler states and the joint
 //! state on `W ⊗ S`, whose two marginals are printed beside the composites.
+//! `main` returns an error when a marginal differs from its composite.
 
 use peluang::error::Result;
 use peluang::finset::FinObj;
@@ -59,7 +60,7 @@ fn show(name: &str, k: &Kernel<Exact>) -> String {
     format!("{name}\n{}", columns.join("\n"))
 }
 
-fn main() -> Result<()> {
+fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let w = labels(&["sunny", "cloudy", "rainy"])?;
     let t = labels(&["hot", "cold"])?;
     let s_obj = labels(&["on", "off"])?;
@@ -95,13 +96,12 @@ fn main() -> Result<()> {
         "{}",
         show("marginal_snd of the joint : I → S", &sprinkler_marginal)
     );
-    println!(
-        "marginal_fst equals psi_t ≫ c: {}",
-        weather_marginal == weather
-    );
-    println!(
-        "marginal_snd equals psi_t ≫ c ≫ s: {}",
-        sprinkler_marginal == sprinkler
-    );
+    if weather_marginal != weather {
+        return Err("marginal_fst of the joint differs from psi_t ≫ c".into());
+    }
+    if sprinkler_marginal != sprinkler {
+        return Err("marginal_snd of the joint differs from psi_t ≫ c ≫ s".into());
+    }
+    println!("marginal_fst equals psi_t ≫ c; marginal_snd equals psi_t ≫ c ≫ s");
     Ok(())
 }

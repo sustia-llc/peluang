@@ -19,6 +19,8 @@ TAG = "/// THEOREM_MAP: CategoryTheory.Conditional.unique_as\n"
 TEST_FILE = TAG + "#[test]\nfn unique_as() {}\n"
 ROW = "| CategoryTheory.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | — |\n"
 MISPLACED = "is not on the line directly above `#[test]` on a fn"
+CARGO = '[package]\nname = "x"\n'
+UNREACHED = "holds a THEOREM_MAP tag and no mod declaration from a test target root reaches it"
 
 
 def build(
@@ -28,9 +30,12 @@ def build(
     row: str | None,
     test: str | None,
     others: dict[str, str] | None = None,
-    cargo: str | None = None,
+    cargo: str | None = CARGO,
+    head: str = MAP_HEAD,
 ) -> None:
-    (root / "THEOREM_MAP.md").write_text(MAP_HEAD + (row or ""), encoding="utf-8")
+    """The repo tree of one case. `cargo=None` writes no Cargo.toml. With `test`, it writes `conditional_tests.rs`
+    and, unless `others` has one, a `main.rs` declaring `mod conditional_tests;`."""
+    (root / "THEOREM_MAP.md").write_text(head + (row or ""), encoding="utf-8")
     if cargo is not None:
         (root / "Cargo.toml").write_text(cargo, encoding="utf-8")
     if lean is not None:
@@ -41,6 +46,8 @@ def build(
         d = root / "tests" / "formalization_lean"
         d.mkdir(parents=True)
         (d / "conditional_tests.rs").write_text(test, encoding="utf-8")
+        if "main.rs" not in (others or {}):
+            (d / "main.rs").write_text("mod conditional_tests;\n", encoding="utf-8")
     for name, text in (others or {}).items():
         path = root / "tests" / "formalization_lean" / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,7 +72,11 @@ class CheckTheoremMap(unittest.TestCase):
         self.assertEqual(got, [f"{where}: contains the text {matched}" for where in expected], f"failures: {failures}")
 
     def test_empty_repo_passes(self) -> None:
-        self.assertEqual(self.run_case(lean=None, row=None, test=None), [])
+        self.assertEqual(self.run_case(lean=None, row=None, test=None, cargo=CARGO), [])
+
+    def test_missing_cargo_toml_fails(self) -> None:
+        failures = self.run_case(lean=None, row=None, test=None, cargo=None)
+        self.assertEqual([f.rsplit("/", 1)[-1] for f in failures], ["Cargo.toml: missing"], f"failures: {failures}")
 
     def test_covered_theorem_passes(self) -> None:
         row = "| CategoryTheory.Conditional.unique_as | tests/formalization_lean/conditional_tests.rs::unique_as | Fritz 2020 Prop. 13.7 |\n"
@@ -191,7 +202,7 @@ class CheckTheoremMap(unittest.TestCase):
         )
 
     def test_f64_prob_is_reported_once_per_line_in_every_file(self) -> None:
-        others = {"nested/helpers.rs": "\n// f64-prob, f64-prob\n", "main.rs": "// f64-prob\n"}
+        others = {"nested/helpers.rs": "\n// f64-prob, f64-prob\n", "main.rs": "// f64-prob\nmod conditional_tests;\n"}
         self.assert_forbidden_text(["main.rs:1", "nested/helpers.rs:2"], others=others, matched="`f64-prob`")
 
     def test_cfg_with_another_feature_fails(self) -> None:
@@ -310,6 +321,7 @@ class CheckTheoremMap(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "THEOREM_MAP.md").write_text(MAP_HEAD, encoding="utf-8")
+            (root / "Cargo.toml").write_text(CARGO, encoding="utf-8")
             (root / "lean").mkdir()
             (root / "lean" / "Peluang.lean").write_text("theorem Peluang.rootThm : True := trivial\n", encoding="utf-8")
             failures = ctm.check(root)
@@ -377,6 +389,82 @@ class CheckTheoremMap(unittest.TestCase):
         failures = self.gated_failures("[package\n")
         self.assertEqual(len(failures), 1, f"failures: {failures}")
         self.assertIn("not valid TOML", failures[0])
+
+    def unreached(self, failures: list[str]) -> list[str]:
+        return [f.partition("/tests/formalization_lean/")[2] for f in failures if UNREACHED in f]
+
+    def test_test_root_resolves_mod_against_its_own_directory(self) -> None:
+        cargo = CARGO + 'autotests = false\n\n[[test]]\nname = "fl"\npath = "tests/formalization_lean/root.rs"\n'
+        others = {"root.rs": "mod conditional_tests;\n"}
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=TEST_FILE, others=others, cargo=cargo)
+        self.assertEqual(failures, [], "a [[test]] root named root.rs resolves `mod conditional_tests;` to its sibling")
+
+    def test_non_root_file_resolves_mod_against_its_stem_directory(self) -> None:
+        tagged = TAG + "#[test]\nfn inner() {}\n"
+        for where, expected in (("nested/inner.rs", []), ("inner.rs", [f"inner.rs: {UNREACHED}"])):
+            with self.subTest(where=where):
+                others = {"main.rs": "mod nested;\n", "nested.rs": "mod inner;\n", where: tagged}
+                failures = self.run_case(lean=None, row=None, test=None, others=others)
+                self.assertEqual(self.unreached(failures), expected, f"inner at {where}: failures {failures}")
+
+    def test_path_attribute_is_followed(self) -> None:
+        others = {
+            "main.rs": '#[path = "deep/witness.rs"]\n// note\nmod witness;\n',
+            "deep/witness.rs": "mod more;\n" + TAG + "#[test]\nfn witness() {}\n",
+            "deep/more.rs": TAG + "#[test]\nfn more() {}\n",
+        }
+        failures = self.run_case(lean=None, row=None, test=None, others=others)
+        self.assertEqual(failures, [], "a #[path] module and its own `mod more;` child are reached")
+
+    def test_path_attribute_does_not_carry_past_an_item(self) -> None:
+        others = {
+            "main.rs": '#[path = "deep/witness.rs"]\nuse std::fmt;\nmod witness;\n',
+            "deep/witness.rs": TAG + "#[test]\nfn witness() {}\n",
+        }
+        failures = self.run_case(lean=None, row=None, test=None, others=others)
+        self.assertEqual(self.unreached(failures), [f"deep/witness.rs: {UNREACHED}"], f"failures: {failures}")
+
+    def test_test_false_or_harness_false_on_the_witness_target_fails(self) -> None:
+        for key in ("test", "harness"):
+            with self.subTest(key=key):
+                table = f'[[test]]\nname = "formalization_lean"\npath = "tests/formalization_lean/main.rs"\n{key} = false\n'
+                failures = self.gated_failures(CARGO + "\n" + table)
+                self.assertEqual(len(failures), 1, f"failures: {failures}")
+                self.assertIn(f"[[test]] `formalization_lean` holds THEOREM_MAP witnesses and has {key} = false", failures[0])
+
+    def test_autotests_false_without_a_witness_table_fails(self) -> None:
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=TEST_FILE, cargo=CARGO + "autotests = false\n")
+        got = [f.rsplit("/", 1)[-1] for f in failures]
+        self.assertEqual(
+            got,
+            [
+                "Cargo.toml: autotests = false and no [[test]] table holds the THEOREM_MAP witnesses",
+                f"conditional_tests.rs: {UNREACHED}",
+            ],
+            f"failures: {failures}",
+        )
+
+    def test_autotests_false_with_a_witness_table_passes(self) -> None:
+        cargo = CARGO + 'autotests = false\n\n[[test]]\nname = "formalization_lean"\n'
+        self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW, test=TEST_FILE, cargo=cargo), [])
+
+    def test_tagged_file_no_mod_reaches_fails(self) -> None:
+        others = {"main.rs": "mod conditional_tests;\n", "orphan.rs": TAG + "#[test]\nfn orphan() {}\n"}
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=TEST_FILE, others=others)
+        self.assertEqual(self.unreached(failures), [f"orphan.rs: {UNREACHED}"], f"failures: {failures}")
+        self.assertEqual(len(failures), 1, f"failures: {failures}")
+
+    def test_malformed_table_line_fails(self) -> None:
+        for bad in ("| broken row |\n", "| a | b | c | d |\n", "|---|garbage\n"):
+            with self.subTest(bad=bad):
+                failures = self.run_case(lean=LEAN_FILE, row=ROW + bad, test=TEST_FILE)
+                self.assertEqual(
+                    failures, ["THEOREM_MAP.md:6: table line is not a row `| <id> | <test> | <anchor> |`"], f"{bad!r}"
+                )
+
+    def test_missing_table_header_fails(self) -> None:
+        failures = self.run_case(lean=None, row=None, test=None, head="# THEOREM_MAP\n")
+        self.assertEqual(failures, ["THEOREM_MAP.md: no `| Lean id` table header"])
 
     def main_code(self, **kw: object) -> int:
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):

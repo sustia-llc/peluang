@@ -34,8 +34,10 @@ impl Executor {
     }
 
     /// Runs `f` on the pool and resolves to its return value; a panic in `f`
-    /// resumes on the awaiting task. A future dropped before it resolves
-    /// discards the return value and the panic of `f`.
+    /// resumes on the awaiting task. A future dropped before its first poll
+    /// does not run `f`. A future dropped after its first poll discards the
+    /// return value of `f`, and a panic of `f` then reaches only the panic
+    /// hook.
     pub async fn run<F, R>(&self, f: F) -> R
     where
         F: FnOnce() -> R + Send + 'static,

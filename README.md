@@ -162,7 +162,8 @@ python3 -I scripts/probe_selftest.py
 weights through the public API: the temperature state `psi_t : I → T`, the
 weather kernel `c : T → W` and the sprinkler kernel `s : W → S`. It prints
 the weather state, the sprinkler state, the joint state on `W ⊗ S` and its
-two marginals. Each marginal equals its composite.
+two marginals. It returns an error when a marginal differs from its
+composite. CI runs it.
 
 ```sh
 cargo run --example weather_sprinkler
