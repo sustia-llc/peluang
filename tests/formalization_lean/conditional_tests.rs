@@ -22,8 +22,10 @@ fn q() -> Result<Kernel<Exact>> {
 }
 
 /// `s` with the column at input `at` replaced by `column`, the other columns
-/// read from `s()`. Returns an error naming `at` and the domain card when `at`
-/// is not below the domain card of `s`.
+/// read from `s()`, for every index `at`. Returns an error naming `at` and the
+/// domain card when `at` is not below the domain card of `s`, and an error
+/// naming the input and `s` when `s` has no column at an input below its
+/// domain card.
 fn s_with_column(at: usize, column: [Exact; 2]) -> anyhow::Result<Kernel<Exact>> {
     let s = s()?;
     let card = s.domain().card();
@@ -34,7 +36,7 @@ fn s_with_column(at: usize, column: [Exact; 2]) -> anyhow::Result<Kernel<Exact>>
     let mut data = Vec::new();
     for x in 0..card {
         let Some(own) = s.column(x) else {
-            panic!("column {x} of {} is missing", show(&s));
+            anyhow::bail!("column {x} of {} is missing", show(&s));
         };
         if x == at {
             data.extend_from_slice(&column);
@@ -521,9 +523,10 @@ fn s_with_column_rejects_the_domain_card() -> anyhow::Result<()> {
             Err(err) => {
                 let msg = err.to_string();
                 let naming = format!("observed {at}");
+                let card_naming = format!("domain card {card} of s");
                 assert!(
-                    msg.starts_with(prefix) && msg.ends_with(&naming),
-                    "s_with_column({at}): expected a message starting with {prefix:?} and ending with {naming:?}, observed {msg:?}"
+                    msg.starts_with(prefix) && msg.contains(&card_naming) && msg.ends_with(&naming),
+                    "s_with_column({at}): expected a message starting with {prefix:?}, containing {card_naming:?} and ending with {naming:?}, observed {msg:?}"
                 );
             }
         }

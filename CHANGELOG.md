@@ -28,7 +28,9 @@ git tag is the authoritative pin.
 - Witness test: same support with different weights at a reached input is
   not almost surely equal.
 - Fixture tests: on an engine error, the assert helpers name the call and
-  the expected value. `s_with_column` rejects an index outside the domain.
+  the expected value.
+- `tests/formalization_lean/conditional_tests.rs`: `s_with_column` returns
+  an error on an index outside the domain.
 - Script tests: `#[path]` and `mod` inside an inline `mod` block resolve at
   the locations that rustc accepts; `print_axioms.py` reports a map with no
   `| Lean id` header.
