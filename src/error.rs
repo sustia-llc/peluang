@@ -5,6 +5,7 @@ use crate::finset::FinObj;
 /// Failure of a crate operation; `law` names the violated axiom as the
 /// verifier's identifier string.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     /// A `prob::Prob` law check failed for the given sample values.
     #[error("Prob axiom violated: {law}")]

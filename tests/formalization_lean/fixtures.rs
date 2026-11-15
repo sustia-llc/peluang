@@ -234,7 +234,8 @@ pub fn assert_differs(side: &str, observed: &Kernel<Exact>, unexpected: &Kernel<
     );
 }
 
-/// Asserts `as_equal(p, f, g) == expected`, naming the call `name`.
+/// Asserts `as_equal(p, f, g) == Ok(expected)`, naming the call `name`; panics
+/// with `name` and the error when the engine returns an error.
 #[track_caller]
 pub fn assert_as_equal(
     name: &str,
@@ -242,8 +243,14 @@ pub fn assert_as_equal(
     f: &Kernel<Exact>,
     g: &Kernel<Exact>,
     expected: bool,
-) -> Result<()> {
-    let observed = as_equal(p, f, g)?;
+) {
+    let observed = as_equal(p, f, g).unwrap_or_else(|e| {
+        panic!(
+            "{name} with f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            show(f),
+            show(g)
+        )
+    });
     assert_eq!(
         observed,
         expected,
@@ -251,10 +258,10 @@ pub fn assert_as_equal(
         show(f),
         show(g)
     );
-    Ok(())
 }
 
-/// Asserts `is_independent(k, x, y) == Ok(expected)`, naming `name`.
+/// Asserts `is_independent(k, x, y) == Ok(expected)`, naming `name`; panics
+/// with `name` and the error when the engine returns an error.
 #[track_caller]
 pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj, expected: bool) {
     let observed = is_independent(k, x, y).unwrap_or_else(|e| {
@@ -271,15 +278,32 @@ pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj,
     );
 }
 
-/// Asserts `is_deterministic(k) == expected`, naming `name`.
+/// `is_deterministic(k)`; panics with `name` and the error when the engine
+/// returns an error.
 #[track_caller]
-pub fn assert_deterministic(name: &str, k: &Kernel<Exact>, expected: bool) -> Result<()> {
-    let observed = is_deterministic(k)?;
+pub fn deterministic(name: &str, k: &Kernel<Exact>) -> bool {
+    is_deterministic(k).unwrap_or_else(|e| {
+        panic!(
+            "is_deterministic({name}) on {}: expected Ok(_), observed Err({e:?})",
+            show(k)
+        )
+    })
+}
+
+/// Asserts `is_deterministic(k) == Ok(expected)`, naming `name`; panics with
+/// `name` and the error when the engine returns an error.
+#[track_caller]
+pub fn assert_deterministic(name: &str, k: &Kernel<Exact>, expected: bool) {
+    let observed = is_deterministic(k).unwrap_or_else(|e| {
+        panic!(
+            "is_deterministic({name}) on {}: expected Ok({expected}), observed Err({e:?})",
+            show(k)
+        )
+    });
     assert_eq!(
         observed,
         expected,
         "is_deterministic({name}) on {}: expected {expected}, observed {observed}",
         show(k)
     );
-    Ok(())
 }

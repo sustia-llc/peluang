@@ -86,7 +86,7 @@ fn assert_column(side: &str, k: &Kernel<Exact>, x: usize, expected: &[Exact]) {
 fn witness_almost_surely_eq_equivalence() -> Result<()> {
     let (q, s, s1, s3) = (q()?, s()?, s_prime()?, s_double_prime()?);
     let s2 = s_with_rainy([r(1, 2), r(1, 2)])?;
-    assert_as_equal("refl: as_equal(q, s, s)", &q, &s, &s, true)?;
+    assert_as_equal("refl: as_equal(q, s, s)", &q, &s, &s, true);
     let forward = as_equal(&q, &s1, &s)?;
     let backward = as_equal(&q, &s, &s1)?;
     assert!(
@@ -99,9 +99,9 @@ fn witness_almost_surely_eq_equivalence() -> Result<()> {
         !forward && !backward,
         "symm: expected as_equal(q, s'', s) = as_equal(q, s, s'') = false, observed {forward} and {backward}"
     );
-    assert_as_equal("trans: as_equal(q, s, s')", &q, &s, &s1, true)?;
-    assert_as_equal("trans: as_equal(q, s', s2)", &q, &s1, &s2, true)?;
-    assert_as_equal("trans: as_equal(q, s, s2)", &q, &s, &s2, true)?;
+    assert_as_equal("trans: as_equal(q, s, s')", &q, &s, &s1, true);
+    assert_as_equal("trans: as_equal(q, s', s2)", &q, &s1, &s2, true);
+    assert_as_equal("trans: as_equal(q, s, s2)", &q, &s, &s2, true);
     Ok(())
 }
 
@@ -109,21 +109,21 @@ fn witness_almost_surely_eq_equivalence() -> Result<()> {
 #[test]
 fn witness_almost_surely_eq_comp() -> Result<()> {
     let (q, s, s1, e) = (q()?, s()?, s_prime()?, e()?);
-    assert_as_equal("as_equal(q, s', s)", &q, &s1, &s, true)?;
+    assert_as_equal("as_equal(q, s', s)", &q, &s1, &s, true);
     assert_as_equal(
         "as_equal(q, s' ≫ e, s ≫ e)",
         &q,
         &s1.compose(&e)?,
         &s.compose(&e)?,
         true,
-    )?;
+    );
     assert_as_equal(
         "as_equal(q, s'' ≫ e, s ≫ e)",
         &q,
         &s_double_prime()?.compose(&e)?,
         &s.compose(&e)?,
         false,
-    )?;
+    );
     Ok(())
 }
 
@@ -132,8 +132,8 @@ fn witness_almost_surely_eq_comp() -> Result<()> {
 fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
     let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
     let g1 = s_with_rainy([r(1, 2), r(1, 2)])?;
-    assert_as_equal("hf: as_equal(q, s', s)", &q, &s1, &s, true)?;
-    assert_as_equal("hg: as_equal(q, g', s)", &q, &g1, &s, true)?;
+    assert_as_equal("hf: as_equal(q, s', s)", &q, &s1, &s, true);
+    assert_as_equal("hg: as_equal(q, g', s)", &q, &g1, &s, true);
     let (w, sp) = (obj_w()?, obj_s()?);
     let (on, off, zero) = ([r(1, 18), r(1, 9)], [r(1, 9), r(2, 9)], r(0, 1));
     let expected = Kernel::state(
@@ -169,7 +169,7 @@ fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
 fn witness_almost_surely_eq_iff() -> Result<()> {
     let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
     for (name, f, expected) in [("s'", &s1, true), ("s''", &s2, false), ("s", &s, true)] {
-        assert_as_equal(&format!("as_equal(q, {name}, s)"), &q, f, &s, expected)?;
+        assert_as_equal(&format!("as_equal(q, {name}, s)"), &q, f, &s, expected);
         let (lhs, rhs) = (copy_whisker(&q, f)?, copy_whisker(&q, &s)?);
         let def = lhs == rhs;
         assert_eq!(
@@ -181,20 +181,20 @@ fn witness_almost_surely_eq_iff() -> Result<()> {
         );
     }
 
-    assert_as_equal("as_equal(c, s'', s)", &c()?, &s2, &s, false)?;
+    assert_as_equal("as_equal(c, s'', s)", &c()?, &s2, &s, false);
     assert_as_equal(
         "as_equal(c, s', s), rainy reached only from cold",
         &c()?,
         &s1,
         &s,
         false,
-    )?;
+    );
     let p = lit(
         obj_t()?,
         obj_w()?,
         &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(1, 4), r(3, 4), r(0, 1)]],
     )?;
-    assert_as_equal("as_equal(p, s', s), p missing rainy", &p, &s1, &s, true)?;
+    assert_as_equal("as_equal(p, s', s), p missing rainy", &p, &s1, &s, true);
 
     let (third, one, zero) = (r(1, 3), r(1, 1), r(0, 1));
     let rest: [&[Exact]; 2] = [
@@ -221,7 +221,7 @@ fn witness_almost_surely_eq_iff() -> Result<()> {
         &k1,
         &k2,
         false,
-    )?;
+    );
     let (lhs, rhs) = (copy_whisker(&q, &k1)?, copy_whisker(&q, &k2)?);
     let def = lhs == rhs;
     assert!(

@@ -10,7 +10,7 @@ use peluang::conditional::conditional;
 use peluang::error::Result;
 use peluang::kernel::Kernel;
 use peluang::markov::Compose;
-use peluang::prob::Exact;
+use peluang::prob::{Exact, Prob};
 
 use crate::fixtures::{
     assert_as_equal, assert_deterministic, assert_differs, assert_kernel, coin,
@@ -52,9 +52,11 @@ fn with_column(k: &Kernel<Exact>, x: usize, column: &[Exact]) -> Result<Kernel<E
     Kernel::new(k.domain().clone(), k.codomain().clone(), data)
 }
 
-/// `k₂`: `k₁` with the column at `(sunny, cold)` replaced by `(1, 0)`.
+/// `k₂`: `k₁` with the column at `(sunny, cold)` replaced by `(1/3, 2/3)` and
+/// the column at `(rainy, hot)` replaced by `(2/3, 1/3)`.
 fn k2() -> Result<Kernel<Exact>> {
-    with_column(&k1()?, 1, &[r(1, 1), r(0, 1)])
+    let sunny_cold = with_column(&k1()?, 1, &[r(1, 3), r(2, 3)])?;
+    with_column(&sunny_cold, 4, &[r(2, 3), r(1, 3)])
 }
 
 /// `k₃`: `k₁` with the column at `(cloudy, cold)` replaced by `(0, 1)`.
@@ -80,20 +82,68 @@ fn witness_is_conditional_unique_as() -> Result<()> {
         &f,
     );
     let p = Kernel::copy(&t)?.compose(&Kernel::whisker_right(&f.marginal_fst(&w, &sp)?, &t)?)?;
-    assert_as_equal("as_equal(p, k₁, k₂)", &p, &k1, &k2, true)?;
+    let unreached: Vec<usize> = (0..k1.domain().card())
+        .filter(|&x| {
+            (0..p.domain().card()).all(|a| p.column(a).is_some_and(|col| col[x] == Exact::zero()))
+        })
+        .collect();
+    let names: Vec<String> = unreached.iter().map(|&x| input_name(&k1, x)).collect();
+    assert_eq!(
+        names,
+        ["(sunny, cold)", "(rainy, hot)"],
+        "inputs of W ⊗ T that p reaches from no input: expected (sunny, cold), (rainy, hot), \
+         observed {names:?} at {unreached:?}"
+    );
+    let half = [r(1, 2), r(1, 2)];
+    for &x in &unreached {
+        assert!(
+            k1.column(x) == Some(&half[..]),
+            "k₁ at {}: expected (1/2, 1/2), observed {}",
+            input_name(&k1, x),
+            show(&k1)
+        );
+    }
+    for x in 0..k1.domain().card() {
+        let changed = k1.column(x) != k2.column(x);
+        let expected = unreached.contains(&x);
+        assert_eq!(
+            changed,
+            expected,
+            "k₂ against k₁ at {}: expected changed = {expected}, observed {changed}; k₂ = {}",
+            input_name(&k1, x),
+            show(&k2)
+        );
+    }
+    assert_as_equal("as_equal(p, k₁, k₂)", &p, &k1, &k2, true);
 
     assert_differs(
         "control: Def. 11.5 composite of k₃",
         &conditional_composite(&f, &w, &sp, &k3)?,
         &f,
     );
-    assert_as_equal("control: as_equal(p, k₁, k₃)", &p, &k1, &k3, false)?;
+    assert_as_equal("control: as_equal(p, k₁, k₃)", &p, &k1, &k3, false);
     let third = r(1, 3);
     let uniform = [third.clone(), third.clone(), third];
     let u = lit(t.clone(), w, &[&uniform, &uniform])?;
     let p_u = Kernel::copy(&t)?.compose(&Kernel::whisker_right(&u, &t)?)?;
-    assert_as_equal("control: as_equal(p_u, k₁, k₂)", &p_u, &k1, &k2, false)?;
+    assert_as_equal("control: as_equal(p_u, k₁, k₂)", &p_u, &k1, &k2, false);
     Ok(())
+}
+
+/// The input `x` of `k : W ⊗ T → _` as `(w, t)`, from the labels of the
+/// domain of `k`.
+fn input_name(k: &Kernel<Exact>, x: usize) -> String {
+    let factors = k.domain().factors();
+    let label = |i: usize, j: usize| {
+        factors
+            .get(i)
+            .and_then(|factor| factor.labels())
+            .and_then(|labels| labels.get(j))
+            .cloned()
+            .unwrap_or_else(|| panic!("factor {i} of {} has no label {j}", show(k)))
+    };
+    let inner = factors.get(1).map_or(1, |factor| factor.card());
+    format!("({}, {})", label(0, x / inner), label(1, x % inner))
 }
 
 /// `ψ = cold ≫ f : I → W ⊗ S`, `g₁ = conditional(ψ, W, S) : W → S` (the
@@ -122,7 +172,7 @@ fn witness_is_conditional_unique_as_unit() -> Result<()> {
         &psi,
     );
     let p = psi.marginal_fst(&w, &sp)?;
-    assert_as_equal("as_equal(marginalFst ψ, g₁, g₂)", &p, &g1, &g2, true)?;
+    assert_as_equal("as_equal(marginalFst ψ, g₁, g₂)", &p, &g1, &g2, true);
 
     assert_differs(
         "control: Def. 11.5 composite of ρ_W ≫ g₃ for ψ",
@@ -135,7 +185,7 @@ fn witness_is_conditional_unique_as_unit() -> Result<()> {
         &g1,
         &g3,
         false,
-    )?;
+    );
     Ok(())
 }
 
@@ -218,7 +268,7 @@ fn witness_is_conditional_comp_whisker_left() -> Result<()> {
 fn witness_is_conditional_deterministic_comp() -> Result<()> {
     let (w, sp) = (obj_w()?, obj_s()?);
     for (name, g) in [("e", e()?), ("d ≫ e", d()?.compose(&e()?)?)] {
-        assert_deterministic(name, &g, true)?;
+        assert_deterministic(name, &g, true);
         let gf = g.compose(&f()?)?;
         let candidate = Kernel::whisker_left(&w, &g)?.compose(&k1()?)?;
         assert_kernel(
@@ -228,7 +278,7 @@ fn witness_is_conditional_deterministic_comp() -> Result<()> {
         );
     }
 
-    assert_deterministic("coin", &coin()?, false)?;
+    assert_deterministic("coin", &coin()?, false);
     Ok(())
 }
 
@@ -237,7 +287,7 @@ fn witness_is_conditional_deterministic_comp() -> Result<()> {
 #[test]
 fn witness_not_is_conditional_comp_of_coin() -> Result<()> {
     let (b, coin, snd) = (obj_b()?, coin()?, snd()?);
-    assert_deterministic("coin", &coin, false)?;
+    assert_deterministic("coin", &coin, false);
     let copy = Kernel::copy(&b)?;
     assert_kernel("Δ[B]", &copy, &points(b.clone(), b.tensor(&b)?, &[0, 3])?);
     assert_kernel(
