@@ -498,6 +498,40 @@ class CheckTheoremMap(unittest.TestCase):
                 got = self.tree_unreached({"formalization_lean/main.rs": main, f"formalization_lean/{where}": tagged})
                 self.assertEqual(got, expected, f"main.rs {main!r}, tagged file at {where}")
 
+    def test_inline_mod_block_children_resolve_where_rustc_finds_them(self) -> None:
+        """The locations `cargo build` (rustc 1.100.0) accepts for `#[path = "x.rs"] mod b;` and `mod c;` inside
+        `mod a { … }`, declared in the root `main.rs`, in `foo.rs` reached by `mod foo;`, and in `q/foo.rs` reached
+        by `#[path = "q/foo.rs"] mod p;`; each other location listed is one it rejects."""
+        tagged = TAG + "#[test]\nfn w() {}\n"
+        inline = 'mod a {\n    #[path = "x.rs"]\n    mod b;\n    mod c;\n}\n'
+        roots = {
+            "root": {"main.rs": inline},
+            "foo.rs": {"main.rs": "mod foo;\n", "foo.rs": inline},
+            "#[path] q/foo.rs": {"main.rs": '#[path = "q/foo.rs"]\nmod p;\n', "q/foo.rs": inline},
+        }
+        for declaring, where, reached in (
+            ("root", "a/x.rs", True),
+            ("root", "x.rs", False),
+            ("root", "a/c.rs", True),
+            ("root", "c.rs", False),
+            ("foo.rs", "foo/a/x.rs", True),
+            ("foo.rs", "x.rs", False),
+            ("foo.rs", "a/x.rs", False),
+            ("foo.rs", "foo/x.rs", False),
+            ("foo.rs", "foo/a/c.rs", True),
+            ("foo.rs", "a/c.rs", False),
+            ("foo.rs", "foo/c.rs", False),
+            ("#[path] q/foo.rs", "q/a/x.rs", True),
+            ("#[path] q/foo.rs", "q/foo/a/x.rs", False),
+            ("#[path] q/foo.rs", "q/a/c.rs", True),
+            ("#[path] q/foo.rs", "q/foo/a/c.rs", False),
+        ):
+            with self.subTest(declaring=declaring, where=where):
+                files = {f"formalization_lean/{name}": text for name, text in roots[declaring].items()}
+                got = self.tree_unreached(files | {f"formalization_lean/{where}": tagged})
+                expected = [] if reached else [f"formalization_lean/{where}"]
+                self.assertEqual(got, expected, f"inline block in {declaring}, tagged file at {where}")
+
     def test_table_root_suppresses_the_auto_target_of_that_root(self) -> None:
         cargo = CARGO + '\n[[test]]\nname = "fl"\npath = "tests/formalization_lean/main.rs"\n'
         with tempfile.TemporaryDirectory() as tmp:

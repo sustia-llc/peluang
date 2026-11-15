@@ -216,6 +216,17 @@ class MapRows(unittest.TestCase):
             _, failures = pa.check(root)
         self.assertEqual(failures, ["THEOREM_MAP.md:3: table line is not a row `| <id> | <test> | <anchor> |`"])
 
+    def test_check_reports_missing_table_header(self) -> None:
+        output = f"{ALLOWED_ROW}\nMODULE\tPeluang\n"
+        table = "# THEOREM_MAP\n\n| Rust test | Lean id | anchor |\n|---|---|---|\n"
+        with mock.patch.object(pa, "run_lake", lake_ok(output)), tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "lean").mkdir()
+            (root / "lean" / "Peluang.lean").write_text("", encoding="utf-8")
+            (root / "THEOREM_MAP.md").write_text(table, encoding="utf-8")
+            _, failures = pa.check(root)
+        self.assertEqual(failures, ["THEOREM_MAP.md: no `| Lean id` table header"])
+
 
 class Layout(unittest.TestCase):
     def test_module_names_match_library_files(self) -> None:

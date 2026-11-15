@@ -1,15 +1,73 @@
 //! Witnesses of the `Deterministic` instances of
 //! `Peluang.Deterministic.Lemmas` at the running example: `is_deterministic` and
-//! the literal of each morphism.
+//! the literal of each morphism. Also the panic message of
+//! `assert_deterministic` when `is_deterministic` returns an error.
 
-use peluang::error::Result;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+use peluang::deterministic::is_deterministic;
+use peluang::error::{Error, Result};
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
 use peluang::markov::Tensor;
+use peluang::prob::Exact;
 
 use crate::fixtures::{
     assert_deterministic, assert_kernel, d, e, lit, obj_s, obj_t, obj_w, points, r, s,
 };
+
+/// `assert_deterministic` on the point mass `I → [2^19]`, where building
+/// `Δ[2^19]` returns `Error::TooLarge` for `2^19 * 2^38` weights, panics
+/// with `is_deterministic(<name>) on ` first and
+/// `: expected Ok(<expected>), observed Err(<the error>)` last, for both
+/// expected values.
+#[test]
+fn assert_deterministic_names_the_call_and_expected_value_on_an_error() -> Result<()> {
+    let wide = Kernel::<Exact>::from_fn(FinObj::unit(), FinObj::new(1 << 19), |_| 0)?;
+    let got = is_deterministic(&wide);
+    assert!(
+        matches!(
+            got,
+            Err(Error::TooLarge {
+                fst: 524_288,
+                snd: 274_877_906_944,
+                source: Some(_)
+            })
+        ),
+        "is_deterministic(I → [2^19]): expected Err(TooLarge {{ fst: 524288, snd: 274877906944, \
+         source: Some(_) }}), observed {got:?}"
+    );
+    let err = got.err().map(|e| format!("{e:?}")).unwrap_or_default();
+    for expected in [true, false] {
+        let message = match catch_unwind(AssertUnwindSafe(|| {
+            assert_deterministic("wide", &wide, expected);
+        })) {
+            Ok(()) => String::from("(no panic)"),
+            Err(payload) => payload
+                .downcast::<String>()
+                .map_or_else(|_| String::from("(non-String payload)"), |m| *m),
+        };
+        let (head, tail) = (
+            "is_deterministic(wide) on ",
+            format!(": expected Ok({expected}), observed Err({err})"),
+        );
+        let shown = |m: &str| {
+            let cut = m.char_indices().rev().nth(199).map_or(0, |(i, _)| i);
+            format!(
+                "{:?} … {:?}",
+                m.chars().take(40).collect::<String>(),
+                &m[cut..]
+            )
+        };
+        assert!(
+            message.starts_with(head) && message.ends_with(&tail),
+            "assert_deterministic(wide, {expected}): expected a panic message starting {head:?} and \
+             ending {tail:?}, observed {}",
+            shown(&message)
+        );
+    }
+    Ok(())
+}
 
 /// THEOREM_MAP: CategoryTheory.Deterministic.instCopy
 #[test]

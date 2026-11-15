@@ -181,6 +181,34 @@ fn witness_almost_surely_eq_iff() -> Result<()> {
         );
     }
 
+    let s_flip = lit(
+        obj_w()?,
+        obj_s()?,
+        &[
+            &[r(2, 3), r(1, 3)],
+            &[r(1, 1), r(0, 1)],
+            &[r(0, 1), r(1, 1)],
+        ],
+    )?;
+    assert_column("q, sunny reached", &q, 0, &[r(1, 2), r(1, 2), r(0, 1)]);
+    assert_column("s at sunny", &s, 0, &[r(1, 3), r(2, 3)]);
+    assert_column("s_flip at sunny", &s_flip, 0, &[r(2, 3), r(1, 3)]);
+    assert_as_equal(
+        "as_equal(q, s_flip, s), equal support at sunny",
+        &q,
+        &s_flip,
+        &s,
+        false,
+    );
+    let (lhs, rhs) = (copy_whisker(&q, &s_flip)?, copy_whisker(&q, &s)?);
+    let def = lhs == rhs;
+    assert!(
+        !def,
+        "Def. 13.1 for (s_flip, s): expected q ≫ Δ[W] ≫ (s_flip ▷ W) == q ≫ Δ[W] ≫ (s ▷ W) to be false, observed {def}: {} vs {}",
+        show(&lhs),
+        show(&rhs)
+    );
+
     assert_as_equal("as_equal(c, s'', s)", &c()?, &s2, &s, false);
     assert_as_equal(
         "as_equal(c, s', s), rainy reached only from cold",
