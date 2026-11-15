@@ -156,6 +156,18 @@ python3 -I scripts/print_axioms.py
 python3 -I scripts/probe_selftest.py
 ```
 
+## Examples
+
+`examples/weather_sprinkler.rs` builds the running example on `Exact`
+weights through the public API: the temperature state `psi_t : I → T`, the
+weather kernel `c : T → W` and the sprinkler kernel `s : W → S`. It prints
+the weather state, the sprinkler state, the joint state on `W ⊗ S` and its
+two marginals. Each marginal equals its composite.
+
+```sh
+cargo run --example weather_sprinkler
+```
+
 ## Documentation
 
 `cargo doc --no-deps --open`. The Lean library's statements are the

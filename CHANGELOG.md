@@ -6,6 +6,36 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- `examples/weather_sprinkler.rs`: the running example composed and
+  marginalized through the public API, and a README Examples section.
+- `scripts/print_axioms.py` fails when the Lean id of a `THEOREM_MAP.md` row
+  without the `mathlib:` prefix is not a constant of a `Peluang` /
+  `Peluang.*` module.
+- `scripts/check_theorem_map.py` fails when a `[[test]]` target with
+  `required-features` holds a placed witness tag.
+- `lean/PeluangTest/Markov/Derived.lean`: the generic `marginalFst` case at
+  a nested tensor codomain `X ⊗ (Y₁ ⊗ Y₂)`.
+- Pool tests: an `Exact` sum and compose inside `Executor::run`, and a sum
+  at `PAR_THRESHOLD` on a 1-thread executor.
+- Law tests: the associator law at cards `(2, 3, 4)`, and the `copy` and
+  `del` laws at `FinObj::unit()`.
+- `tests/too_large.rs`: the refused codomain reservation of
+  `Tensor::tensor`.
+
+### Changed
+
+- `Error` is `#[non_exhaustive]`. A downstream `match` on it needs a
+  wildcard arm.
+- `Kernel::approx_eq` returns `false` when the data lengths differ.
+- The `Executor::run` docstring states that a future dropped before it
+  resolves discards the return value and the panic of `f`.
+- `linter.peluangTest.verbose` turns on only when set to `true`;
+  `linter.all` does not set it. The `PeluangTest` audit names modules with
+  `Lean.moduleNameOfFileName`.
+- The CI Lean build step no longer removes `Audit.trace`.
+
 ## [0.4.2] - 2026-11-14
 
 ### Added
