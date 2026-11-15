@@ -1,7 +1,8 @@
 //! `prob::sum_with`: the parallel and sequential branches agree on exact
 //! rational term vectors across the `PAR_THRESHOLD` boundary. `prob::sum`
-//! over unit terms runs no add on a rayon worker at `PAR_THRESHOLD - 1` terms
-//! and at least one at `PAR_THRESHOLD`. Outside a rayon pool, `prob::sum` and
+//! over unit terms records at least one add at `PAR_THRESHOLD - 1` and at
+//! `PAR_THRESHOLD` terms, runs no add on a rayon worker at the first and at
+//! least one at the second. Outside a rayon pool, `prob::sum` and
 //! `prob::sum_with(_, true)` at `PAR_THRESHOLD` terms and
 //! `prob::sum_with(_, true)` at 2 terms run exactly one add off a worker, the
 //! last add, on the calling thread; `prob::sum_with(_, true)` at 1 term runs
@@ -64,9 +65,14 @@ mod dispatch {
     };
 
     /// Runs `sum` over `len` unit terms; whether any `add` ran on a rayon
-    /// worker.
+    /// worker. Panics when no `add` was recorded.
     fn sum_ran_on_worker(len: usize) -> bool {
-        add_sites(len, sum).iter().any(|site| site.on_worker)
+        let sites = add_sites(len, sum);
+        assert!(
+            !sites.is_empty(),
+            "sum over {len} terms: expected a non-empty record, observed {sites:?}"
+        );
+        sites.iter().any(|site| site.on_worker)
     }
 
     /// Clears `log`, runs `op`; whether any `add` ran on a rayon worker.

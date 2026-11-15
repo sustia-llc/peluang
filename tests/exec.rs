@@ -3,28 +3,35 @@
 //! for `0`), and resume their panics on the awaiting task. Over
 //! `PAR_THRESHOLD` unit terms inside `Executor::run`, `prob::sum` and
 //! `prob::sum_with(_, true)` record more adds than a sequential run, each on
-//! a `peluang-exec-*` thread that reports the executor's pool size. Over the
+//! a `peluang-exec-*` thread that reports the executor's pool size, on an
+//! executor of 1 thread and of the global pool size plus 1. Over the
 //! same terms outside it, they run no add on `peluang-exec-*`, the last add on
 //! the calling thread, and every other add on a worker that reports the global
 //! pool size. Inside `Executor::run`, `prob::sum_with(_, true)` over 1 and 2
 //! terms runs every add on `peluang-exec-*`. `Executor` supports `#[derive(Debug)]` on a struct that holds
 //! it. `Compose::compose` inside `Executor::run` with a middle object of
 //! `PAR_THRESHOLD` elements records more adds than a sequential run, each on a
-//! `peluang-exec-*` thread that reports the executor's pool size.
+//! `peluang-exec-*` thread that reports the executor's pool size. On `Exact`
+//! weights inside `Executor::run`, `prob::sum` and `prob::sum_with(_, true)`
+//! over the telescoping terms of `PAR_THRESHOLD - 1`, `PAR_THRESHOLD` and
+//! `3 * PAR_THRESHOLD + 7` elements equal their closed form, and a state on
+//! such an object composed with `Kernel::del` is the weight 1.
 
 #![cfg(feature = "async")]
 
+mod common;
 mod probe;
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use common::{closed_form, telescoping};
 use peluang::error::Result;
 use peluang::exec::Executor;
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
 use peluang::markov::Compose;
-use peluang::prob::{PAR_THRESHOLD, sum_with};
+use peluang::prob::{Exact, PAR_THRESHOLD, Prob, sum, sum_with};
 use probe::{AddLog, ROUTES, add_sites, names, off_worker, point_mass, thread_name, unit_terms};
 use tokio_rayon::rayon;
 
@@ -75,9 +82,11 @@ async fn run_resumes_panic_on_awaiting_task() {
     exec.run(|| panic!("peluang-exec job panicked")).await;
 }
 
-#[tokio::test]
-async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
-    let exec_size = rayon::current_num_threads() + 1;
+/// Asserts that `prob::sum` and `prob::sum_with(_, true)` over `PAR_THRESHOLD`
+/// unit terms inside `Executor::run` on an executor of `exec_size` threads
+/// total `PAR_THRESHOLD`, record more adds than a sequential run, and run each
+/// add on `peluang-exec-*` seeing the pool size `exec_size`.
+async fn assert_sum_inside_run_stays_on_pool(exec_size: usize) -> Result<()> {
     let exec = Executor::with_num_threads(exec_size)?;
     let mut observed = Vec::new();
     for (route, reduce) in ROUTES {
@@ -98,6 +107,48 @@ async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
         "expected total = {PAR_THRESHOLD}, more than {} records (a sequential run records exactly that many), every add on peluang-exec-* and every add seeing the executor size {exec_size}, observed (held, route, total, records, off-pool names, pool sizes): {observed:?}",
         PAR_THRESHOLD + 1
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn sum_inside_run_stays_on_executor_pool() -> Result<()> {
+    assert_sum_inside_run_stays_on_pool(rayon::current_num_threads() + 1).await
+}
+
+#[tokio::test]
+async fn sum_inside_run_on_one_thread_executor_stays_on_it() -> Result<()> {
+    assert_sum_inside_run_stays_on_pool(1).await
+}
+
+#[tokio::test]
+async fn exact_sums_inside_run_are_exact() -> Result<()> {
+    let exec = Executor::new()?;
+    type ExactRoute = fn(&[Exact]) -> Exact;
+    let routes: [(&str, ExactRoute); 2] =
+        [("sum", sum), ("sum_with", |terms| sum_with(terms, true))];
+    for n in [PAR_THRESHOLD - 1, PAR_THRESHOLD, 3 * PAR_THRESHOLD + 7] {
+        let want = closed_form(n);
+        for (route, reduce) in routes {
+            let terms = telescoping(n);
+            let total = exec.run(move || reduce(&terms)).await;
+            assert_eq!(
+                total, want,
+                "{route} over {n} telescoping terms inside run: expected {want}, observed {total}"
+            );
+        }
+        let mut weights = telescoping(n - 1);
+        weights.push(Exact::new(1.into(), n.into()));
+        let state = Kernel::state(FinObj::new(n), weights)?;
+        let discarded = exec
+            .run(move || state.compose(&Kernel::del(state.codomain())?))
+            .await?;
+        let weight = discarded.column(0).map(<[Exact]>::to_vec);
+        assert_eq!(
+            weight,
+            Some(vec![Exact::one()]),
+            "state on {n} elements composed with del inside run: expected the column [1], observed {weight:?}"
+        );
+    }
     Ok(())
 }
 

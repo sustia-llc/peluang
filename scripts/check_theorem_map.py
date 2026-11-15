@@ -14,9 +14,15 @@ comment other than a tag, or a single-line `#[...]` attribute is the `fn`, and
 no attribute line in between is `#[ignore]` or `#[should_panic]`; and when no
 line of a `.rs` file under tests/formalization_lean/, comments included,
 contains the text `f64-prob` or the text `cfg` at the start of a word (which
-covers `cfg_attr`). Exit 1 otherwise, printing each failure (each misplaced tag,
-and each line holding that text once, with its file and line and the text
-matched) on its own line.
+covers `cfg_attr`); and when no `[[test]]` table of Cargo.toml with a non-empty
+`required-features` has a root file that holds a placed tag. The root file is
+the table's `path`, else `tests/<name>.rs` when it exists, else
+`tests/<name>/main.rs`; it holds the tags of its own file and, for a root named
+`main.rs`, `mod.rs` or `lib.rs`, of every file under its directory, otherwise
+of every file under the directory named by its stem. Exit 1 otherwise,
+printing each failure (each misplaced tag, each line holding that text once,
+with its file and line and the text matched, each such `[[test]]` table with
+its name, and a Cargo.toml that is not valid TOML) on its own line.
 
 Usage: check_theorem_map.py [REPO_ROOT]
 """
@@ -25,6 +31,7 @@ from __future__ import annotations
 
 import re
 import sys
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -211,6 +218,51 @@ def tagged_tests(tests_root: Path) -> tuple[dict[str, list[tuple[Path, str]]], l
     return tags, failures
 
 
+def target_root(root: Path, table: dict[str, object]) -> Path | None:
+    """The root file of a `[[test]]` table: `path`, else `tests/<name>.rs` when it exists, else `tests/<name>/main.rs`."""
+    path = table.get("path")
+    if isinstance(path, str):
+        return (root / path).resolve()
+    name = table.get("name")
+    if not isinstance(name, str):
+        return None
+    flat = root / "tests" / f"{name}.rs"
+    return (flat if flat.is_file() else root / "tests" / name / "main.rs").resolve()
+
+
+def owned_by(target: Path, path: Path) -> bool:
+    """Whether the module tree rooted at `target` holds `path`."""
+    if path == target:
+        return True
+    base = target.parent if target.name in ("main.rs", "mod.rs", "lib.rs") else target.with_suffix("")
+    return path.is_relative_to(base)
+
+
+def gated_witness_targets(root: Path, tagged: set[Path]) -> list[str]:
+    cargo = root / "Cargo.toml"
+    if not cargo.is_file():
+        return []
+    try:
+        manifest = tomllib.loads(cargo.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as error:
+        return [f"{cargo}: not valid TOML: {error}"]
+    failures: list[str] = []
+    tables = manifest.get("test", [])
+    for table in tables if isinstance(tables, list) else []:
+        if not isinstance(table, dict):
+            continue
+        features = table.get("required-features")
+        if not features:
+            continue
+        target = target_root(root, table)
+        if target is not None and any(owned_by(target, path) for path in tagged):
+            failures.append(
+                f"{cargo}: [[test]] `{table.get('name', target)}` holds THEOREM_MAP witnesses and has "
+                f"required-features {features}"
+            )
+    return failures
+
+
 def check(root: Path) -> list[str]:
     failures: list[str] = []
     map_path = root / "THEOREM_MAP.md"
@@ -220,6 +272,7 @@ def check(root: Path) -> list[str]:
     failures.extend(duplicates)
     tags, test_failures = tagged_tests(root / "tests" / "formalization_lean")
     failures.extend(test_failures)
+    failures.extend(gated_witness_targets(root, {p.resolve() for found in tags.values() for (p, _) in found}))
 
     decls = library_decls(root / "lean")
     for d in decls:
