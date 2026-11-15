@@ -6,6 +6,8 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
 ### Added
 
 - `examples/weather_sprinkler.rs`: the running example composed and
@@ -331,7 +333,12 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/sustia-llc/peluang/compare/v0.4.2...v0.5.0
+[0.4.2]: https://github.com/sustia-llc/peluang/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/sustia-llc/peluang/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/sustia-llc/peluang/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/sustia-llc/peluang/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/sustia-llc/peluang/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/sustia-llc/peluang/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/sustia-llc/peluang/compare/v0.2.0...v0.2.1
