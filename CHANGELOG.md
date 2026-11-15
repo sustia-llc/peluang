@@ -39,6 +39,10 @@ git tag is the authoritative pin.
   sets it to `true`; `linter.all` does not set it. The `PeluangTest` audit names modules with
   `Lean.moduleNameOfFileName`.
 - The CI Lean build step no longer removes `Audit.trace`.
+- `docs/diagrams/lean-1-classes.svg`: `HasConditionals`, almost-sure
+  equality and the independence definitions build on `CopyDiscardCategory`,
+  which is now the hub. The badge counts match the arrows, and the legend
+  has no "planned" entry.
 
 ## [0.4.2] - 2026-11-14
 

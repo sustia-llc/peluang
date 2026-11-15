@@ -3,7 +3,22 @@
         <title id="lean-1-classes-title">Mathlib classes and the main peluang declarations</title>
         <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory through CopyDiscardCategory to MarkovCategory, the hub that PositiveCategory, Stoch and the main peluang declarations build on, with the deterministic wide subcategory, FinStoch, conditionals, almost-sure equality, isConditional_unique_as and conditional independence done.</desc>
         <defs>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
+      #lean-1-classes-root { --color-paper:   #f5f5f5;   
+      --color-ink:     #2d3142;   
+      --color-muted:   #4f5d75;   
+      --color-accent:  #bf4520;   
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace; }
+      #lean-1-classes-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #lean-1-classes-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#lean-1-classes-root .diagram-container { overflow-x: visible; }
+}</style>
           <marker id="lean-1-classes-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="lean-1-classes-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="lean-1-classes-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#f5f5f5"/>
@@ -30,12 +45,12 @@
         <path d="M 1060,204 V 180 Q 1060,172 1052,172 H 388 Q 380,172 380,180 V 204" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
         <!-- MK -> FS (outer left lane, y=316) -->
         <path d="M 572,280 V 308 Q 572,316 564,316 H 168 Q 160,316 160,324 V 400" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
-        <!-- MK -> CI (inner left lane, y=328) -->
-        <path d="M 604,280 V 320 Q 604,328 596,328 H 408 Q 400,328 400,336 V 400" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
-        <!-- MK -> HC (straight) -->
-        <line x1="640" y1="280" x2="640" y2="400" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
-        <!-- MK -> AS (inner right lane, y=328) -->
-        <path d="M 676,280 V 320 Q 676,328 684,328 H 872 Q 880,328 880,336 V 400" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- CD -> CI (left lane x=520, between ST and MK) -->
+        <path d="M 540,140 H 524 Q 520,140 520,144 V 324 Q 520,328 516,328 H 404 Q 400,328 400,332 V 400" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- CD -> HC (inner right lane x=752, between MK and PO) -->
+        <path d="M 740,140 H 748 Q 752,140 752,144 V 364 Q 752,368 748,368 H 664 Q 660,368 660,372 V 400" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- CD -> AS (outer right lane x=768, between MK and PO) -->
+        <path d="M 740,128 H 764 Q 768,128 768,132 V 324 Q 768,328 772,328 H 876 Q 880,328 880,332 V 400" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
         <!-- MK -> WS (outer right lane, y=316) -->
         <path d="M 708,280 V 308 Q 708,316 716,316 H 1080 Q 1088,316 1088,324 V 400" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
         <!-- DET -> WS (straight) -->
@@ -56,13 +71,13 @@
         <text x="476" y="93" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">1 USE</text>
         <text x="400" y="124" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">SymmetricCategory C</text>
 
-        <!-- CD: CopyDiscardCategory C -->
+        <!-- CD: CopyDiscardCategory C (focal hub) -->
         <rect x="540" y="76" width="200" height="76" rx="6" fill="#f5f5f5"/>
-        <rect x="540" y="76" width="200" height="76" rx="6" fill="#2d3142" stroke="#2d3142" stroke-width="1" fill-opacity="0.03" stroke-opacity="0.30"/>
-        <rect x="548" y="82" width="36" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
+        <rect x="540" y="76" width="200" height="76" rx="6" fill="#bf4520" stroke="#bf4520" stroke-width="1.2" fill-opacity="0.08"/>
+        <rect x="548" y="82" width="36" height="12" rx="2" fill="none" stroke="#bf4520" stroke-width="0.8" stroke-opacity="0.50"/>
         <text x="566" y="91" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">CLASS</text>
-        <rect x="700" y="84" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
-        <text x="716" y="93" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">2 USE</text>
+        <rect x="700" y="84" width="32" height="12" rx="2" fill="none" stroke="#bf4520" stroke-width="0.8" stroke-opacity="0.50"/>
+        <text x="716" y="93" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">5 USE</text>
         <text x="640" y="112" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">CopyDiscardCategory C</text>
         <text x="640" y="128" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">copy_tensor · discard_tensor</text>
         <text x="640" y="142" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">copy_unit · discard_unit</text>
@@ -76,13 +91,13 @@
         <text x="476" y="221" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">0 USE</text>
         <text x="400" y="252" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">Stoch</text>
 
-        <!-- MK: MarkovCategory C (focal hub) -->
+        <!-- MK: MarkovCategory C -->
         <rect x="540" y="204" width="200" height="76" rx="6" fill="#f5f5f5"/>
-        <rect x="540" y="204" width="200" height="76" rx="6" fill="#bf4520" stroke="#bf4520" stroke-width="1.2" fill-opacity="0.08"/>
-        <rect x="548" y="210" width="36" height="12" rx="2" fill="none" stroke="#bf4520" stroke-width="0.8" stroke-opacity="0.50"/>
+        <rect x="540" y="204" width="200" height="76" rx="6" fill="#2d3142" stroke="#2d3142" stroke-width="1" fill-opacity="0.03" stroke-opacity="0.30"/>
+        <rect x="548" y="210" width="36" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="566" y="219" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">CLASS</text>
-        <rect x="700" y="212" width="32" height="12" rx="2" fill="none" stroke="#bf4520" stroke-width="0.8" stroke-opacity="0.50"/>
-        <text x="716" y="221" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">7 USE</text>
+        <rect x="700" y="212" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
+        <text x="716" y="221" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">4 USE</text>
         <text x="640" y="240" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">MarkovCategory C</text>
         <text x="640" y="256" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">+ discard_natural</text>
         <text x="640" y="270" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Def. 2.1</text>
@@ -168,7 +183,7 @@
         <rect x="668" y="530" width="28" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="682" y="539" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">THM</text>
         <rect x="820" y="532" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
-        <text x="836" y="541" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">1 USE</text>
+        <text x="836" y="541" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">0 USE</text>
         <text x="760" y="564" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">isConditional_unique_as</text>
         <text x="760" y="582" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">_unit: Fritz Prop. 13.7</text>
 
@@ -182,16 +197,13 @@
         <rect x="184" y="672" width="24" height="12" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
         <text x="216" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">peluang, done (lean/Peluang/)</text>
 
-        <rect x="552" y="672" width="24" height="12" rx="2" fill="#2d3142" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3" fill-opacity="0.02" stroke-opacity="0.20"/>
-        <text x="584" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">peluang, planned (dashed)</text>
+        <rect x="400" y="672" width="24" height="12" rx="2" fill="#bf4520" stroke="#bf4520" stroke-width="1" fill-opacity="0.08"/>
+        <text x="432" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">Focal: the hub</text>
 
-        <rect x="800" y="672" width="24" height="12" rx="2" fill="#bf4520" stroke="#bf4520" stroke-width="1" fill-opacity="0.08"/>
-        <text x="832" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">Focal: the hub</text>
+        <line x1="524" y1="678" x2="552" y2="678" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <text x="560" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">A → B: B builds on A</text>
 
-        <line x1="924" y1="678" x2="952" y2="678" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
-        <text x="960" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">A → B: B builds on A</text>
-
-        <rect x="1080" y="672" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
-        <text x="1096" y="681" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">n USE</text>
-        <text x="1120" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">n nodes build on it</text>
+        <rect x="680" y="672" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
+        <text x="696" y="681" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">n USE</text>
+        <text x="720" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">n nodes build on it</text>
       </svg>
