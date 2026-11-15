@@ -22,7 +22,8 @@ imports this module:
 * Check B (a stateful linter): a command after which the current module holds a constant
   (`env.constants.map₂`) that it did not hold before the command is an error.
 
-With `linter.peluangTest.verbose` set, Check A logs one info message per inspected hidden constant.
+With `linter.peluangTest.verbose` set to `true` (`linter.all` does not set it), Check A
+logs one info message per inspected hidden constant.
 
 In every `PeluangTest` module that imports this module, `#guard_msgs` and `#guard_panic` are errors
 unless the module is in the plant list `plants`.
@@ -81,7 +82,7 @@ post-command environment depends only on axioms in `allowedAxioms`, and has an `
 component. -/
 def exampleAxiomsLinter : Linter where run stx := do
   unless ← inTestLibrary do return
-  let verbose := getLinterValue linter.peluangTest.verbose (← getLinterOptions)
+  let verbose := linter.peluangTest.verbose.get (← getOptions)
   let post ← getEnv
   let mut seen : NameSet := {}
   for tree in (← getInfoTrees) do
@@ -161,13 +162,6 @@ def plants : List Plant := [
 def isPlant (m : Name) : Bool :=
   plants.any (·.module == m)
 
-/-- The module name of the source file `p`, relative to the source root `root`. -/
-def moduleOfPath (root p : System.FilePath) : Option Name := do
-  let rel ← (p.toString.dropPrefix? (root.toString ++ "/")).map (·.toString)
-  guard (rel.endsWith ".lean")
-  let parts := (System.FilePath.mk rel).withExtension "" |>.components
-  return parts.foldl Name.str .anonymous
-
 /-- The commands of the source file `path` after its header up to the end of input, `#exit`
 included, parsed with Lean's parser in `env`, and the parser messages. -/
 def parseCommands (env : Environment) (path : System.FilePath) :
@@ -207,8 +201,14 @@ def audit (stx : Syntax) : CommandElabM Unit := do
   let files := (← dir.walkDir).filter (·.extension == some "lean") |>.push (dir.addExtension "lean")
   let plantDir := (dir / "Plant").toString ++ "/"
   for f in files do
-    let some m := moduleOfPath srcRoot f
-      | logErrorAt stx m!"peluangTest audit: no module name for {f}"
+    unless f.extension == some "lean" do
+      logErrorAt stx m!"peluangTest audit: no module name for {f}"
+      continue
+    let some m ← try pure (some (← moduleNameOfFileName f srcRoot))
+        catch e => do
+          logErrorAt stx m!"peluangTest audit: no module name for {f}: {e.toMessageData}"
+          pure none
+      | continue
     if m != main && (env.header.moduleNames.contains m).not then
       logErrorAt stx m!"peluangTest audit: {f} (module {m}) is not imported by {main}"
     if f.toString.startsWith plantDir && !isPlant m then
