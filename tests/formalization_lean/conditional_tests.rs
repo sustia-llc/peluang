@@ -509,6 +509,14 @@ fn as_equal_rejects_mismatched_shapes() -> Result<()> {
 }
 
 #[test]
+#[should_panic(
+    expected = "s_with_column: expected an index below the domain card 3 of s, observed 3"
+)]
+fn s_with_column_rejects_the_domain_card() {
+    let _ = s_with_column(3, [r(1, 1), r(0, 1)]);
+}
+
+#[test]
 fn conditional_rejects_a_wrong_split() -> Result<()> {
     let (w, sp) = (obj_w()?, obj_s()?);
     let f = f()?;
