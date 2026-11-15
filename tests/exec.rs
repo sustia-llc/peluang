@@ -15,15 +15,28 @@
 //! weights inside `Executor::run`, `prob::sum` and `prob::sum_with(_, true)`
 //! over the telescoping terms of `PAR_THRESHOLD - 1`, `PAR_THRESHOLD` and
 //! `3 * PAR_THRESHOLD + 7` elements equal their closed form, and a state on
-//! such an object composed with `Kernel::del` is the weight 1.
+//! such an object composed with `Kernel::del` is the weight 1. On a 1-thread
+//! executor, a future of `Executor::run` dropped unpolled does not run its
+//! closure before a later `run` on the same executor completes; one dropped
+//! after one `Pending` poll runs its closure and drops the return value on
+//! `peluang-exec-0`; and a panic of the closure of such a future reaches the
+//! panic hook on `peluang-exec-0` and does not unwind the thread that dropped
+//! it.
 
 #![cfg(feature = "async")]
 
 mod common;
 mod probe;
 
+use std::any::Any;
 use std::collections::BTreeSet;
-use std::sync::Arc;
+use std::future::Future;
+use std::panic::{self, AssertUnwindSafe};
+use std::pin::{Pin, pin};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
+use std::task::{Context, Poll, Waker};
+use std::time::Duration;
 
 use common::{closed_form, telescoping};
 use peluang::error::Result;
@@ -37,6 +50,115 @@ use tokio_rayon::rayon;
 
 fn on_exec_thread(name: Option<&str>) -> bool {
     name.is_some_and(|n| n.starts_with("peluang-exec-"))
+}
+
+/// How long a test waits for a pool thread before it reports a timeout.
+const WAIT: Duration = Duration::from_secs(10);
+
+/// Polls `fut` once with a waker that does nothing, discarding a ready value.
+fn poll_once<F: Future>(fut: Pin<&mut F>) -> Poll<()> {
+    fut.poll(&mut Context::from_waker(Waker::noop())).map(drop)
+}
+
+/// The text of a `&str` or `String` panic payload.
+fn payload_text(payload: &(dyn Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|s| (*s).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "<non-string payload>".to_owned())
+}
+
+/// A return value that sends the name of the thread that drops it.
+struct DropProbe(mpsc::Sender<Option<String>>);
+
+impl Drop for DropProbe {
+    fn drop(&mut self) {
+        let _sent = self.0.send(thread_name());
+    }
+}
+
+#[tokio::test]
+async fn future_dropped_unpolled_does_not_run_f() -> Result<()> {
+    let exec = Executor::with_num_threads(1)?;
+    let ran = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&ran);
+    drop(exec.run(move || flag.store(true, Ordering::SeqCst)));
+    let barrier = exec.run(|| 7).await;
+    let observed = ran.load(Ordering::SeqCst);
+    assert!(
+        barrier == 7 && !observed,
+        "expected the later run to return 7 and the dropped future's closure not to have run, observed (later run, closure ran) = ({barrier}, {observed})"
+    );
+    Ok(())
+}
+
+#[test]
+fn future_dropped_after_first_poll_runs_f_and_drops_its_value_on_the_pool() -> Result<()> {
+    let exec = Executor::with_num_threads(1)?;
+    let (go_tx, go_rx) = mpsc::channel::<()>();
+    let (drop_tx, drop_rx) = mpsc::channel();
+    let polled = {
+        let mut fut = pin!(exec.run(move || {
+            let _gate = go_rx.recv_timeout(WAIT);
+            DropProbe(drop_tx)
+        }));
+        poll_once(fut.as_mut())
+    };
+    let released = go_tx.send(()).is_ok();
+    let dropped_on = drop_rx.recv_timeout(WAIT);
+    assert_eq!(
+        (polled, released, dropped_on.clone()),
+        (Poll::Pending, true, Ok(Some("peluang-exec-0".to_owned()))),
+        "expected the first poll Pending, the closure still waiting after the future was dropped, and its return value dropped on peluang-exec-0, observed (first poll, closure still waiting, dropping thread) = {:?}",
+        (polled, released, dropped_on)
+    );
+    Ok(())
+}
+
+#[test]
+fn panic_after_drop_reaches_only_the_panic_hook() -> Result<()> {
+    const MESSAGE: &str = "peluang-exec orphaned panic";
+    let (seen_tx, seen_rx) = mpsc::channel::<String>();
+    let seen_tx = Mutex::new(seen_tx);
+    let previous = Arc::new(panic::take_hook());
+    let chained = Arc::clone(&previous);
+    panic::set_hook(Box::new(move |info| {
+        let text = payload_text(info.payload());
+        if text == MESSAGE {
+            if let Ok(tx) = seen_tx.lock() {
+                let _sent = tx.send(format!("{}: {text}", thread_name().unwrap_or_default()));
+            }
+        } else {
+            chained(info);
+        }
+    }));
+
+    let exec = Executor::with_num_threads(1)?;
+    let (go_tx, go_rx) = mpsc::channel::<()>();
+    let outcome = panic::catch_unwind(AssertUnwindSafe(|| {
+        let mut fut = pin!(exec.run(move || {
+            let _gate = go_rx.recv_timeout(WAIT);
+            panic!("{MESSAGE}");
+        }));
+        let polled = poll_once(fut.as_mut());
+        go_tx
+            .send(())
+            .expect("the closure holds the receiver until it runs");
+        polled
+    }))
+    .map_err(|payload| payload_text(&*payload));
+    let seen = seen_rx.recv_timeout(WAIT);
+
+    drop(panic::take_hook());
+    panic::set_hook(Box::new(move |info| previous(info)));
+    assert_eq!(
+        (outcome.clone(), seen.clone()),
+        (Ok(Poll::Pending), Ok(format!("peluang-exec-0: {MESSAGE}"))),
+        "expected the dropping thread not to unwind after a Pending first poll and the hook to see the panic on peluang-exec-0, observed (dropping thread, hook) = {:?}",
+        (outcome, seen)
+    );
+    Ok(())
 }
 
 #[tokio::test]

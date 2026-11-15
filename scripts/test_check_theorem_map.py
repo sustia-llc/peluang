@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_theorem_map as ctm  # noqa: E402
@@ -423,6 +424,118 @@ class CheckTheoremMap(unittest.TestCase):
         }
         failures = self.run_case(lean=None, row=None, test=None, others=others)
         self.assertEqual(self.unreached(failures), [f"deep/witness.rs: {UNREACHED}"], f"failures: {failures}")
+
+    def tree_unreached(self, files: dict[str, str]) -> list[str]:
+        """The unreached tagged files of a tree holding only `files` (paths under `tests/`) and CARGO."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            build(root, lean=None, row=None, test=None)
+            for name, text in files.items():
+                path = root / "tests" / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+            failures = ctm.check(root)
+        others = [f for f in failures if UNREACHED not in f]
+        self.assertEqual(others, [], f"unexpected failures: {failures}")
+        return [f.partition("/tests/")[2].removesuffix(f": {UNREACHED}") for f in failures]
+
+    def test_commented_out_mod_is_unreached(self) -> None:
+        tagged = TAG + "#[test]\nfn w() {}\n"
+        for main, expected in (
+            ("/*\nmod w;\n*/\n", ["formalization_lean/w.rs"]),
+            ("/* outer /* nested */\nmod w;\n*/\n", ["formalization_lean/w.rs"]),
+            ("/* end;\nmod w;\n*/\n", ["formalization_lean/w.rs"]),
+            ("/* outer /* nested */ end;\nmod w;\n*/\n", ["formalization_lean/w.rs"]),
+            ("// mod w;\n", ["formalization_lean/w.rs"]),
+            ("// a brace {\nmod w;\n", []),
+            ("/* note */ mod w;\n", []),
+            ("mod /* note */ w;\n", []),
+        ):
+            with self.subTest(main=main):
+                got = self.tree_unreached({"formalization_lean/main.rs": main, "formalization_lean/w.rs": tagged})
+                self.assertEqual(got, expected, f"main.rs {main!r}")
+
+    def test_cfg_gated_mod_is_unreached(self) -> None:
+        tagged = TAG + "#[test]\nfn w() {}\n"
+        path = '#[path = "formalization_lean/w.rs"]'
+        for root_file, expected in (
+            (f'#[cfg(feature = "x")] {path} mod w;\n', ["formalization_lean/w.rs"]),
+            (f'#[cfg(feature = "x")]\n{path}\nmod w;\n', ["formalization_lean/w.rs"]),
+            (f'{path}\n#[cfg(feature = "x")]\nmod w;\n', ["formalization_lean/w.rs"]),
+            ("#[cfg(test)]\nmod formalization_lean {\n    mod w;\n}\n", ["formalization_lean/w.rs"]),
+            ("#[cfg(test)]\nmod formalization_lean {\n    mod inner {\n        #[path = \"../w.rs\"] mod w;\n    }\n}\n",
+             ["formalization_lean/w.rs"]),
+            (f"{path} mod w;\n", []),
+            ("mod formalization_lean {\n    mod w;\n}\n", []),
+            ('#[cfg_attr(feature = "x", allow(dead_code))]\n' + f"{path} mod w;\n", []),
+        ):
+            with self.subTest(root_file=root_file):
+                got = self.tree_unreached({"witness.rs": root_file, "formalization_lean/w.rs": tagged})
+                self.assertEqual(got, expected, f"tests/witness.rs {root_file!r}")
+
+    def test_same_line_path_attribute_is_followed(self) -> None:
+        tagged = TAG + "#[test]\nfn w() {}\n"
+        for main in ('#[path = "deep/w.rs"] mod w;\n', '#[allow(unused)] #[path = "deep/w.rs"] pub mod w;\n'):
+            with self.subTest(main=main):
+                got = self.tree_unreached({"formalization_lean/main.rs": main, "formalization_lean/deep/w.rs": tagged})
+                self.assertEqual(got, [], f"main.rs {main!r}")
+
+    def test_inline_mod_block_resolves_children_under_its_name(self) -> None:
+        tagged = TAG + "#[test]\nfn w() {}\n"
+        for main, where, expected in (
+            ("mod outer {\n    mod w;\n}\n", "outer/w.rs", []),
+            ("mod outer {\n    mod w;\n}\n", "w.rs", ["formalization_lean/w.rs"]),
+            ("mod outer {\nmod w;\n}\n", "outer/w.rs", []),
+            ("mod outer { mod w; }\n", "outer/w.rs", []),
+            ("pub mod a {\n    mod b {\n        mod w;\n    }\n}\n", "a/b/w.rs", []),
+            ("mod outer {\n    fn f() {}\n}\nmod w;\n", "w.rs", []),
+            ("mod outer {\n    fn f() {}\n}\nmod w;\n", "outer/w.rs", ["formalization_lean/outer/w.rs"]),
+            ("mod outer {\n    const S: &str = \"}\";\n    const C: char = '}';\n    mod w;\n}\n", "outer/w.rs", []),
+            ("fn f() {\n    mod w;\n}\n", "w.rs", ["formalization_lean/w.rs"]),
+            ("mod outer {\n    #[path = \"x/w.rs\"]\n    mod w;\n}\n", "outer/x/w.rs", []),
+        ):
+            with self.subTest(main=main, where=where):
+                got = self.tree_unreached({"formalization_lean/main.rs": main, f"formalization_lean/{where}": tagged})
+                self.assertEqual(got, expected, f"main.rs {main!r}, tagged file at {where}")
+
+    def test_table_root_suppresses_the_auto_target_of_that_root(self) -> None:
+        cargo = CARGO + '\n[[test]]\nname = "fl"\npath = "tests/formalization_lean/main.rs"\n'
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            build(root, lean=LEAN_FILE, row=ROW, test=TEST_FILE, cargo=cargo)
+            targets, _ = ctm.test_targets(root, ctm.tomllib.loads(cargo))
+        self.assertEqual([t.name for t in targets], ["fl"], f"targets: {targets}")
+
+    def test_each_file_is_parsed_once_across_targets(self) -> None:
+        shared = '#[path = "formalization_lean/shared.rs"] mod shared;\n'
+        files = {"a.rs": shared, "b.rs": shared, "formalization_lean/shared.rs": "mod leaf;\n", "formalization_lean/leaf.rs": ""}
+        parsed: list[Path] = []
+        real = ctm.mod_children
+
+        def counting(path: Path, base: Path) -> list[tuple[Path, Path]]:
+            parsed.append(path)
+            return real(path, base)
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(ctm, "mod_children", counting):
+            root = Path(tmp)
+            build(root, lean=None, row=None, test=None)
+            for name, text in files.items():
+                (root / "tests" / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / "tests" / name).write_text(text, encoding="utf-8")
+            ctm.witness_target_failures(root, {(root / "tests" / "formalization_lean" / "leaf.rs").resolve()})
+            counts = sorted((p.relative_to(root.resolve()).as_posix(), parsed.count(p)) for p in set(parsed))
+        self.assertEqual(
+            counts,
+            [("tests/a.rs", 1), ("tests/b.rs", 1), ("tests/formalization_lean/leaf.rs", 1), ("tests/formalization_lean/shared.rs", 1)],
+            f"parse counts per file: {counts}",
+        )
+
+    def test_table_ends_at_the_first_line_not_starting_with_a_bar(self) -> None:
+        later = "\nNotes.\n\n| Lean id | Rust test | anchor |\n|---|---|---|\n| broken row |\n| CategoryTheory.Conditional.unique_as | x | y |\n"
+        self.assertEqual(self.run_case(lean=LEAN_FILE, row=ROW + later, test=TEST_FILE), [])
+        failures = self.run_case(lean=LEAN_FILE, row="\n" + ROW, test=TEST_FILE)
+        self.assertEqual(len(failures), 1, f"a row after a blank line counted: {failures}")
+        self.assertIn("no THEOREM_MAP row", failures[0])
 
     def test_test_false_or_harness_false_on_the_witness_target_fails(self) -> None:
         for key in ("test", "harness"):

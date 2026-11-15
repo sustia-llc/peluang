@@ -12,6 +12,7 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   `cargo clippy --all-targets -- -D warnings` and `cargo nextest run`, each
   over the feature matrix: default, `--features f64-prob`,
   `--features parallel`, `--features async`, `--all-features`;
+  `cargo run --example weather_sprinkler` (exits 0);
   `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features`,
   ``rg -n '^\s*(///|//!).*`{3}' src/`` (must print nothing),
   `cargo tree --duplicates --all-features` (prints nothing).

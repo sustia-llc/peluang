@@ -143,11 +143,30 @@ class MapRows(unittest.TestCase):
         failures = pa.unresolved_rows(r, {"Peluang.Linter.allowedAxioms": 7})
         self.assertEqual(failures, [f"THEOREM_MAP.md:7: `Peluang.Linter.allowedAxioms` {NOT_A_CONSTANT}"])
 
-    def test_private_constant_resolves_only_by_its_full_name(self) -> None:
+    def test_private_constant_resolves_only_by_its_display_name(self) -> None:
         full = "_private.Peluang.X.0.Peluang.h"
         r = probe("MODULE\tPeluang.X", f"CONST\t{full}\tPeluang.X\ttrue\t-\t")
         failures = pa.unresolved_rows(r, {"Peluang.h": 9, full: 10})
-        self.assertEqual(failures, [f"THEOREM_MAP.md:9: `Peluang.h` {NOT_A_CONSTANT}"])
+        self.assertEqual(failures, [f"THEOREM_MAP.md:10: `{full}` {NOT_A_CONSTANT}"])
+
+    def test_private_theorem_row_passes_print_axioms_and_check_theorem_map(self) -> None:
+        source = "namespace Peluang\nprivate theorem h : True := trivial\nend Peluang\n"
+        output = f"{ALLOWED_ROW}\nMODULE\tPeluang\nCONST\t_private.Peluang.0.Peluang.h\tPeluang\ttrue\t2:0:2:16:2:17\t\n"
+        table = "| Lean id | Rust test | anchor |\n|---|---|---|\n| Peluang.h | tests/formalization_lean/a.rs::h | x |\n"
+        witness = "/// THEOREM_MAP: Peluang.h\n#[test]\nfn h() {}\n"
+        with mock.patch.object(pa, "run_lake", lake_ok(output)), tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "lean").mkdir()
+            (root / "lean" / "Peluang.lean").write_text(source, encoding="utf-8")
+            (root / "THEOREM_MAP.md").write_text(table, encoding="utf-8")
+            (root / "Cargo.toml").write_text('[package]\nname = "p"\nversion = "0.1.0"\n', encoding="utf-8")
+            tests = root / "tests" / "formalization_lean"
+            tests.mkdir(parents=True)
+            (tests / "main.rs").write_text("mod a;\n", encoding="utf-8")
+            (tests / "a.rs").write_text(witness, encoding="utf-8")
+            count, axiom_failures = pa.check(root)
+            map_failures = pa.ctm.check(root)
+        self.assertEqual((count, axiom_failures, map_failures), (1, [], []))
 
     def test_current_table_passes_and_each_row_is_checked(self) -> None:
         rows = {i: line for i, (_, line) in pa.ctm.map_rows(REPO / "THEOREM_MAP.md")[0].items()}
@@ -240,6 +259,26 @@ class Freshness(unittest.TestCase):
         self.assertEqual(len(failures), 2, f"failures: {failures}")
         self.assertIn("stale", failures[0])
         self.assertEqual(failures[1], missing, f"failures: {failures}")
+
+    def test_lake_that_cannot_run_still_reports_missing_map(self) -> None:
+        def fake_run_lake(args: list[str], lean_dir: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+            raise OSError("no lake")
+
+        with mock.patch.object(pa, "run_lake", fake_run_lake), tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "lean").mkdir()
+            _, failures = pa.check(Path(tmp))
+            expected = [f"could not run `lake` in {Path(tmp) / 'lean'}: no lake", f"{Path(tmp) / 'THEOREM_MAP.md'}: missing"]
+        self.assertEqual(failures, expected)
+
+    def test_failing_probe_still_reports_missing_map(self) -> None:
+        def fake_run_lake(args: list[str], lean_dir: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(["lake", *args], 1 if args[0] == "env" else 0, "", "boom")
+
+        with mock.patch.object(pa, "run_lake", fake_run_lake), tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "lean").mkdir()
+            _, failures = pa.check(Path(tmp))
+            expected = ["lean exited 1:\nboom", f"{Path(tmp) / 'THEOREM_MAP.md'}: missing"]
+        self.assertEqual(failures, expected)
 
 
 if __name__ == "__main__":
