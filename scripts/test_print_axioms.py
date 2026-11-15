@@ -225,7 +225,9 @@ class MapRows(unittest.TestCase):
             (root / "lean" / "Peluang.lean").write_text("", encoding="utf-8")
             (root / "THEOREM_MAP.md").write_text(table, encoding="utf-8")
             _, failures = pa.check(root)
-        self.assertEqual(failures, ["THEOREM_MAP.md: no `| Lean id` table header"])
+            forwarded = pa.ctm.map_rows(root / "THEOREM_MAP.md")[1]
+        self.assertEqual(len(forwarded), 1, f"map_rows failures on a headerless table: expected 1, observed {forwarded}")
+        self.assertEqual(failures, forwarded)
 
 
 class Layout(unittest.TestCase):

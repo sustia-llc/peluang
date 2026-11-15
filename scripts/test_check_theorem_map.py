@@ -482,7 +482,12 @@ class CheckTheoremMap(unittest.TestCase):
 
     def test_inline_mod_block_resolves_children_under_its_name(self) -> None:
         tagged = TAG + "#[test]\nfn w() {}\n"
+        inline = 'mod a {\n    #[path = "x.rs"]\n    mod b;\n    mod c;\n}\n'
         for main, where, expected in (
+            (inline, "a/x.rs", []),
+            (inline, "x.rs", ["formalization_lean/x.rs"]),
+            (inline, "a/c.rs", []),
+            (inline, "c.rs", ["formalization_lean/c.rs"]),
             ("mod outer {\n    mod w;\n}\n", "outer/w.rs", []),
             ("mod outer {\n    mod w;\n}\n", "w.rs", ["formalization_lean/w.rs"]),
             ("mod outer {\nmod w;\n}\n", "outer/w.rs", []),
@@ -500,20 +505,15 @@ class CheckTheoremMap(unittest.TestCase):
 
     def test_inline_mod_block_children_resolve_where_rustc_finds_them(self) -> None:
         """The locations `cargo build` (rustc 1.100.0) accepts for `#[path = "x.rs"] mod b;` and `mod c;` inside
-        `mod a { … }`, declared in the root `main.rs`, in `foo.rs` reached by `mod foo;`, and in `q/foo.rs` reached
-        by `#[path = "q/foo.rs"] mod p;`; each other location listed is one it rejects."""
+        `mod a { … }`, declared in `foo.rs` reached by `mod foo;` and in `q/foo.rs` reached by
+        `#[path = "q/foo.rs"] mod p;`; each other location listed is one it rejects."""
         tagged = TAG + "#[test]\nfn w() {}\n"
         inline = 'mod a {\n    #[path = "x.rs"]\n    mod b;\n    mod c;\n}\n'
         roots = {
-            "root": {"main.rs": inline},
             "foo.rs": {"main.rs": "mod foo;\n", "foo.rs": inline},
             "#[path] q/foo.rs": {"main.rs": '#[path = "q/foo.rs"]\nmod p;\n', "q/foo.rs": inline},
         }
         for declaring, where, reached in (
-            ("root", "a/x.rs", True),
-            ("root", "x.rs", False),
-            ("root", "a/c.rs", True),
-            ("root", "c.rs", False),
             ("foo.rs", "foo/a/x.rs", True),
             ("foo.rs", "x.rs", False),
             ("foo.rs", "a/x.rs", False),

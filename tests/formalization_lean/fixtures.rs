@@ -195,9 +195,35 @@ fn show_obj(x: &FinObj) -> String {
     format!("[{}]", factors.join(" ⊗ "))
 }
 
-/// `dom → cod`, then the columns in input order.
+/// The largest `dom.card() · cod.card()` that `show` prints in full.
+const SHOW_LIMIT: usize = 4096;
+
+/// The number of weights `show` prints for a kernel above `SHOW_LIMIT`.
+const SHOW_HEAD: usize = 16;
+
+/// `dom → cod`, then the columns in input order. Above `SHOW_LIMIT` weights:
+/// `dom → cod`, the dimensions, the first `SHOW_HEAD` weights in input order
+/// and the number of weights left out.
 pub fn show(k: &Kernel<Exact>) -> String {
-    let columns: Vec<String> = (0..k.domain().card())
+    let (dom, cod) = (k.domain().card(), k.codomain().card());
+    let total = dom.saturating_mul(cod);
+    if total > SHOW_LIMIT {
+        let head: Vec<String> = (0..dom)
+            .filter_map(|x| k.column(x))
+            .flatten()
+            .take(SHOW_HEAD)
+            .map(ToString::to_string)
+            .collect();
+        return format!(
+            "{} → {}: {dom}×{cod} weights, first {}: ({}) … {} more",
+            show_obj(k.domain()),
+            show_obj(k.codomain()),
+            head.len(),
+            head.join(", "),
+            total - head.len()
+        );
+    }
+    let columns: Vec<String> = (0..dom)
         .filter_map(|x| k.column(x))
         .map(|column| {
             let weights: Vec<String> = column.iter().map(ToString::to_string).collect();

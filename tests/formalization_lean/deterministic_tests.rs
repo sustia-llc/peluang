@@ -18,8 +18,8 @@ use crate::fixtures::{
 
 /// `assert_deterministic` on the point mass `I → [2^19]`, where building
 /// `Δ[2^19]` returns `Error::TooLarge` for `2^19 * 2^38` weights, panics
-/// with `is_deterministic(<name>) on ` first and
-/// `: expected Ok(<expected>), observed Err(<the error>)` last, for both
+/// with a message of at most 1024 bytes, `is_deterministic(<name>) on ` first
+/// and `: expected Ok(<expected>), observed Err(<the error>)` last, for both
 /// expected values.
 #[test]
 fn assert_deterministic_names_the_call_and_expected_value_on_an_error() -> Result<()> {
@@ -28,42 +28,43 @@ fn assert_deterministic_names_the_call_and_expected_value_on_an_error() -> Resul
     assert!(
         matches!(
             got,
-            Err(Error::TooLarge {
-                fst: 524_288,
-                snd: 274_877_906_944,
-                source: Some(_)
-            })
+            Err(Error::TooLarge { fst, snd, source: Some(_) })
+                if fst as u64 == 1u64 << 19 && snd as u64 == 1u64 << 38
         ),
-        "is_deterministic(I → [2^19]): expected Err(TooLarge {{ fst: 524288, snd: 274877906944, \
+        "is_deterministic(I → [2^19]): expected Err(TooLarge {{ fst: 2^19, snd: 2^38, \
          source: Some(_) }}), observed {got:?}"
     );
-    let err = got.err().map(|e| format!("{e:?}")).unwrap_or_default();
+    let Err(e) = got else {
+        panic!("is_deterministic(I → [2^19]): expected Err(TooLarge), observed {got:?}");
+    };
+    let err = format!("{e:?}");
     for expected in [true, false] {
         let message = match catch_unwind(AssertUnwindSafe(|| {
             assert_deterministic("wide", &wide, expected);
         })) {
             Ok(()) => String::from("(no panic)"),
-            Err(payload) => payload
-                .downcast::<String>()
-                .map_or_else(|_| String::from("(non-String payload)"), |m| *m),
+            Err(payload) => match payload.downcast::<String>() {
+                Ok(m) => *m,
+                Err(payload) => payload.downcast::<&'static str>().map_or_else(
+                    |_| String::from("(payload neither String nor &str)"),
+                    |m| (*m).to_owned(),
+                ),
+            },
         };
         let (head, tail) = (
             "is_deterministic(wide) on ",
             format!(": expected Ok({expected}), observed Err({err})"),
         );
-        let shown = |m: &str| {
-            let cut = m.char_indices().rev().nth(199).map_or(0, |(i, _)| i);
-            format!(
-                "{:?} … {:?}",
-                m.chars().take(40).collect::<String>(),
-                &m[cut..]
-            )
-        };
+        assert!(
+            message.len() <= 1024,
+            "assert_deterministic(wide, {expected}): expected a panic message of at most 1024 \
+             bytes, observed {} bytes",
+            message.len()
+        );
         assert!(
             message.starts_with(head) && message.ends_with(&tail),
             "assert_deterministic(wide, {expected}): expected a panic message starting {head:?} and \
-             ending {tail:?}, observed {}",
-            shown(&message)
+             ending {tail:?}, observed {message:?}"
         );
     }
     Ok(())

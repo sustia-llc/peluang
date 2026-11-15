@@ -21,13 +21,32 @@ fn q() -> Result<Kernel<Exact>> {
     Kernel::state(obj_w()?, vec![r(1, 2), r(1, 2), r(0, 1)])
 }
 
+/// `s` with the column at input `at` replaced by `column`, the other columns
+/// read from `s()`.
+fn s_with_column(at: usize, column: [Exact; 2]) -> Result<Kernel<Exact>> {
+    let s = s()?;
+    let mut data = Vec::new();
+    for x in 0..s.domain().card() {
+        let Some(own) = s.column(x) else {
+            panic!("column {x} of {} is missing", show(&s));
+        };
+        if x == at {
+            data.extend_from_slice(&column);
+        } else {
+            data.extend_from_slice(own);
+        }
+    }
+    Kernel::new(s.domain().clone(), s.codomain().clone(), data)
+}
+
 /// `s` with the column at rainy replaced by `rainy`.
 fn s_with_rainy(rainy: [Exact; 2]) -> Result<Kernel<Exact>> {
-    lit(
-        obj_w()?,
-        obj_s()?,
-        &[&[r(1, 3), r(2, 3)], &[r(1, 1), r(0, 1)], &rainy],
-    )
+    s_with_column(2, rainy)
+}
+
+/// `s` with the column at sunny replaced by `sunny`.
+fn s_with_sunny(sunny: [Exact; 2]) -> Result<Kernel<Exact>> {
+    s_with_column(0, sunny)
 }
 
 /// `s'`: `s` with the column at rainy `(1, 0)`.
@@ -37,15 +56,7 @@ fn s_prime() -> Result<Kernel<Exact>> {
 
 /// `s''`: `s` with the column at sunny `(1, 0)`.
 fn s_double_prime() -> Result<Kernel<Exact>> {
-    lit(
-        obj_w()?,
-        obj_s()?,
-        &[
-            &[r(1, 1), r(0, 1)],
-            &[r(1, 1), r(0, 1)],
-            &[r(0, 1), r(1, 1)],
-        ],
-    )
+    s_with_sunny([r(1, 1), r(0, 1)])
 }
 
 /// `psi_t ≫ Δ[T] ≫ (T ◁ c) : I → T ⊗ W`.
@@ -168,7 +179,24 @@ fn witness_almost_surely_eq_copy_tensor_hom() -> Result<()> {
 #[test]
 fn witness_almost_surely_eq_iff() -> Result<()> {
     let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
-    for (name, f, expected) in [("s'", &s1, true), ("s''", &s2, false), ("s", &s, true)] {
+    let s_flip = s_with_sunny([r(2, 3), r(1, 3)])?;
+    assert_column("q, sunny reached", &q, 0, &[r(1, 2), r(1, 2), r(0, 1)]);
+    assert_column("s at sunny", &s, 0, &[r(1, 3), r(2, 3)]);
+    assert_column("s_flip at sunny", &s_flip, 0, &[r(2, 3), r(1, 3)]);
+    for (name, k) in [("s''", &s2), ("s_flip", &s_flip)] {
+        for x in 1..s.domain().card() {
+            let Some(own) = s.column(x) else {
+                panic!("column {x} of {} is missing", show(&s));
+            };
+            assert_column(&format!("{name} at input {x}, as s"), k, x, own);
+        }
+    }
+    for (name, f, expected) in [
+        ("s'", &s1, true),
+        ("s''", &s2, false),
+        ("s", &s, true),
+        ("s_flip", &s_flip, false),
+    ] {
         assert_as_equal(&format!("as_equal(q, {name}, s)"), &q, f, &s, expected);
         let (lhs, rhs) = (copy_whisker(&q, f)?, copy_whisker(&q, &s)?);
         let def = lhs == rhs;
@@ -180,34 +208,6 @@ fn witness_almost_surely_eq_iff() -> Result<()> {
             show(&rhs)
         );
     }
-
-    let s_flip = lit(
-        obj_w()?,
-        obj_s()?,
-        &[
-            &[r(2, 3), r(1, 3)],
-            &[r(1, 1), r(0, 1)],
-            &[r(0, 1), r(1, 1)],
-        ],
-    )?;
-    assert_column("q, sunny reached", &q, 0, &[r(1, 2), r(1, 2), r(0, 1)]);
-    assert_column("s at sunny", &s, 0, &[r(1, 3), r(2, 3)]);
-    assert_column("s_flip at sunny", &s_flip, 0, &[r(2, 3), r(1, 3)]);
-    assert_as_equal(
-        "as_equal(q, s_flip, s), equal support at sunny",
-        &q,
-        &s_flip,
-        &s,
-        false,
-    );
-    let (lhs, rhs) = (copy_whisker(&q, &s_flip)?, copy_whisker(&q, &s)?);
-    let def = lhs == rhs;
-    assert!(
-        !def,
-        "Def. 13.1 for (s_flip, s): expected q ≫ Δ[W] ≫ (s_flip ▷ W) == q ≫ Δ[W] ≫ (s ▷ W) to be false, observed {def}: {} vs {}",
-        show(&lhs),
-        show(&rhs)
-    );
 
     assert_as_equal("as_equal(c, s'', s)", &c()?, &s2, &s, false);
     assert_as_equal(
