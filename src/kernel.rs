@@ -85,11 +85,12 @@ impl<P: Prob> Kernel<P> {
         self.data.get(start..start + width)
     }
 
-    /// Whether `other` has the same domain and codomain and each entry agrees
-    /// under `Prob::approx_eq`.
+    /// Whether `other` has the same domain, codomain and data length, and each
+    /// entry agrees under `Prob::approx_eq`.
     pub fn approx_eq(&self, other: &Self) -> bool {
         self.dom == other.dom
             && self.cod == other.cod
+            && self.data.len() == other.data.len()
             && self
                 .data
                 .iter()
@@ -116,5 +117,27 @@ impl<P: Prob> Kernel<P> {
     /// `y < cod.card()`.
     pub(crate) fn weight(&self, x: usize, y: usize) -> &P {
         &self.data[x * self.cod.card() + y]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prob::Exact;
+
+    #[test]
+    fn approx_eq_is_false_on_a_shorter_data() {
+        let (dom, cod) = (FinObj::new(2), FinObj::new(2));
+        let one = Exact::one;
+        let zero = Exact::zero;
+        let full = Kernel::from_parts(dom.clone(), cod.clone(), vec![one(), zero(), one(), zero()]);
+        let short = Kernel::from_parts(dom, cod, vec![one(), zero()]);
+        let observed = (full.approx_eq(&short), short.approx_eq(&full));
+        assert_eq!(
+            observed,
+            (false, false),
+            "approx_eq between data of length 4 and its prefix of length 2 under equal \
+             domain and codomain: expected (false, false), observed {observed:?}"
+        );
     }
 }

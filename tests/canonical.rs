@@ -69,12 +69,9 @@ mod rejection {
 
 mod exact {
     use crate::common::{closed_form, telescoping};
+    use crate::fixtures::r;
     use peluang::error::Error;
     use peluang::prob::{Exact, PAR_THRESHOLD, Prob, sum, verify_prob_axioms};
-
-    fn r(n: i64, d: i64) -> Exact {
-        Exact::new(n.into(), d.into())
-    }
 
     #[test]
     fn verify_prob_axioms_holds_on_nonzero_triple() {
@@ -218,10 +215,10 @@ mod objects {
 
     #[test]
     fn labeled_rejects_a_repeat() {
-        let got = labels(&["on", "off", "off", "on"]);
+        let got = labels(&["idle", "on", "off", "on", "off"]);
         assert!(
-            matches!(&got, Err(Error::DuplicateLabel { label }) if label == "off"),
-            "expected DuplicateLabel {{ label: \"off\" }}, observed {got:?}"
+            matches!(&got, Err(Error::DuplicateLabel { label }) if label == "on"),
+            "expected DuplicateLabel {{ label: \"on\" }}, observed {got:?}"
         );
     }
 

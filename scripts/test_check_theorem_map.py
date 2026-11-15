@@ -22,9 +22,17 @@ MISPLACED = "is not on the line directly above `#[test]` on a fn"
 
 
 def build(
-    root: Path, *, lean: str | None, row: str | None, test: str | None, others: dict[str, str] | None = None
+    root: Path,
+    *,
+    lean: str | None,
+    row: str | None,
+    test: str | None,
+    others: dict[str, str] | None = None,
+    cargo: str | None = None,
 ) -> None:
     (root / "THEOREM_MAP.md").write_text(MAP_HEAD + (row or ""), encoding="utf-8")
+    if cargo is not None:
+        (root / "Cargo.toml").write_text(cargo, encoding="utf-8")
     if lean is not None:
         d = root / "lean" / "Peluang"
         d.mkdir(parents=True)
@@ -336,6 +344,39 @@ class CheckTheoremMap(unittest.TestCase):
         failures = self.run_case(lean=LEAN_FILE, row=row, test=TEST_FILE)
         self.assertEqual(len(failures), 1, failures)
         self.assertIn("is not `tests/formalization_lean/", failures[0])
+
+    def gated_failures(self, cargo: str) -> list[str]:
+        main = {"main.rs": "mod conditional_tests;\n"}
+        failures = self.run_case(lean=LEAN_FILE, row=ROW, test=TEST_FILE, others=main, cargo=cargo)
+        return [f for f in failures if "Cargo.toml" in f]
+
+    def test_required_features_on_the_witness_target_fail(self) -> None:
+        for table in (
+            '[[test]]\nname = "formalization_lean"\npath = "tests/formalization_lean/main.rs"\nrequired-features = ["parallel"]\n',
+            '[[test]]\nname = "formalization_lean"\nrequired-features = ["parallel"]\n',
+            '[[test]]\nname = "conditional"\npath = "tests/formalization_lean/conditional_tests.rs"\nrequired-features = ["async"]\n',
+        ):
+            with self.subTest(table=table):
+                failures = self.gated_failures("[package]\nname = \"x\"\n\n" + table)
+                self.assertEqual(len(failures), 1, f"failures: {failures}")
+                name = table.split('name = "', 1)[1].split('"', 1)[0]
+                self.assertIn(f"[[test]] `{name}` holds THEOREM_MAP witnesses", failures[0], failures)
+
+    def test_ungated_or_unrelated_targets_pass(self) -> None:
+        for table in (
+            '[[test]]\nname = "formalization_lean"\npath = "tests/formalization_lean/main.rs"\n',
+            '[[test]]\nname = "formalization_lean"\npath = "tests/formalization_lean/main.rs"\nrequired-features = []\n',
+            '[[test]]\nname = "exec"\npath = "tests/exec.rs"\nrequired-features = ["async"]\n',
+            '[[test]]\nname = "other"\npath = "tests/formalization_lean/other.rs"\nrequired-features = ["async"]\n',
+            "",
+        ):
+            with self.subTest(table=table):
+                self.assertEqual(self.gated_failures("[package]\nname = \"x\"\n\n" + table), [])
+
+    def test_invalid_cargo_toml_fails(self) -> None:
+        failures = self.gated_failures("[package\n")
+        self.assertEqual(len(failures), 1, f"failures: {failures}")
+        self.assertIn("not valid TOML", failures[0])
 
     def main_code(self, **kw: object) -> int:
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
