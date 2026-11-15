@@ -25,18 +25,22 @@ use crate::fixtures::{
 fn assert_deterministic_names_the_call_and_expected_value_on_an_error() -> Result<()> {
     let wide = Kernel::<Exact>::from_fn(FinObj::unit(), FinObj::new(1 << 19), |_| 0)?;
     let got = is_deterministic(&wide);
+    let Err(e) = &got else {
+        panic!(
+            "is_deterministic(I → [2^19]): expected Err(TooLarge {{ fst: 2^19, snd: 2^38, \
+             source: Some(_) }}), observed {got:?}"
+        );
+    };
     assert!(
         matches!(
-            got,
-            Err(Error::TooLarge { fst, snd, source: Some(_) })
-                if fst as u64 == 1u64 << 19 && snd as u64 == 1u64 << 38
+            e,
+            Error::TooLarge { fst, snd, source: Some(_) }
+                if u64::try_from(*fst).ok() == Some(1 << 19)
+                    && u64::try_from(*snd).ok() == Some(1 << 38)
         ),
         "is_deterministic(I → [2^19]): expected Err(TooLarge {{ fst: 2^19, snd: 2^38, \
          source: Some(_) }}), observed {got:?}"
     );
-    let Err(e) = got else {
-        panic!("is_deterministic(I → [2^19]): expected Err(TooLarge), observed {got:?}");
-    };
     let err = format!("{e:?}");
     for expected in [true, false] {
         let message = match catch_unwind(AssertUnwindSafe(|| {

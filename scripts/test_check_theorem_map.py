@@ -481,6 +481,10 @@ class CheckTheoremMap(unittest.TestCase):
                 self.assertEqual(got, [], f"main.rs {main!r}")
 
     def test_inline_mod_block_resolves_children_under_its_name(self) -> None:
+        """The unreached tagged files of a tree whose root `formalization_lean/main.rs` holds each row's text and
+        whose one tagged file sits at each row's location. The `inline` rows pin the locations rustc 1.100.0
+        accepts for `#[path = "x.rs"] mod b;` and `mod c;` inside `mod a { … }` in that root file,
+        `a/x.rs` and `a/c.rs`, as reached, and the locations it rejects, `x.rs` and `c.rs`, as unreached."""
         tagged = TAG + "#[test]\nfn w() {}\n"
         inline = 'mod a {\n    #[path = "x.rs"]\n    mod b;\n    mod c;\n}\n'
         for main, where, expected in (

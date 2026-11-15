@@ -201,33 +201,49 @@ const SHOW_LIMIT: usize = 4096;
 /// The number of weights `show` prints for a kernel above `SHOW_LIMIT`.
 const SHOW_HEAD: usize = 16;
 
+/// The text `show` prints in place of the column at input `x` when
+/// `Kernel::column` returns `None` for it.
+fn missing_column(x: usize) -> String {
+    format!("<column {x} missing>")
+}
+
 /// `dom → cod`, then the columns in input order. Above `SHOW_LIMIT` weights:
-/// `dom → cod`, the dimensions, the first `SHOW_HEAD` weights in input order
-/// and the number of weights left out.
+/// `dom → cod`, the dimensions, the first `SHOW_HEAD` entries in input order
+/// and `dom.card() · cod.card()` minus the number of entries printed, or
+/// `overflow` in place of that number when `dom.card() · cod.card()`
+/// overflows `usize`. An entry is a weight or,
+/// for an input whose column `Kernel::column` does not return, the text
+/// `<column x missing>`, which stands in that column's place in both forms.
 pub fn show(k: &Kernel<Exact>) -> String {
     let (dom, cod) = (k.domain().card(), k.codomain().card());
-    let total = dom.saturating_mul(cod);
-    if total > SHOW_LIMIT {
+    let total = dom.checked_mul(cod);
+    if total.is_none_or(|total| total > SHOW_LIMIT) {
         let head: Vec<String> = (0..dom)
-            .filter_map(|x| k.column(x))
-            .flatten()
+            .flat_map(|x| match k.column(x) {
+                Some(column) => column.iter().map(ToString::to_string).collect(),
+                None => vec![missing_column(x)],
+            })
             .take(SHOW_HEAD)
-            .map(ToString::to_string)
             .collect();
+        let rest = total.map_or_else(
+            || String::from("overflow"),
+            |total| format!("{} more", total - head.len()),
+        );
         return format!(
-            "{} → {}: {dom}×{cod} weights, first {}: ({}) … {} more",
+            "{} → {}: {dom}×{cod} weights, first {}: ({}) … {rest}",
             show_obj(k.domain()),
             show_obj(k.codomain()),
             head.len(),
             head.join(", "),
-            total - head.len()
         );
     }
     let columns: Vec<String> = (0..dom)
-        .filter_map(|x| k.column(x))
-        .map(|column| {
-            let weights: Vec<String> = column.iter().map(ToString::to_string).collect();
-            format!("({})", weights.join(", "))
+        .map(|x| match k.column(x) {
+            Some(column) => {
+                let weights: Vec<String> = column.iter().map(ToString::to_string).collect();
+                format!("({})", weights.join(", "))
+            }
+            None => missing_column(x),
         })
         .collect();
     format!(

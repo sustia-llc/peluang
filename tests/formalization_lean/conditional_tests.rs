@@ -22,11 +22,17 @@ fn q() -> Result<Kernel<Exact>> {
 }
 
 /// `s` with the column at input `at` replaced by `column`, the other columns
-/// read from `s()`.
+/// read from `s()`. Panics, naming `at` and the domain card, when `at` is not
+/// below the domain card of `s`.
 fn s_with_column(at: usize, column: [Exact; 2]) -> Result<Kernel<Exact>> {
     let s = s()?;
+    let card = s.domain().card();
+    assert!(
+        at < card,
+        "s_with_column: expected an index below the domain card {card} of s, observed {at}"
+    );
     let mut data = Vec::new();
-    for x in 0..s.domain().card() {
+    for x in 0..card {
         let Some(own) = s.column(x) else {
             panic!("column {x} of {} is missing", show(&s));
         };
@@ -191,13 +197,19 @@ fn witness_almost_surely_eq_iff() -> Result<()> {
             assert_column(&format!("{name} at input {x}, as s"), k, x, own);
         }
     }
-    for (name, f, expected) in [
-        ("s'", &s1, true),
-        ("s''", &s2, false),
-        ("s", &s, true),
-        ("s_flip", &s_flip, false),
+    for (name, label, f, expected) in [
+        ("s'", "differs only at rainy, unreached", &s1, true),
+        ("s''", "differs at sunny, reached", &s2, false),
+        ("s", "identical", &s, true),
+        ("s_flip", "equal support at sunny", &s_flip, false),
     ] {
-        assert_as_equal(&format!("as_equal(q, {name}, s)"), &q, f, &s, expected);
+        assert_as_equal(
+            &format!("as_equal(q, {name}, s), {label}"),
+            &q,
+            f,
+            &s,
+            expected,
+        );
         let (lhs, rhs) = (copy_whisker(&q, f)?, copy_whisker(&q, &s)?);
         let def = lhs == rhs;
         assert_eq!(
