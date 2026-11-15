@@ -6,6 +6,12 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/diagrams/lean-1-classes.svg`: the description names
+  `CopyDiscardCategory` as the hub. The file drops an unused style block and
+  two unused markers.
+
 ## [0.5.0] - 2026-11-15
 
 ### Added
