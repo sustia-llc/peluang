@@ -1,24 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lean-1-classes-title lean-1-classes-desc" id="lean-1-classes-root">
         <title id="lean-1-classes-title">Mathlib classes and the main peluang declarations</title>
-        <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory through CopyDiscardCategory to MarkovCategory, the hub that PositiveCategory, Stoch and the main peluang declarations build on, with the deterministic wide subcategory, FinStoch, conditionals, almost-sure equality, isConditional_unique_as and conditional independence done.</desc>
+        <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory to CopyDiscardCategory, the hub that MarkovCategory, Deterministic, conditionals, almost-sure equality and conditional independence build on. MarkovCategory carries PositiveCategory, Stoch, FinStoch and the deterministic wide subcategory. Conditionals and almost-sure equality lead to isConditional_unique_as. All peluang declarations shown are done.</desc>
         <defs>
-      <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
-      #lean-1-classes-root { --color-paper:   #f5f5f5;   
-      --color-ink:     #2d3142;   
-      --color-muted:   #4f5d75;   
-      --color-accent:  #bf4520;   
-      --font-sans:     'Geist', system-ui, sans-serif;
-      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
-      --font-mono:     'Geist Mono', ui-monospace, monospace; }
-      #lean-1-classes-root { font-family: var(--font-sans); color: var(--color-ink); }
-      #lean-1-classes-root .diagram-container { width: 100%; overflow-x: auto; }
-      @media print {
-#lean-1-classes-root .diagram-container { overflow-x: visible; }
-}</style>
           <marker id="lean-1-classes-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
-          <marker id="lean-1-classes-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
-          <marker id="lean-1-classes-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
         </defs>
 
         <rect width="100%" height="100%" fill="#f5f5f5"/>
