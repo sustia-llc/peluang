@@ -64,7 +64,8 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      Quot.sound}`), which its probe reads from `PeluangLint`; every file
      under `lean/Peluang/` is imported from `lean/Peluang.lean`; the
      theorems `check_theorem_map.py` scans equal the library's source
-     theorems.
+     theorems; the Lean id of each `THEOREM_MAP.md` row without the
+     `mathlib:` prefix is a constant of those modules.
   5. `python3 -I scripts/probe_selftest.py` (after step 4): the probe
      reports exactly the constants of a planted `sorry`/`native_decide`
      module (the tree is restored afterwards).

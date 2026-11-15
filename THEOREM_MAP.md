@@ -23,8 +23,8 @@ prefixed `mathlib:` and are optional.
 
 Anchor format: `Fritz 2020 Def./Prop./Thm./Lemma/Remark/Notation/Example N.M`
 (arXiv:1908.07021) and/or the Café post's `D`/`T` id. A row can name an
-instance, and `check_theorem_map.py` does not test that a row's Lean id names
-a declaration.
+instance. `scripts/print_axioms.py` fails when the Lean id of a row that is
+not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 
 | Lean id | Rust test | anchor |
 |---|---|---|

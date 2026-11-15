@@ -80,7 +80,9 @@ The crate has 163 tests with all features on.
   `THEOREM_MAP.md` row with an existing witness, or a `-- WITNESS: none`
   opt-out.
 - `scripts/print_axioms.py`: the axioms of every constant defined in the
-  `Peluang` library, allowlist `{propext, Classical.choice, Quot.sound}`.
+  `Peluang` library, allowlist `{propext, Classical.choice, Quot.sound}`,
+  and the Lean id of each `THEOREM_MAP.md` row without the `mathlib:`
+  prefix, which must name a constant of the library.
 - `scripts/probe_selftest.py`: `print_axioms.py` against a planted module
   of `sorry` and `native_decide` constants.
 - `scripts/check_lean_source.py`: `sorry`/`admit` terms and `axiom`
