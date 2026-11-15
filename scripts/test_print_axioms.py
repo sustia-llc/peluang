@@ -118,6 +118,67 @@ class Evaluate(unittest.TestCase):
         self.assertEqual(pa.evaluate(r, ["Peluang", "Peluang.X"], ["Peluang.a"], {"Peluang.a"}), [])
 
 
+REPO = Path(__file__).resolve().parent.parent
+NOT_A_CONSTANT = "is not a constant of a `Peluang` / `Peluang.*` module"
+
+
+def lake_ok(output: str):
+    def fake_run_lake(args: list[str], lean_dir: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(["lake", *args], 0, output if args[0] == "env" else "", "")
+
+    return fake_run_lake
+
+
+class MapRows(unittest.TestCase):
+    def test_stale_id_fails_with_name_and_line(self) -> None:
+        r = probe("MODULE\tPeluang", "CONST\tPeluang.instCopy\tPeluang\tfalse\t-\t")
+        failures = pa.unresolved_rows(r, {"Peluang.instCopy": 43, "Peluang.instCopyRenamed": 44})
+        self.assertEqual(failures, [f"THEOREM_MAP.md:44: `Peluang.instCopyRenamed` {NOT_A_CONSTANT}"])
+
+    def test_mathlib_row_is_skipped(self) -> None:
+        self.assertEqual(pa.unresolved_rows(probe(), {"mathlib:CategoryTheory.MarkovCategory.eq_discard": 3}), [])
+
+    def test_constant_outside_peluang_modules_does_not_resolve(self) -> None:
+        r = probe("MODULE\tPeluangLint", "CONST\tPeluang.Linter.allowedAxioms\tPeluangLint\tfalse\t-\t")
+        failures = pa.unresolved_rows(r, {"Peluang.Linter.allowedAxioms": 7})
+        self.assertEqual(failures, [f"THEOREM_MAP.md:7: `Peluang.Linter.allowedAxioms` {NOT_A_CONSTANT}"])
+
+    def test_current_table_passes_and_each_row_is_checked(self) -> None:
+        rows = {i: line for i, (_, line) in pa.ctm.map_rows(REPO / "THEOREM_MAP.md")[0].items()}
+        self.assertIn("CategoryTheory.Deterministic.instCopy", rows, f"rows: {sorted(rows)}")
+        consts = [f"CONST\t{i}\tPeluang.X\tfalse\t-\t" for i in rows]
+        self.assertEqual(pa.unresolved_rows(probe("MODULE\tPeluang.X", *consts), rows), [])
+        for lean_id, line in rows.items():
+            rest = [c for c in consts if c.split("\t")[1] != lean_id]
+            failures = pa.unresolved_rows(probe("MODULE\tPeluang.X", *rest), rows)
+            self.assertEqual(failures, [f"THEOREM_MAP.md:{line}: `{lean_id}` {NOT_A_CONSTANT}"])
+
+    def test_check_reports_stale_row(self) -> None:
+        output = f"{ALLOWED_ROW}\nMODULE\tPeluang\nCONST\tPeluang.instCopy\tPeluang\tfalse\t-\t\n"
+        table = (
+            "| Lean id | Rust test | anchor |\n|---|---|---|\n"
+            "| Peluang.instCopy | tests/formalization_lean/a.rs::f | x |\n"
+            "| mathlib:Foo.bar | — | — |\n"
+            "| Peluang.instCopyRenamed | tests/formalization_lean/a.rs::g | x |\n"
+        )
+        with mock.patch.object(pa, "run_lake", lake_ok(output)), tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "lean").mkdir()
+            (root / "lean" / "Peluang.lean").write_text("", encoding="utf-8")
+            (root / "THEOREM_MAP.md").write_text(table, encoding="utf-8")
+            _, failures = pa.check(root)
+        self.assertEqual(failures, [f"THEOREM_MAP.md:5: `Peluang.instCopyRenamed` {NOT_A_CONSTANT}"])
+
+    def test_check_reports_missing_map(self) -> None:
+        output = f"{ALLOWED_ROW}\nMODULE\tPeluang\n"
+        with mock.patch.object(pa, "run_lake", lake_ok(output)), tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "lean").mkdir()
+            (root / "lean" / "Peluang.lean").write_text("", encoding="utf-8")
+            _, failures = pa.check(root)
+        self.assertEqual(failures, [f"{root / 'THEOREM_MAP.md'}: missing"])
+
+
 class Layout(unittest.TestCase):
     def test_module_names_match_library_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
