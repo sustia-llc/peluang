@@ -8,6 +8,9 @@ git tag is the authoritative pin.
 
 ### Changed
 
+- The Lean pin moves to `leanprover/lean4:v4.36.0` and Mathlib `v4.36.0`
+  (rev `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`). No file under
+  `lean/Peluang/` or `lean/PeluangTest/` changes.
 - `docs/diagrams/lean-1-classes.svg`: the description names
   `CopyDiscardCategory` as the hub. The file drops an unused style block and
   two unused markers.

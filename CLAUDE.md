@@ -70,9 +70,9 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
   5. `python3 -I scripts/probe_selftest.py` (after step 4): the probe
      reports exactly the constants of a planted `sorry`/`native_decide`
      module (the tree is restored afterwards).
-- Pin: `lean/lean-toolchain` `leanprover/lean4:v4.35.0`; `lean/lakefile.lean`
-  Mathlib `@ git "v4.35.0"`; `lean/lake-manifest.json` Mathlib rev
-  `56a005855ea17e0b0958f73ec801ae140b0a1679`.
+- Pin: `lean/lean-toolchain` `leanprover/lean4:v4.36.0`; `lean/lakefile.lean`
+  Mathlib `@ git "v4.36.0"`; `lean/lake-manifest.json` Mathlib rev
+  `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`.
 - Witness tests use `Exact` weights and carry no `f64-prob` gate, so they
   run in every feature lane. Tests on `f64` weights run under `f64-prob`
   with declared tolerances.
