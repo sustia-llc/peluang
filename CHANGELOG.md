@@ -6,6 +6,12 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Changed
+
+- The Rust channel moves from `1.99.1` to `1.100.0`: `rust-toolchain.toml`,
+  `rust-version` in `Cargo.toml`, and both jobs of
+  `.github/workflows/rust.yml`.
+
 ## [0.5.1] - 2026-11-23
 
 ### Changed
