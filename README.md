@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.5.0` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.1` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -49,7 +49,7 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   post's conditional form D19, and Def. 12.16 at `A = I` is Def. 12.1. In
   FinStoch, the copied fair coin does not display independence.
 
-At `v0.5.0`, `THEOREM_MAP.md` has 52 rows that pair a Lean id with a Rust test.
+At `v0.5.1`, `THEOREM_MAP.md` has 52 rows that pair a Lean id with a Rust test.
 The crate has 176 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)

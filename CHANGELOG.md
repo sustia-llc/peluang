@@ -6,8 +6,12 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-23
+
 ### Changed
 
+- The Lean pin moves to `leanprover/lean4:v4.36.0` and Mathlib `v4.36.0`
+  (rev `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`).
 - `docs/diagrams/lean-1-classes.svg`: the description names
   `CopyDiscardCategory` as the hub. The file drops an unused style block and
   two unused markers.
@@ -348,7 +352,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/sustia-llc/peluang/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/sustia-llc/peluang/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/sustia-llc/peluang/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/sustia-llc/peluang/compare/v0.4.0...v0.4.1

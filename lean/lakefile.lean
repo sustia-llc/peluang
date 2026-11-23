@@ -7,7 +7,7 @@ package «Peluang» where
     ⟨`weak.linter.mathlibStandardSet, true⟩,
     ⟨`weak.linter.style.header, false⟩]
 
-require "leanprover-community" / "mathlib" @ git "v4.35.0"
+require "leanprover-community" / "mathlib" @ git "v4.36.0"
 
 @[default_target]
 lean_lib «Peluang»
