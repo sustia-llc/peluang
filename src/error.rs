@@ -79,6 +79,13 @@ pub enum Error {
         snd: FinObj,
     },
 
+    /// `bayes::bayesian_inverse` received a `p` whose domain is not the unit object.
+    #[error("domain {domain:?} is not the unit object")]
+    NotAState {
+        /// The domain of `p`.
+        domain: FinObj,
+    },
+
     /// `conditional::conditional` met a zero-mass column and
     /// `Prob::div_checked` returned `None` on `P::one()` over `P::one()`
     /// added `card` times.
