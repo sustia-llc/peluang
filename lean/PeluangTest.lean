@@ -5,12 +5,16 @@ Released under the MIT license as described in the file LICENSE.
 module
 
 public import PeluangTest.AlmostSure
+public import PeluangTest.AlmostSure.Deterministic
+public import PeluangTest.BayesianInverse
 public import PeluangTest.Conditional
 public import PeluangTest.Deterministic.Lemmas
 public import PeluangTest.Deterministic.Wide
 public import PeluangTest.Independence
 public import PeluangTest.Instances.FinStoch.AlmostSure
+public import PeluangTest.Instances.FinStoch.AlmostSureDeterministic
 public import PeluangTest.Instances.FinStoch.Basic
+public import PeluangTest.Instances.FinStoch.BayesianInverse
 public import PeluangTest.Instances.FinStoch.Conditional
 public import PeluangTest.Instances.FinStoch.Deterministic
 public import PeluangTest.Instances.FinStoch.Markov
