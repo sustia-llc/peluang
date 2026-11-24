@@ -1,7 +1,9 @@
 //! The running example as exact literals built with `Kernel::new`: the objects
 //! `W`, `T`, `S`, `P`, `B`, the kernels `psi_t`, `c`, `s`, `h`, `k`, `hot`,
-//! `f`, `j`, `d`, `e`, `coin`, `p_ind`, `p_brk`, and the comparisons that
-//! report observed and expected values.
+//! `f`, `j`, `d`, `e`, `coin`, `p_ind`, `p_brk`, `s2`, `dd`, `g2`, `g0`, `c2`,
+//! `m`, `e_inv`, the constructors `r`, `labels`, `lit`, `points`, `point`, the
+//! composites `conditional_composite` and `copy_whisker`, the printer `show`,
+//! and the comparisons that report observed and expected values.
 
 #![allow(dead_code)]
 
@@ -11,6 +13,7 @@ use peluang::deterministic::{is_as_deterministic, is_deterministic};
 use peluang::error::Result;
 use peluang::finset::FinObj;
 use peluang::independence::is_independent;
+use peluang::information_flow::{copy_comp_natural, copy_comp_natural_as};
 use peluang::kernel::Kernel;
 use peluang::markov::Compose;
 use peluang::prob::{Exact, Prob};
@@ -178,6 +181,74 @@ pub fn obj_b() -> Result<FinObj> {
 /// `coin : I → B`, `(1/2, 1/2)`.
 pub fn coin() -> Result<Kernel<Exact>> {
     Kernel::state(obj_b()?, vec![r(1, 2), r(1, 2)])
+}
+
+/// `s2 : W → S`: sunny to `(1/3, 2/3)`, cloudy to `(1, 0)`, rainy to
+/// `(1/2, 1/2)`.
+pub fn s2() -> Result<Kernel<Exact>> {
+    lit(
+        obj_w()?,
+        obj_s()?,
+        &[
+            &[r(1, 3), r(2, 3)],
+            &[r(1, 1), r(0, 1)],
+            &[r(1, 2), r(1, 2)],
+        ],
+    )
+}
+
+/// `dd : W → S`: sunny and cloudy to on, rainy to off.
+pub fn dd() -> Result<Kernel<Exact>> {
+    points(obj_w()?, obj_s()?, &[0, 0, 1])
+}
+
+/// `g2 : W → S`: sunny and cloudy to `(1, 0)`, rainy to `(1/2, 1/2)`.
+pub fn g2() -> Result<Kernel<Exact>> {
+    lit(
+        obj_w()?,
+        obj_s()?,
+        &[
+            &[r(1, 1), r(0, 1)],
+            &[r(1, 1), r(0, 1)],
+            &[r(1, 2), r(1, 2)],
+        ],
+    )
+}
+
+/// `g0 : W → S`: sunny, cloudy and rainy to `(1/2, 1/2)`.
+pub fn g0() -> Result<Kernel<Exact>> {
+    lit(
+        obj_w()?,
+        obj_s()?,
+        &[
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 2), r(1, 2)],
+        ],
+    )
+}
+
+/// `c2 : T → W`: hot to `(1/2, 1/2, 0)`, cold to `(0, 0, 1)`.
+pub fn c2() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_w()?,
+        &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(0, 1), r(0, 1), r(1, 1)]],
+    )
+}
+
+/// `m : S → T`: on to `(1, 0)`, off to `(1/2, 1/2)`.
+pub fn m() -> Result<Kernel<Exact>> {
+    lit(
+        obj_s()?,
+        obj_t()?,
+        &[&[r(1, 1), r(0, 1)], &[r(1, 2), r(1, 2)]],
+    )
+}
+
+/// `e_inv : T → S`: hot to on, cold to off.
+pub fn e_inv() -> Result<Kernel<Exact>> {
+    points(obj_t()?, obj_s()?, &[0, 1])
 }
 
 /// The Def. 11.5 composite `Δ[A] ≫ (marginalFst f ▷ A) ≫ (Δ[x] ▷ A) ≫
@@ -391,6 +462,56 @@ pub fn assert_as_deterministic(name: &str, p: &Kernel<Exact>, f: &Kernel<Exact>,
         "{name} with p = {}, f = {}: expected {expected}, observed {observed}",
         show(p),
         show(f)
+    );
+}
+
+/// Asserts `copy_comp_natural(f, g) == Ok(expected)`, naming the call `name`;
+/// panics with `name` and the error when the engine returns an error.
+#[track_caller]
+pub fn assert_copy_comp_natural(name: &str, f: &Kernel<Exact>, g: &Kernel<Exact>, expected: bool) {
+    let observed = match copy_comp_natural(f, g) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "{name} with f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            show(f),
+            show(g)
+        ),
+    };
+    assert_eq!(
+        observed,
+        expected,
+        "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
+        show(f),
+        show(g)
+    );
+}
+
+/// Asserts `copy_comp_natural_as(p, f, g) == Ok(expected)`, naming the call
+/// `name`; panics with `name` and the error when the engine returns an error.
+#[track_caller]
+pub fn assert_copy_comp_natural_as(
+    name: &str,
+    p: &Kernel<Exact>,
+    f: &Kernel<Exact>,
+    g: &Kernel<Exact>,
+    expected: bool,
+) {
+    let observed = match copy_comp_natural_as(p, f, g) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "{name} with p = {}, f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            show(p),
+            show(f),
+            show(g)
+        ),
+    };
+    assert_eq!(
+        observed,
+        expected,
+        "{name} with p = {}, f = {}, g = {}: expected {expected}, observed {observed}",
+        show(p),
+        show(f),
+        show(g)
     );
 }
 

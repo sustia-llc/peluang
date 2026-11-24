@@ -9,6 +9,7 @@ public import Mathlib.Probability.Kernel.Category.Stoch
 public import Peluang.AlmostSure
 public import Peluang.AlmostSure.Deterministic
 public import Peluang.BayesianInverse
+public import Peluang.Causal
 public import Peluang.Conditional
 public import Peluang.Deterministic.Lemmas
 public import Peluang.Deterministic.Wide
@@ -20,10 +21,13 @@ public import Peluang.Instances.FinStoch.BayesianInverse
 public import Peluang.Instances.FinStoch.Conditional
 public import Peluang.Instances.FinStoch.Deterministic
 public import Peluang.Instances.FinStoch.Independence
+public import Peluang.Instances.FinStoch.InformationFlow
 public import Peluang.Instances.FinStoch.Markov
 public import Peluang.Instances.FinStoch.Monoidal
 public import Peluang.Markov.Cartesian
 public import Peluang.Markov.Derived
+public import Peluang.Markov.Fox
+public import Peluang.Positive
 
 /-!
 # Peluang

@@ -12,6 +12,7 @@ pub mod error;
 pub mod exec;
 pub mod finset;
 pub mod independence;
+pub mod information_flow;
 pub mod kernel;
 pub mod markov;
 pub mod prob;
