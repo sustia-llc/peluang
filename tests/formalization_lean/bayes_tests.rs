@@ -379,6 +379,62 @@ fn witness_is_bayesian_inverse_comp() -> Result<()> {
         &e()?,
         false,
     );
+
+    let (hot, g2, reached) = (hot()?, g_two()?, hot_c()?);
+    assert_kernel("hot ≫ c", &hot.compose(&c)?, &reached);
+    let g = points(obj_w()?, obj_s()?, &[0, 0, 1])?;
+    let g_inverse = inverse(
+        "g' = bayesian_inverse(hot ≫ c, g), g sunny and cloudy to on, rainy to off",
+        &reached,
+        &g,
+        &lit(
+            obj_s()?,
+            obj_w()?,
+            &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(1, 3), r(1, 3), r(1, 3)]],
+        )?,
+    );
+    assert_bayesian_inverse("hf: is_bayesian_inverse(hot, c, g₂)", &hot, &c, &g2, true);
+    assert_bayesian_inverse(
+        "hg: is_bayesian_inverse(hot ≫ c, g, g')",
+        &reached,
+        &g,
+        &g_inverse,
+        true,
+    );
+    let cg = c.compose(&g)?;
+    assert_kernel(
+        "c ≫ g",
+        &cg,
+        &lit(
+            obj_t()?,
+            obj_s()?,
+            &[&[r(1, 1), r(0, 1)], &[r(1, 4), r(3, 4)]],
+        )?,
+    );
+    let composite = g_inverse.compose(&g2)?;
+    assert_kernel("g' ≫ g₂", &composite, &points(obj_s()?, obj_t()?, &[0, 0])?);
+    assert_bayesian_inverse(
+        "is_bayesian_inverse(hot, c ≫ g, g' ≫ g₂)",
+        &hot,
+        &cg,
+        &composite,
+        true,
+    );
+    let canonical = inverse(
+        "bayesian_inverse(hot, c ≫ g)",
+        &hot,
+        &cg,
+        &lit(
+            obj_s()?,
+            obj_t()?,
+            &[&[r(1, 1), r(0, 1)], &[r(1, 2), r(1, 2)]],
+        )?,
+    );
+    assert_differs(
+        "g' ≫ g₂ against bayesian_inverse(hot, c ≫ g)",
+        &composite,
+        &canonical,
+    );
     Ok(())
 }
 
@@ -768,6 +824,30 @@ fn is_as_deterministic_on_an_empty_domain_builds_no_kernel() -> Result<()> {
         matches!(got, Ok(true)),
         "is_as_deterministic(0 → 0, 0 → [2^19]): expected Ok(true), observed {got:?}"
     );
+    Ok(())
+}
+
+#[test]
+fn is_as_deterministic_rejects_a_non_composable_pair_on_an_empty_domain() -> Result<()> {
+    let (empty, t) = (FinObj::new(0), obj_t()?);
+    let p = Kernel::<Exact>::new(empty.clone(), t.clone(), Vec::new())?;
+    let f = Kernel::<Exact>::new(empty.clone(), obj_s()?, Vec::new())?;
+    let got = is_as_deterministic(&p, &f);
+    assert!(
+        matches!(&got, Err(Error::NotComposable { codomain, domain })
+            if *codomain == t && *domain == empty),
+        "is_as_deterministic(0 → T, 0 → S): expected NotComposable {{ codomain: {t:?}, domain: \
+         {empty:?} }}, observed {got:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn is_as_deterministic_on_a_one_element_domain_reads_its_row() -> Result<()> {
+    let unit = FinObj::unit();
+    let id = Kernel::new(unit.clone(), unit, vec![r(1, 1)])?;
+    assert_as_deterministic("is_as_deterministic(𝟙 I, psi_t)", &id, &psi_t()?, false);
+    assert_as_deterministic("is_as_deterministic(𝟙 I, hot)", &id, &hot()?, true);
     Ok(())
 }
 

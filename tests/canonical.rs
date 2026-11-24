@@ -1164,16 +1164,20 @@ mod float_kernels {
         Ok(())
     }
 
-    /// The expected value is that of a measured run: the joint weight
+    /// The expected column at `y0` is that of a measured run: the joint weight
     /// `1e-200 * 1e-200` at `(y0, x0)` is `0.0`.
     #[test]
     fn bayesian_inverse_fills_an_underflowed_column_uniformly_measured() -> Result<()> {
-        let two = FinObj::new(2);
+        let (two, three) = (FinObj::new(2), FinObj::new(3));
         let p = Kernel::state(two.clone(), vec![1e-200, 1.0])?;
-        let f = Kernel::new(two.clone(), two.clone(), vec![1e-200, 1.0, 0.0, 1.0])?;
-        let expected = Kernel::new(two.clone(), two, vec![0.5, 0.5, 1e-200, 1.0])?;
+        let f = Kernel::new(
+            two.clone(),
+            three.clone(),
+            vec![1e-200, 0.5, 0.5, 0.0, 0.5, 0.5],
+        )?;
+        let expected = Kernel::new(three, two, vec![0.5, 0.5, 1e-200, 1.0, 1e-200, 1.0])?;
         assert_inverse(
-            "measured: bayesian_inverse((1e-200, 1), x0 → (1e-200, 1), x1 → (0, 1))",
+            "measured: bayesian_inverse((1e-200, 1), x0 → (1e-200, 1/2, 1/2), x1 → (0, 1/2, 1/2))",
             &bayesian_inverse(&p, &f),
             &expected,
         );
