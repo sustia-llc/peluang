@@ -149,7 +149,8 @@ section Causal
 variable {C : Type u} [Category.{v} C] [MonoidalCategory.{v} C] [CausalCategory C]
 
 /-- In a causal Markov category, for `f : A ⟶ W`, `g : W ⟶ X` and `(f ≫ g)`-almost surely
-equal `h₁ h₂ : X ⟶ Y`, `g ≫ h₁` and `g ≫ h₂` are `f`-almost surely equal. -/
+equal `h₁ h₂ : X ⟶ Y`, `g ≫ h₁` and `g ≫ h₂` are `f`-almost surely equal
+(Fritz 2020, Def. 11.31). -/
 theorem AlmostSurelyEq.of_comp {A W X Y : C} {f : A ⟶ W} {g : W ⟶ X}
     {h₁ h₂ : X ⟶ Y} (h : AlmostSurelyEq (f ≫ g) h₁ h₂) :
     AlmostSurelyEq f (g ≫ h₁) (g ≫ h₂) := by

@@ -37,8 +37,14 @@ git tag is the authoritative pin.
   `exists_almostSurelyEq_comp_ne`.
 - `information_flow::copy_then`, `information_flow::copy_comp_natural` and
   `information_flow::copy_comp_natural_as`.
-- `tests/formalization_lean/information_flow_tests.rs`: 11 tests, 8 of them
-  witness tests. `THEOREM_MAP.md` goes from 67 to 75 rows.
+- `tests/formalization_lean/information_flow_tests.rs`: 16 tests, 9 of them
+  with a `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 67 to 76 rows. One new
+  row has the `mathlib:` prefix.
+
+### Changed
+
+- `docs/diagrams/lean-1-classes.svg`: the diagram shows `CausalCategory` and
+  `RelativelyPositiveCategory`.
 
 ## [0.5.2] - 2026-11-24
 

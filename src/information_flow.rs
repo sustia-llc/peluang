@@ -22,7 +22,8 @@ pub fn copy_then<P: Prob>(g: &Kernel<P>, h: &Kernel<P>) -> Result<Kernel<P>> {
 
 /// For `f : X → Y` and `g : Y → Z`, the kernels `f ≫ copy(Y) ≫ (g ⊗ id_Y)`
 /// and `copy(X) ≫ ((f ≫ g) ⊗ f)` of type `X → Z ⊗ Y`, under the errors of
-/// `copy_then(f, g)`.
+/// `copy_then(f, g)`, then the `Error::TooLarge` of building the second
+/// kernel.
 fn sides<P: Prob>(f: &Kernel<P>, g: &Kernel<P>) -> Result<(Kernel<P>, Kernel<P>)> {
     let lhs = copy_then(f, g)?;
     let rhs = Kernel::copy(f.domain())?.compose(&f.compose(g)?.tensor(f)?)?;
@@ -32,9 +33,13 @@ fn sides<P: Prob>(f: &Kernel<P>, g: &Kernel<P>) -> Result<(Kernel<P>, Kernel<P>)
 /// For `f : X → Y` and `g : Y → Z`, whether `f ≫ copy(Y) ≫ (g ⊗ id_Y)` equals
 /// `copy(X) ≫ ((f ≫ g) ⊗ f)` under `Kernel::approx_eq`. Returns
 /// `Error::NotComposable` when the codomain of `f` differs from the domain of
-/// `g`, with no kernel built, then the `Error::TooLarge` of building either
-/// side.
+/// `g`, with no kernel built, then `true` with no kernel built when the domain
+/// of `f` is empty, then the `Error::TooLarge` of building either side.
 pub fn copy_comp_natural<P: Prob>(f: &Kernel<P>, g: &Kernel<P>) -> Result<bool> {
+    f.composable(g)?;
+    if f.domain().card() == 0 {
+        return Ok(true);
+    }
     let (lhs, rhs) = sides(f, g)?;
     Ok(lhs.approx_eq(&rhs))
 }
@@ -44,10 +49,15 @@ pub fn copy_comp_natural<P: Prob>(f: &Kernel<P>, g: &Kernel<P>) -> Result<bool> 
 /// surely equal under `almost_sure::as_equal`. Returns `Error::NotComposable`
 /// when the codomain of `p` differs from the domain of `f`, then when the
 /// codomain of `f` differs from the domain of `g`, each with no kernel built,
-/// then the `Error::TooLarge` of building either side. Both sides are built
-/// whether or not `p` reaches each input.
+/// then `true` with no kernel built when the domain of `f` is empty, then the
+/// `Error::TooLarge` of building either side. Both sides are built whether or
+/// not `p` reaches each input.
 pub fn copy_comp_natural_as<P: Prob>(p: &Kernel<P>, f: &Kernel<P>, g: &Kernel<P>) -> Result<bool> {
     p.composable(f)?;
+    f.composable(g)?;
+    if f.domain().card() == 0 {
+        return Ok(true);
+    }
     let (lhs, rhs) = sides(f, g)?;
     as_equal(p, &lhs, &rhs)
 }

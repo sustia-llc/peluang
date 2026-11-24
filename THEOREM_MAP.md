@@ -111,3 +111,4 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.CopyDiscardCategory.IsAlmostSurelyDeterministic.of_comp | tests/formalization_lean/information_flow_tests.rs::witness_is_almost_surely_deterministic_of_comp | Fritz 2020 Remark 13.17 |
 | FinStoch.exists_deterministic_comp_not_deterministic | tests/formalization_lean/information_flow_tests.rs::witness_exists_deterministic_comp_not_deterministic | Fritz 2020 Def. 11.22 |
 | FinStoch.exists_almostSurelyEq_comp_ne | tests/formalization_lean/information_flow_tests.rs::witness_exists_almost_surely_eq_comp_ne | Fritz 2020 Def. 11.31 |
+| mathlib:CategoryTheory.PositiveCategory.instDeterministicOfIsIso | tests/formalization_lean/information_flow_tests.rs::mutually_inverse_kernels_are_deterministic | Fritz 2020 Remark 11.28 |

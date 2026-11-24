@@ -90,8 +90,8 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   deterministic. The hypothesis of causality holds there for two distinct
   morphisms `h₁` and `h₂`.
 
-At `v0.5.3`, `THEOREM_MAP.md` has 75 rows that pair a Lean id with a Rust test.
-The crate has 218 tests with all features on.
+At `v0.5.3`, `THEOREM_MAP.md` has 76 rows that pair a Lean id with a Rust test.
+The crate has 223 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 

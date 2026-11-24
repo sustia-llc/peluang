@@ -1,7 +1,9 @@
 //! The running example as exact literals built with `Kernel::new`: the objects
 //! `W`, `T`, `S`, `P`, `B`, the kernels `psi_t`, `c`, `s`, `h`, `k`, `hot`,
-//! `f`, `j`, `d`, `e`, `coin`, `p_ind`, `p_brk`, `s2`, `dd`, `g2`, `c2`, `m`,
-//! `e_inv`, and the comparisons that report observed and expected values.
+//! `f`, `j`, `d`, `e`, `coin`, `p_ind`, `p_brk`, `s2`, `dd`, `g2`, `g0`, `c2`,
+//! `m`, `e_inv`, the constructors `r`, `labels`, `lit`, `points`, `point`, the
+//! composites `conditional_composite` and `copy_whisker`, the printer `show`,
+//! and the comparisons that report observed and expected values.
 
 #![allow(dead_code)]
 
@@ -208,6 +210,19 @@ pub fn g2() -> Result<Kernel<Exact>> {
         &[
             &[r(1, 1), r(0, 1)],
             &[r(1, 1), r(0, 1)],
+            &[r(1, 2), r(1, 2)],
+        ],
+    )
+}
+
+/// `g0 : W → S`: sunny, cloudy and rainy to `(1/2, 1/2)`.
+pub fn g0() -> Result<Kernel<Exact>> {
+    lit(
+        obj_w()?,
+        obj_s()?,
+        &[
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 2), r(1, 2)],
             &[r(1, 2), r(1, 2)],
         ],
     )
