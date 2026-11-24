@@ -878,20 +878,20 @@ fn is_as_deterministic_on_a_one_element_domain_reads_its_column() -> Result<()> 
     assert_as_deterministic("is_as_deterministic(𝟙 I, hot)", &id, &hot()?, true);
 
     let one = FinObj::new(1);
-    let id = Kernel::<Exact>::identity(&one)?;
-    let spread = Kernel::new(one.clone(), obj_t()?, vec![r(1, 5), r(4, 5)])?;
-    let pointed = Kernel::new(one, obj_t()?, vec![r(1, 1), r(0, 1)])?;
+    let p = Kernel::<Exact>::from_fn(obj_t()?, one.clone(), |_| 0)?;
+    let cold = Kernel::new(one.clone(), obj_t()?, vec![r(0, 1), r(1, 1)])?;
+    let halves = Kernel::new(one, obj_t()?, vec![r(1, 2), r(1, 2)])?;
     assert_as_deterministic(
-        "is_as_deterministic(𝟙 [1], [1] → T with (1/5, 4/5))",
-        &id,
-        &spread,
-        false,
+        "is_as_deterministic(T → [1], [1] → T with (0, 1))",
+        &p,
+        &cold,
+        true,
     );
     assert_as_deterministic(
-        "is_as_deterministic(𝟙 [1], [1] → T with (1, 0))",
-        &id,
-        &pointed,
-        true,
+        "is_as_deterministic(T → [1], [1] → T with (1/2, 1/2))",
+        &p,
+        &halves,
+        false,
     );
     Ok(())
 }

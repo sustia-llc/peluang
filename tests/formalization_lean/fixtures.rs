@@ -309,7 +309,8 @@ pub fn assert_as_equal(
     let observed = match as_equal(p, f, g) {
         Ok(observed) => observed,
         Err(e) => panic!(
-            "{name} with f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            "{name} with p = {}, f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            show(p),
             show(f),
             show(g)
         ),
@@ -317,7 +318,8 @@ pub fn assert_as_equal(
     assert_eq!(
         observed,
         expected,
-        "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
+        "{name} with p = {}, f = {}, g = {}: expected {expected}, observed {observed}",
+        show(p),
         show(f),
         show(g)
     );
