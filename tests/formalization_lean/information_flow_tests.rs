@@ -5,8 +5,9 @@
 //! `copy_comp_natural` and `copy_comp_natural_as` on `(c, g0)` and on
 //! `(c, dd)`; the `Error::NotComposable` of the three functions on the
 //! running example, on `[2^19]` and on an empty domain; their
-//! `Error::TooLarge` on `[2^19]`; and `Ok(true)` of the two boolean functions
-//! on `0 → [2^19]`.
+//! `Error::TooLarge` on `I → [2^19]`; the `Error::TooLarge` of the two boolean
+//! functions on `[2^19] → I`, where `copy_then` returns `Ok`; and `Ok(true)`
+//! of the two boolean functions on `0 → [2^19]`.
 
 use std::fmt::Debug;
 
@@ -20,8 +21,8 @@ use peluang::prob::Exact;
 use crate::fixtures::{
     assert_as_deterministic, assert_as_equal, assert_copy_comp_natural,
     assert_copy_comp_natural_as, assert_deterministic, assert_differs, assert_kernel, c, c2, coin,
-    copy_whisker, dd, e, e_inv, g0, g2, hot, k, lit, m, obj_b, obj_s, obj_t, obj_w, psi_t, r, s,
-    s2,
+    copy_whisker, dd, e, e_inv, g0, g2, hot, k, lit, m, obj_b, obj_s, obj_t, obj_w, point, psi_t,
+    r, s, s2,
 };
 
 /// The literal of `copy_then(c, s) : T → S ⊗ W`.
@@ -184,6 +185,33 @@ fn information_flow_functions_return_too_large_on_a_composable_pair_through_2_po
     Ok(())
 }
 
+/// With `ε[2^19] : [2^19] → I`, `on : I → S` and `into_wide : I → [2^19]`:
+/// `copy_then` on `(ε[2^19], on)` returns `Ok`. `copy_comp_natural` on
+/// `(ε[2^19], on)` and `copy_comp_natural_as` on `(into_wide, ε[2^19], on)`
+/// return `Error::TooLarge` with `fst` `2^19`, `snd` `2^38` and a source.
+#[test]
+fn copy_comp_natural_and_its_as_form_return_too_large_where_copy_then_returns_ok() -> Result<()> {
+    let (wide, unit) = (wide(), FinObj::unit());
+    let into_wide = Kernel::<Exact>::from_fn(unit, wide.clone(), |_| 0)?;
+    let del = Kernel::<Exact>::del(&wide)?;
+    let on = point(obj_s()?, 0)?;
+    let lhs = copy_then(&del, &on);
+    assert!(
+        lhs.is_ok(),
+        "copy_then(ε[2^19], on): expected Ok(_), observed Err({:?})",
+        lhs.as_ref().err()
+    );
+    assert_too_large(
+        "copy_comp_natural(ε[2^19], on)",
+        &copy_comp_natural(&del, &on),
+    );
+    assert_too_large(
+        "copy_comp_natural_as(I → [2^19], ε[2^19], on)",
+        &copy_comp_natural_as(&into_wide, &del, &on),
+    );
+    Ok(())
+}
+
 /// `copy_comp_natural` on `(0 → [2^19], ε[2^19])` and `copy_comp_natural_as`
 /// on `(0 → 0, 0 → [2^19], ε[2^19])` return `Ok(true)`.
 #[test]
@@ -205,17 +233,18 @@ fn copy_comp_natural_and_its_as_form_on_an_empty_domain_build_no_kernel() -> Res
     Ok(())
 }
 
-/// `copy_comp_natural` on `(0 → S, c)` returns the `Error::NotComposable` of
-/// `S` and `T`. `copy_comp_natural_as` returns that of `T` and `0` on
-/// `(0 → T, 0 → S, e)` and that of `S` and `T` on `(0 → 0, 0 → S, c)`.
+/// `copy_then` and `copy_comp_natural` on `(0 → S, c)` return the
+/// `Error::NotComposable` of `S` and `T`. `copy_comp_natural_as` returns that
+/// of `T` and `0` on `(0 → T, 0 → S, e)` and that of `S` and `T` on
+/// `(0 → 0, 0 → S, c)`.
 #[test]
-fn copy_comp_natural_and_its_as_form_reject_a_non_composable_pair_on_an_empty_domain() -> Result<()>
-{
+fn information_flow_functions_reject_a_non_composable_pair_on_an_empty_domain() -> Result<()> {
     let (empty, t, sp) = (FinObj::new(0), obj_t()?, obj_s()?);
     let (c, e) = (c()?, e()?);
     let p = Kernel::<Exact>::new(empty.clone(), empty.clone(), Vec::new())?;
     let p_t = Kernel::<Exact>::new(empty.clone(), t.clone(), Vec::new())?;
     let f = Kernel::<Exact>::new(empty.clone(), sp.clone(), Vec::new())?;
+    assert_not_composable("copy_then(0 → S, c)", &copy_then(&f, &c), &sp, &t);
     assert_not_composable(
         "copy_comp_natural(0 → S, c)",
         &copy_comp_natural(&f, &c),

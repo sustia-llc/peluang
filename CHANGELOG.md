@@ -37,7 +37,7 @@ git tag is the authoritative pin.
   `exists_almostSurelyEq_comp_ne`.
 - `information_flow::copy_then`, `information_flow::copy_comp_natural` and
   `information_flow::copy_comp_natural_as`.
-- `tests/formalization_lean/information_flow_tests.rs`: 16 tests, 9 of them
+- `tests/formalization_lean/information_flow_tests.rs`: 17 tests, 9 of them
   with a `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 67 to 76 rows. One new
   row has the `mathlib:` prefix.
 

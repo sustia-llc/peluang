@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lean-1-classes-title lean-1-classes-desc" id="lean-1-classes-root">
         <title id="lean-1-classes-title">Mathlib classes and the main peluang declarations</title>
-        <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory to CopyDiscardCategory, the hub that MarkovCategory, Deterministic, conditionals, almost-sure equality and conditional independence build on. MarkovCategory carries PositiveCategory, Stoch, FinStoch and the deterministic wide subcategory. Conditionals and almost-sure equality lead to isConditional_unique_as. Conditionals lead to CausalCategory, then RelativelyPositiveCategory, then Mathlib's PositiveCategory. All peluang declarations shown are done.</desc>
+        <desc id="lean-1-classes-desc">Dependency graph of the Mathlib class chain from SymmetricCategory to CopyDiscardCategory, the hub that MarkovCategory, Deterministic, conditionals, almost-sure equality and conditional independence build on. MarkovCategory carries PositiveCategory, Stoch, FinStoch and the deterministic wide subcategory. Conditionals and almost-sure equality lead to isConditional_unique_as. CausalCategory and RelativelyPositiveCategory build on MarkovCategory and almost-sure equality. Dashed arrows show that a category with conditionals is causal, a causal one is relatively positive, and a relatively positive one is a PositiveCategory. All peluang declarations shown are done.</desc>
         <defs>
           <marker id="lean-1-classes-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
         </defs>
@@ -44,12 +44,21 @@
         <line x1="700" y1="476" x2="700" y2="524" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
         <!-- AS -> UQ -->
         <line x1="820" y1="476" x2="820" y2="524" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
-        <!-- HC -> CC -->
-        <line x1="580" y1="476" x2="580" y2="524" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
-        <!-- CC -> RP (lane y=610, under UQ) -->
-        <path d="M 520,600 V 606 Q 520,610 524,610 H 996 Q 1000,610 1000,606 V 600" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
-        <!-- RP -> PO (lane x=1000, between AS and WS) -->
-        <path d="M 1000,524 V 300 Q 1000,292 992,292 H 968 Q 960,292 960,288 V 280" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- MK -> CC (lane y=352, then x=520 between CI and HC) -->
+        <path d="M 600,280 V 348 Q 600,352 596,352 H 524 Q 520,352 520,356 V 524" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- AS -> CC (lane y=500) -->
+        <path d="M 800,476 V 496 Q 800,500 796,500 H 608 Q 604,500 604,504 V 524" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- MK -> RP (lane y=304, then x=1008 between AS and WS) -->
+        <path d="M 724,280 V 300 Q 724,304 728,304 H 1004 Q 1008,304 1008,308 V 524" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- AS -> RP (straight) -->
+        <line x1="940" y1="476" x2="940" y2="524" stroke="#4f5d75" stroke-width="1" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- Dashed: A ⇢ B means every A is a B -->
+        <!-- HC ⇢ CC -->
+        <line x1="580" y1="476" x2="580" y2="524" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- CC ⇢ RP (lane y=610, under UQ) -->
+        <path d="M 520,600 V 606 Q 520,610 524,610 H 996 Q 1000,610 1000,606 V 600" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#lean-1-classes-arrow)"/>
+        <!-- RP ⇢ PO (lane x=992, between AS and WS) -->
+        <path d="M 992,524 V 300 Q 992,292 984,292 H 968 Q 960,292 960,288 V 280" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#lean-1-classes-arrow)"/>
 
         <!-- ===== Mathlib nodes (external treatment) ===== -->
 
@@ -88,7 +97,7 @@
         <rect x="548" y="210" width="36" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="566" y="219" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">CLASS</text>
         <rect x="700" y="212" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
-        <text x="716" y="221" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">4 USE</text>
+        <text x="716" y="221" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">6 USE</text>
         <text x="640" y="240" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">MarkovCategory C</text>
         <text x="640" y="256" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">+ discard_natural</text>
         <text x="640" y="270" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Def. 2.1</text>
@@ -143,7 +152,7 @@
         <rect x="548" y="406" width="36" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="566" y="415" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">CLASS</text>
         <rect x="700" y="408" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
-        <text x="716" y="417" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">2 USE</text>
+        <text x="716" y="417" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">1 USE</text>
         <text x="640" y="440" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">HasConditionals C</text>
         <text x="640" y="458" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Def. 11.5</text>
 
@@ -153,7 +162,7 @@
         <rect x="788" y="406" width="28" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="802" y="415" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">DEF</text>
         <rect x="940" y="408" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
-        <text x="956" y="417" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">1 USE</text>
+        <text x="956" y="417" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">3 USE</text>
         <text x="880" y="440" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">=_{p-a.s.}</text>
         <text x="880" y="458" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Def. 13.1</text>
 
@@ -184,7 +193,7 @@
         <rect x="428" y="530" width="36" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="446" y="539" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">CLASS</text>
         <rect x="580" y="532" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
-        <text x="596" y="541" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">1 USE</text>
+        <text x="596" y="541" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">0 USE</text>
         <text x="520" y="560" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">CausalCategory C</text>
         <text x="520" y="576" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">MarkovCategory + causal</text>
         <text x="520" y="590" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Def. 11.31</text>
@@ -195,7 +204,7 @@
         <rect x="908" y="530" width="36" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="926" y="539" fill="#2d3142" font-size="7" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">CLASS</text>
         <rect x="1060" y="532" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
-        <text x="1076" y="541" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">1 USE</text>
+        <text x="1076" y="541" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">0 USE</text>
         <text x="1000" y="560" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', system-ui, sans-serif" text-anchor="middle">RelativelyPositiveCategory C</text>
         <text x="1000" y="576" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">+ copy_comp_natural_as</text>
         <text x="1000" y="590" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">Fritz Def. 13.16</text>
@@ -219,4 +228,7 @@
         <rect x="680" y="672" width="32" height="12" rx="2" fill="none" stroke="#2d3142" stroke-width="0.8" stroke-opacity="0.40"/>
         <text x="696" y="681" fill="#2d3142" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">n USE</text>
         <text x="720" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">n nodes build on it</text>
+
+        <line x1="844" y1="678" x2="872" y2="678" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#lean-1-classes-arrow)"/>
+        <text x="880" y="682" fill="#4f5d75" font-size="8.5" font-family="'Geist', system-ui, sans-serif">Dashed A → B: every A is a B</text>
       </svg>
