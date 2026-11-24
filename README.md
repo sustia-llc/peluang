@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.5.2` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.3` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -67,9 +67,31 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   equality (Lemma 13.12) and postcomposition with a deterministic morphism
   keep it. In FinStoch, it holds iff each row of `f` that `p` reaches has only
   the entries `0` and `1`. One such morphism is not deterministic.
+- `CausalCategory` is a Markov category with the causality axiom (Def. 11.31).
+  In it, `(f ≫ g)`-almost surely equal `h₁` and `h₂` give `f`-almost surely
+  equal `g ≫ h₁` and `g ≫ h₂`. A `p`-almost surely deterministic `f` and a
+  `(p ≫ f)`-almost surely deterministic `g` have a `p`-almost surely
+  deterministic composite (Remark 13.14). A Markov category with conditionals
+  is causal (Prop. 11.34).
+- `RelativelyPositiveCategory` is a Markov category with the almost-sure form
+  of the positivity axiom (Def. 13.16; arXiv:2211.02507, equation (78)). Every
+  causal Markov category is relatively positive (arXiv:2211.02507,
+  Corollary 2.28). Every relatively positive Markov category is a Mathlib
+  `PositiveCategory` (Remark 2.27 of that paper; Def. 11.22). In a relatively
+  positive Markov category, a `p`-almost surely deterministic `f ≫ g` has a
+  `(p ≫ f)`-almost surely deterministic `g` (Remark 13.17 (b)).
+- A Markov category in which every morphism is deterministic is cartesian
+  monoidal (Heunen–Vicary, *Categories for Quantum Theory*, Theorem 4.28). The
+  deterministic morphisms of a Markov category form such a category
+  (Remark 10.13). These two definitions have no `THEOREM_MAP.md` row.
+- `instance : CausalCategory FinStoch`. Instance search then gives
+  `RelativelyPositiveCategory FinStoch` and `PositiveCategory FinStoch`. In
+  FinStoch, one deterministic composite has a first factor that is not
+  deterministic. The hypothesis of causality holds there for two distinct
+  morphisms `h₁` and `h₂`.
 
-At `v0.5.2`, `THEOREM_MAP.md` has 67 rows that pair a Lean id with a Rust test.
-The crate has 207 tests with all features on.
+At `v0.5.3`, `THEOREM_MAP.md` has 75 rows that pair a Lean id with a Rust test.
+The crate has 218 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -88,6 +110,8 @@ The crate has 207 tests with all features on.
   - `conditional.rs`: `conditional`.
   - `bayes.rs`: `bayesian_inverse` and `is_bayesian_inverse`.
   - `independence.rs`: `is_independent` and `cond_indep_form`.
+  - `information_flow.rs`: `copy_then`, `copy_comp_natural` and
+    `copy_comp_natural_as`.
   - `exec.rs` (behind `async`) and `error.rs`.
 - `lean/`: the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
   `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is

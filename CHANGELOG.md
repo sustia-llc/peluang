@@ -6,6 +6,40 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-11-24
+
+### Added
+
+- `lean/Peluang/Causal.lean`: the class `CausalCategory`, which extends
+  `MarkovCategory` with the causality axiom (Fritz 2020 Def. 11.31). The file
+  adds `CausalCategory.causal_eq`, `AlmostSurelyEq.of_comp`,
+  `IsAlmostSurelyDeterministic.comp` (Remark 13.14),
+  `almostSurelyEq_copy_whiskerRight_of_hasConditionals` and the `abbrev`
+  `CausalCategory.ofHasConditionals` (Prop. 11.34). Its helpers are
+  `AlmostSurelyEq.comp_eq_comp`, `AlmostSurelyEq.precomp` and
+  `copy_comp_fst_tensorHom_snd`.
+- `lean/Peluang/Positive.lean`: the class `RelativelyPositiveCategory`
+  (Fritz 2020 Def. 13.16; arXiv:2211.02507, equation (78)). The file adds the
+  instances `instRelativelyPositiveCategoryOfCausalCategory` and
+  `instPositiveCategoryOfRelativelyPositiveCategory`,
+  `copy_comp_natural_of_relativelyPositive` and
+  `IsAlmostSurelyDeterministic.of_comp` (Remark 13.17 (b)). Its helpers are
+  `AlmostSurelyEq.copy_comp_tensorHom`, `AlmostSurelyEq.copy_comp_tensorHom'`,
+  `almostSurelyEq_copy_fst_snd`, `copy_comp_whiskerRight_comp_whiskerLeft` and
+  `copy_comp_copy_tensorHom_tensorHom`.
+- `lean/Peluang/Markov/Fox.lean`: the definitions
+  `cartesianMonoidalCategoryOfDeterministic` (Heunen–Vicary Theorem 4.28) and
+  `cartesianMonoidalCategoryDeterministic` (Fritz 2020 Remark 10.13), and the
+  helper `eq_copy_comp_tensorHom_of_deterministic`.
+- `lean/Peluang/Instances/FinStoch/InformationFlow.lean`:
+  `FinStoch.instCausalCategory`,
+  `exists_deterministic_comp_not_deterministic` and
+  `exists_almostSurelyEq_comp_ne`.
+- `information_flow::copy_then`, `information_flow::copy_comp_natural` and
+  `information_flow::copy_comp_natural_as`.
+- `tests/formalization_lean/information_flow_tests.rs`: 11 tests, 8 of them
+  witness tests. `THEOREM_MAP.md` goes from 67 to 75 rows.
+
 ## [0.5.2] - 2026-11-24
 
 ### Added
@@ -388,7 +422,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/sustia-llc/peluang/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/sustia-llc/peluang/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/sustia-llc/peluang/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/sustia-llc/peluang/compare/v0.4.2...v0.5.0
