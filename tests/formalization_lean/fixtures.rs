@@ -1,12 +1,13 @@
 //! The running example as exact literals built with `Kernel::new`: the objects
-//! `W`, `T`, `S`, `P`, `B`, the kernels `psi_t`, `c`, `s`, `h`, `f`, `j`, `d`,
-//! `e`, `coin`, `p_ind`, `p_brk`, and the comparisons that report observed and
-//! expected values.
+//! `W`, `T`, `S`, `P`, `B`, the kernels `psi_t`, `c`, `s`, `h`, `k`, `hot`,
+//! `f`, `j`, `d`, `e`, `coin`, `p_ind`, `p_brk`, and the comparisons that
+//! report observed and expected values.
 
 #![allow(dead_code)]
 
 use peluang::almost_sure::as_equal;
-use peluang::deterministic::is_deterministic;
+use peluang::bayes::is_bayesian_inverse;
+use peluang::deterministic::{is_as_deterministic, is_deterministic};
 use peluang::error::Result;
 use peluang::finset::FinObj;
 use peluang::independence::is_independent;
@@ -98,6 +99,25 @@ pub fn h() -> Result<Kernel<Exact>> {
         obj_s()?,
         &[&[r(2, 3), r(1, 3)], &[r(1, 4), r(3, 4)]],
     )
+}
+
+/// `k : T → S`: hot to `(1, 0)`, cold to `(1/4, 3/4)`.
+pub fn k() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_s()?,
+        &[&[r(1, 1), r(0, 1)], &[r(1, 4), r(3, 4)]],
+    )
+}
+
+/// The state `I → cod` with weight 1 at output `at`, through `Kernel::new`.
+pub fn point(cod: FinObj, at: usize) -> Result<Kernel<Exact>> {
+    points(FinObj::unit(), cod, &[at])
+}
+
+/// `hot : I → T`, `(1, 0)`.
+pub fn hot() -> Result<Kernel<Exact>> {
+    point(obj_t()?, 0)
 }
 
 /// `f : T → W ⊗ S`.
@@ -289,7 +309,8 @@ pub fn assert_as_equal(
     let observed = match as_equal(p, f, g) {
         Ok(observed) => observed,
         Err(e) => panic!(
-            "{name} with f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            "{name} with p = {}, f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            show(p),
             show(f),
             show(g)
         ),
@@ -297,7 +318,8 @@ pub fn assert_as_equal(
     assert_eq!(
         observed,
         expected,
-        "{name} with f = {}, g = {}: expected {expected}, observed {observed}",
+        "{name} with p = {}, f = {}, g = {}: expected {expected}, observed {observed}",
+        show(p),
         show(f),
         show(g)
     );
@@ -319,6 +341,56 @@ pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj,
         expected,
         "is_independent({name}) on {}: expected {expected}, observed {observed}",
         show(k)
+    );
+}
+
+/// Asserts `is_bayesian_inverse(p, f, g) == Ok(expected)`, naming the call
+/// `name`; panics with `name` and the error when the engine returns an error.
+#[track_caller]
+pub fn assert_bayesian_inverse(
+    name: &str,
+    p: &Kernel<Exact>,
+    f: &Kernel<Exact>,
+    g: &Kernel<Exact>,
+    expected: bool,
+) {
+    let observed = match is_bayesian_inverse(p, f, g) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "{name} with p = {}, f = {}, g = {}: expected Ok({expected}), observed Err({e:?})",
+            show(p),
+            show(f),
+            show(g)
+        ),
+    };
+    assert_eq!(
+        observed,
+        expected,
+        "{name} with p = {}, f = {}, g = {}: expected {expected}, observed {observed}",
+        show(p),
+        show(f),
+        show(g)
+    );
+}
+
+/// Asserts `is_as_deterministic(p, f) == Ok(expected)`, naming the call
+/// `name`; panics with `name` and the error when the engine returns an error.
+#[track_caller]
+pub fn assert_as_deterministic(name: &str, p: &Kernel<Exact>, f: &Kernel<Exact>, expected: bool) {
+    let observed = match is_as_deterministic(p, f) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "{name} with p = {}, f = {}: expected Ok({expected}), observed Err({e:?})",
+            show(p),
+            show(f)
+        ),
+    };
+    assert_eq!(
+        observed,
+        expected,
+        "{name} with p = {}, f = {}: expected {expected}, observed {observed}",
+        show(p),
+        show(f)
     );
 }
 

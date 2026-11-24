@@ -15,7 +15,8 @@ import PeluangLint
 
 Instance search for `Category FinStoch` and for `Fintype` and `DecidableEq` on carriers, `ext` on
 `X ⟶ Y`, each `simp` lemma on its own statement and its failure without that lemma, the two forms
-that need a type ascription to elaborate, and the value of a composite in `ℚ≥0` by `#guard`.
+that need a type ascription to elaborate, `eq_of_ofFun_const_mass_ne_zero` applied once, and the
+value of a composite in `ℚ≥0` by `#guard`.
 -/
 
 public section
@@ -67,6 +68,10 @@ example : Hom.ofFun id = 𝟙 X := by
 example (f : X.carrier → Y.carrier) (g : Y.carrier → Z.carrier) :
     (Hom.ofFun f ≫ Hom.ofFun g : X ⟶ Z) = Hom.ofFun (g ∘ f) := by
   simp
+
+example {x₀ x : Y.carrier} {a : X.carrier}
+    (h : (Hom.ofFun (fun _ => x₀) : X ⟶ Y).mass a x ≠ 0) : x₀ = x :=
+  eq_of_ofFun_const_mass_ne_zero h
 
 example (f : X ⟶ Y) (g : Y ⟶ Z) (x z) :
     (f ≫ g).mass x z = ∑ y, f.mass x y * g.mass y z := by

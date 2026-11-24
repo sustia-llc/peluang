@@ -109,6 +109,14 @@ theorem ofFun_mass (f : X.carrier → Y.carrier) (x) (y) :
     (Hom.ofFun f).mass x y = if f x = y then 1 else 0 :=
   rfl
 
+-- WITNESS: none (step of two FinStoch countermodels; witnessed through them)
+/-- For `x₀ x : X.carrier` and `a : A.carrier`, a nonzero entry of the constant
+`Hom.ofFun fun _ => x₀ : A ⟶ X` at input `a` and output `x` gives `x₀ = x`. -/
+theorem eq_of_ofFun_const_mass_ne_zero {A X : FinStoch} {x₀ x : X.carrier} {a : A.carrier}
+    (h : (Hom.ofFun (fun _ => x₀) : A ⟶ X).mass a x ≠ 0) : x₀ = x := by
+  by_contra hne
+  exact h (by simp [ofFun_mass, hne])
+
 -- WITNESS: none (unfolds the identity; witnessed through ofFun_id)
 /-- The entries of `𝟙 X` are `1` on the diagonal and `0` elsewhere. -/
 @[simp]

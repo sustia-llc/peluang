@@ -28,7 +28,8 @@ that starts with `cfg`, `scripts/check_theorem_map.py` fails. Rows for Mathlib-o
 prefixed `mathlib:` and are optional.
 
 Anchor format: `Fritz 2020 Def./Prop./Thm./Lemma/Remark/Notation/Example N.M`
-(arXiv:1908.07021) and/or the Café post's `D`/`T` id. A row can name an
+(arXiv:1908.07021), `Cho–Jacobs Example N.M` (arXiv:1709.00322) and/or the
+Café post's `D`/`T` id. A row can name an
 instance. `scripts/print_axioms.py` fails when the Lean id of a row that is
 not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 
@@ -86,3 +87,18 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.MarkovCategory.displaysCondIndep_unit_iff | tests/formalization_lean/independence_tests.rs::witness_displays_cond_indep_unit_iff | Fritz 2020 Def. 12.16, Def. 12.12 |
 | CategoryTheory.CopyDiscardCategory.displaysCondIndep_iff_state | tests/formalization_lean/independence_tests.rs::witness_displays_cond_indep_iff_state | Fritz 2020 Def. 12.16, Def. 12.1 |
 | FinStoch.not_displaysIndep_coin_copy | tests/formalization_lean/independence_tests.rs::witness_not_displays_indep_coin_copy | Fritz 2020 Def. 12.12, Lemma 12.11 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.unique_as | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_unique_as | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.isBayesianInverse_id | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_id | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.comp | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_comp | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.congr | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_congr | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.isBayesianInverse_iff_isConditional | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_iff_is_conditional | Fritz 2020 Remark 13.10, Def. 11.5 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.tensor | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_tensor | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.comp_eq | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_comp_eq | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.symm | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_symm | Fritz 2020 Remark 13.10 |
+| FinStoch.isBayesianInverse_bayesInv | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_bayes_inv | Fritz 2020 Remark 13.10; Cho–Jacobs Example 3.8 |
+| FinStoch.isBayesianInverse_not_unique | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_not_unique | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.isAlmostSurelyDeterministic_of_deterministic | tests/formalization_lean/bayes_tests.rs::witness_is_almost_surely_deterministic_of_deterministic | Fritz 2020 Def. 13.11, Def. 10.1 |
+| CategoryTheory.CopyDiscardCategory.IsAlmostSurelyDeterministic.congr | tests/formalization_lean/bayes_tests.rs::witness_is_almost_surely_deterministic_congr | Fritz 2020 Lemma 13.12 |
+| CategoryTheory.CopyDiscardCategory.IsAlmostSurelyDeterministic.comp_deterministic | tests/formalization_lean/bayes_tests.rs::witness_is_almost_surely_deterministic_comp_deterministic | Fritz 2020 Def. 13.11, Def. 10.1 |
+| FinStoch.isAlmostSurelyDeterministic_iff | tests/formalization_lean/bayes_tests.rs::witness_is_almost_surely_deterministic_iff | Fritz 2020 Def. 13.11 |
+| FinStoch.exists_isAlmostSurelyDeterministic_not_deterministic | tests/formalization_lean/bayes_tests.rs::witness_exists_is_almost_surely_deterministic_not_deterministic | Fritz 2020 Def. 13.11, Def. 10.1 |

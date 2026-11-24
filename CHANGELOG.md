@@ -6,6 +6,36 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-24
+
+### Added
+
+- `lean/Peluang/BayesianInverse.lean`: `IsBayesianInverse p f g` for
+  `p : A ⟶ X` in a copy-discard category (Fritz 2020 Remark 13.10, equation
+  (13.2)). The file adds `unique_as`, `isBayesianInverse_id`, `comp`,
+  `congr`, `tensor`, `isBayesianInverse_iff_isConditional` and
+  `exists_isBayesianInverse`. In a Markov category, it adds `comp_eq` and
+  `symm`. Its helpers are `copy_comp_whiskerLeft_eq`,
+  `copy_comp_whiskerRight_eq` and `marginalFst_comp_copy_whiskerRight`.
+- `lean/Peluang/AlmostSure/Deterministic.lean`:
+  `IsAlmostSurelyDeterministic p f` (Def. 13.11). The file adds
+  `isAlmostSurelyDeterministic_of_deterministic`, `congr` (Lemma 13.12),
+  `comp_deterministic` and the helper `copy_comp_copy_tensorHom_whiskerRight`.
+- `lean/Peluang/Instances/FinStoch/BayesianInverse.lean`: `FinStoch.bayesInv`,
+  `isBayesianInverse_bayesInv`, `isBayesianInverse_not_unique` and the helper
+  `isBayesianInverse_id_ofFun_const`.
+- `lean/Peluang/Instances/FinStoch/AlmostSureDeterministic.lean`:
+  `isAlmostSurelyDeterministic_iff`,
+  `exists_isAlmostSurelyDeterministic_not_deterministic` and `halfDet`.
+- `lean/Peluang/Instances/FinStoch/Basic.lean`:
+  `eq_of_ofFun_const_mass_ne_zero`.
+- `bayes::bayesian_inverse`, `bayes::is_bayesian_inverse` and
+  `deterministic::is_as_deterministic`.
+- `Error::NotAState`: `bayes::bayesian_inverse` returns it for a `p` whose
+  domain is not the unit object.
+- `tests/formalization_lean/bayes_tests.rs`: 15 witness tests. `THEOREM_MAP.md`
+  goes from 52 to 67 rows.
+
 ### Changed
 
 - The Rust channel moves from `1.99.1` to `1.100.0`: `rust-toolchain.toml`,
@@ -358,7 +388,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/sustia-llc/peluang/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/sustia-llc/peluang/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/sustia-llc/peluang/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/sustia-llc/peluang/compare/v0.4.1...v0.4.2
