@@ -449,6 +449,19 @@ fn witness_is_bayesian_inverse_comp() -> Result<()> {
         &composite,
         true,
     );
+    let reached = psi_t.compose(&cg)?;
+    assert_kernel(
+        "psi_t ≫ c ≫ g",
+        &reached,
+        &Kernel::state(obj_s()?, vec![r(2, 5), r(3, 5)])?,
+    );
+    assert_as_equal(
+        "control: as_equal(psi_t ≫ c ≫ g, bayesian_inverse(hot, c ≫ g), g' ≫ g₂), off reached",
+        &reached,
+        &canonical,
+        &composite,
+        false,
+    );
     Ok(())
 }
 
@@ -863,6 +876,23 @@ fn is_as_deterministic_on_a_one_element_domain_reads_its_column() -> Result<()> 
     assert_kernel("𝟙 I", &Kernel::identity(&unit)?, &id);
     assert_as_deterministic("is_as_deterministic(𝟙 I, psi_t)", &id, &psi_t()?, false);
     assert_as_deterministic("is_as_deterministic(𝟙 I, hot)", &id, &hot()?, true);
+
+    let one = FinObj::new(1);
+    let id = Kernel::<Exact>::identity(&one)?;
+    let spread = Kernel::new(one.clone(), obj_t()?, vec![r(1, 5), r(4, 5)])?;
+    let pointed = Kernel::new(one, obj_t()?, vec![r(1, 1), r(0, 1)])?;
+    assert_as_deterministic(
+        "is_as_deterministic(𝟙 [1], [1] → T with (1/5, 4/5))",
+        &id,
+        &spread,
+        false,
+    );
+    assert_as_deterministic(
+        "is_as_deterministic(𝟙 [1], [1] → T with (1, 0))",
+        &id,
+        &pointed,
+        true,
+    );
     Ok(())
 }
 

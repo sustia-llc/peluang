@@ -14,9 +14,9 @@ import PeluangLint
 `hf.comp hg`, `h.congr hf hg` and `hf.tensor hk` on `IsBayesianInverse` hypotheses,
 `isBayesianInverse_id`, `isBayesianInverse_iff_isConditional` and `exists_isBayesianInverse`
 applied once. For `h : IsBayesianInverse p f g`, dot notation `h.comp_eq`, `h.symm` and
-`h.symm.symm` in a Markov category, `h.symm` and `h.comp_eq` failing to elaborate in a
-copy-discard category, and `Eq.symm h` at the equation of `IsBayesianInverse p f g` read right
-to left.
+`h.symm.symm` in a Markov category, `h.symm` and `h.comp_eq` failing to elaborate under
+`[CopyDiscardCategory C]` with no `MarkovCategory C` instance in scope, and `Eq.symm h` at the
+equation of `IsBayesianInverse p f g` read right to left.
 -/
 
 public section

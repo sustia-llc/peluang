@@ -7,6 +7,7 @@
 //! `cond_indep_form`, results across `PAR_THRESHOLD`, size
 //! errors, and the post's eq. (9). In every feature lane: the `FinObj` object
 //! laws and rejections, and on weights with a left-projection `add`,
+//! `verify_prob_axioms` returning `AxiomViolation { law: "add_comm" }` and
 //! `bayesian_inverse` returning `Error::NoUniformWeight`. On `f64` weights
 //! under `f64-prob`: the `Prob` trait,
 //! `Kernel::approx_eq`, the input tests of `Kernel::new`, worked `compose`,
@@ -72,10 +73,9 @@ mod rejection {
         );
     }
 
-    /// Under left-projection `add`, a fold from `P::zero()` stays at
-    /// `P::zero()`: each entry of the joint, which `compose` sums through
-    /// `prob::sum`, the mass of each slice of it in `conditional`, and
-    /// `P::one()` added three times.
+    /// On `LeftProj` weights, `bayesian_inverse` of the point state at 0 of
+    /// `[3]` and the constant kernel `[3] → [2]` at 0 returns
+    /// `Error::NoUniformWeight { card: 3 }`.
     #[test]
     fn bayesian_inverse_reports_no_uniform_weight_on_left_projection_add() -> Result<()> {
         let (x, y) = (FinObj::new(3), FinObj::new(2));
