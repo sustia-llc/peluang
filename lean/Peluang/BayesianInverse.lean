@@ -39,10 +39,10 @@ category.
 * `CopyDiscardCategory.IsBayesianInverse.tensor` - the tensor product of Bayesian inverses is
   a Bayesian inverse of the tensor product, with respect to the tensor product
   (Fritz 2020, Remark 13.10).
-* `MarkovCategory.IsBayesianInverse.comp_eq` - in a Markov category, a Bayesian inverse `g` of
-  `f` with respect to `p` satisfies `p ≫ f ≫ g = p` (Fritz 2020, Remark 13.10).
-* `MarkovCategory.IsBayesianInverse.symm` - in a Markov category, `f` is a Bayesian inverse
-  with respect to `p ≫ f` of each of its Bayesian inverses with respect to `p`
+* `CopyDiscardCategory.IsBayesianInverse.comp_eq` - in a Markov category, a Bayesian inverse
+  `g` of `f` with respect to `p` satisfies `p ≫ f ≫ g = p` (Fritz 2020, Remark 13.10).
+* `CopyDiscardCategory.IsBayesianInverse.symm` - in a Markov category, `f` is a Bayesian
+  inverse with respect to `p ≫ f` of each of its Bayesian inverses with respect to `p`
   (Fritz 2020, Remark 13.10).
 
 ## References
@@ -198,7 +198,8 @@ variable {C : Type u} [Category.{v} C] [MonoidalCategory.{v} C] [MarkovCategory 
 
 /-- In a Markov category, for `p : A ⟶ X`, `f : X ⟶ Y` and a Bayesian inverse `g : Y ⟶ X` of
 `f` with respect to `p`, `p ≫ f ≫ g = p` (Fritz 2020, Remark 13.10). -/
-theorem IsBayesianInverse.comp_eq {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X}
+theorem _root_.CategoryTheory.CopyDiscardCategory.IsBayesianInverse.comp_eq {A X Y : C}
+    {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X}
     (h : IsBayesianInverse p f g) : p ≫ f ≫ g = p := by
   unfold IsBayesianInverse at h
   have e := congrArg marginalFst h
@@ -209,7 +210,8 @@ theorem IsBayesianInverse.comp_eq {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y
 /-- In a Markov category, for `p : A ⟶ X`, `f : X ⟶ Y` and a Bayesian inverse `g : Y ⟶ X` of
 `f` with respect to `p`, `f` is a Bayesian inverse of `g` with respect to `p ≫ f`
 (Fritz 2020, Remark 13.10). -/
-theorem IsBayesianInverse.symm {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X}
+theorem _root_.CategoryTheory.CopyDiscardCategory.IsBayesianInverse.symm {A X Y : C}
+    {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X}
     (h : IsBayesianInverse p f g) : IsBayesianInverse (p ≫ f) g f := by
   have e : (p ≫ f) ≫ g = p := by rw [Category.assoc, IsBayesianInverse.comp_eq h]
   unfold IsBayesianInverse at h ⊢

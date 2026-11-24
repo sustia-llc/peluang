@@ -16,8 +16,12 @@ use crate::prob::Prob;
 /// `1 / X.card()` at every output when `s == P::zero()` (Cho–Jacobs,
 /// Example 3.8). Returns `Error::NotAState` when the domain of `p` is not
 /// `FinObj::unit()`, then `Error::NotComposable` when the codomain of `p`
-/// differs from the domain of `f`, then the errors of `Kernel::copy`,
-/// `Kernel::whisker_right`, `Compose::compose` and `conditional::conditional`.
+/// differs from the domain of `f`, both with no kernel built, then
+/// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
+/// capacity fails, and `Error::NoUniformWeight` when a column has
+/// `s == P::zero()` and `Prob::div_checked` returns `None` on `P::one()` over
+/// `P::one()` added `X.card()` times. In the `f64` lane, underflow can turn a
+/// positive weight into zero, so a column with mass can count as zero-mass.
 pub fn bayesian_inverse<P: Prob>(p: &Kernel<P>, f: &Kernel<P>) -> Result<Kernel<P>> {
     if *p.domain() != FinObj::unit() {
         return Err(Error::NotAState {
@@ -38,8 +42,11 @@ pub fn bayesian_inverse<P: Prob>(p: &Kernel<P>, f: &Kernel<P>) -> Result<Kernel<
 /// (Fritz 2020, equation (13.2)). Returns `Error::NotComposable` when the
 /// codomain of `p` differs from the domain of `f`, then when the codomain of
 /// `f` differs from the domain of `g`, then when the codomain of `g` differs
-/// from the domain of `f`, then the errors of `Kernel::copy`,
-/// `Kernel::whisker_left`, `Kernel::whisker_right` and `Compose::compose`.
+/// from the domain of `f`, each with no kernel built, then `Error::TooLarge`
+/// when a product overflows `usize` or reserving a `Vec` capacity fails.
+/// `almost_sure::as_equal` tests support with `!= P::zero()`, so in the `f64`
+/// lane two kernels `g` can both pass here and fail `as_equal` with respect to
+/// `p ≫ f`.
 pub fn is_bayesian_inverse<P: Prob>(p: &Kernel<P>, f: &Kernel<P>, g: &Kernel<P>) -> Result<bool> {
     p.composable(f)?;
     f.composable(g)?;

@@ -8,8 +8,9 @@
 //! errors, and the post's eq. (9). In every feature lane: the `FinObj` object
 //! laws and rejections. On `f64` weights under `f64-prob`: the `Prob` trait,
 //! `Kernel::approx_eq`, the input tests of `Kernel::new`, worked `compose`,
-//! `tensor`, marginals and `is_deterministic` under `Kernel::approx_eq`, and
-//! `is_independent` under `Prob::approx_eq`.
+//! `tensor`, marginals and `is_deterministic` under `Kernel::approx_eq`,
+//! `is_independent` under `Prob::approx_eq`, and `bayesian_inverse`,
+//! `is_bayesian_inverse` and `is_as_deterministic`.
 
 mod common;
 #[path = "formalization_lean/fixtures.rs"]
@@ -902,9 +903,11 @@ fn c_tensor_s() -> peluang::error::Result<peluang::kernel::Kernel<peluang::prob:
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
     use crate::c_tensor_s;
-    use crate::fixtures::{c, d, f, h, obj_p, obj_s, obj_t, obj_w, s};
+    use crate::fixtures::{c, d, f, h, hot, k, obj_p, obj_s, obj_t, obj_w, psi_t, s};
     use num_traits::ToPrimitive;
-    use peluang::deterministic::is_deterministic;
+    use peluang::almost_sure::as_equal;
+    use peluang::bayes::{bayesian_inverse, is_bayesian_inverse};
+    use peluang::deterministic::{is_as_deterministic, is_deterministic};
     use peluang::error::{Error, Result};
     use peluang::finset::FinObj;
     use peluang::independence::is_independent;
@@ -1043,6 +1046,160 @@ mod float_kernels {
             assert_eq!(
                 observed, expected,
                 "is_independent({name}) on {kernel:?}: expected {expected}, observed {observed}"
+            );
+        }
+        Ok(())
+    }
+
+    #[track_caller]
+    fn assert_flag(call: &str, got: &Result<bool>, expected: bool) {
+        assert!(
+            matches!(got, Ok(observed) if *observed == expected),
+            "{call}: expected Ok({expected}), observed {got:?}"
+        );
+    }
+
+    #[track_caller]
+    fn assert_inverse(call: &str, got: &Result<Kernel<f64>>, expected: &Kernel<f64>) {
+        assert!(
+            matches!(got, Ok(observed) if observed.approx_eq(expected)),
+            "{call}: expected Ok({expected:?}) within {F64_TOLERANCE}, observed {got:?}"
+        );
+    }
+
+    #[test]
+    fn bayesian_inverse_under_approx_eq() -> Result<()> {
+        let (w, t, c) = (obj_w()?, obj_t()?, floats(&c()?)?);
+        let third = 1.0 / 3.0;
+        let plain = Kernel::new(
+            w.clone(),
+            t.clone(),
+            vec![1.0, 0.0, third, 1.0 - third, 0.0, 1.0],
+        )?;
+        let filled = Kernel::new(w, t, vec![1.0, 0.0, 1.0, 0.0, 0.5, 0.5])?;
+        for (name, p, expected) in [
+            ("psi_t", floats(&psi_t()?)?, plain),
+            ("hot, no mass at rainy", floats(&hot()?)?, filled),
+        ] {
+            assert_inverse(
+                &format!("bayesian_inverse({name}, c)"),
+                &bayesian_inverse(&p, &c),
+                &expected,
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn is_bayesian_inverse_under_approx_eq() -> Result<()> {
+        let (psi_t, c) = (floats(&psi_t()?)?, floats(&c()?)?);
+        let (third, tilt) = (1.0 / 3.0, F64_TOLERANCE / 4.0);
+        let inverse = |hot_at_cloudy: f64| {
+            Kernel::new(
+                obj_w()?,
+                obj_t()?,
+                vec![1.0, 0.0, hot_at_cloudy, 1.0 - hot_at_cloudy, 0.0, 1.0],
+            )
+        };
+        for (name, g, expected) in [
+            ("cloudy (1/3, 2/3)", inverse(third)?, true),
+            (
+                "cloudy tilted by F64_TOLERANCE / 4",
+                inverse(third + tilt)?,
+                true,
+            ),
+            ("cloudy (2/3, 1/3)", inverse(1.0 - third)?, false),
+        ] {
+            assert_flag(
+                &format!("is_bayesian_inverse(psi_t, c, {name}) on {g:?}"),
+                &is_bayesian_inverse(&psi_t, &c, &g),
+                expected,
+            );
+        }
+        Ok(())
+    }
+
+    /// The expected values are those of a measured run.
+    #[test]
+    fn is_bayesian_inverse_passes_two_kernels_that_fail_as_equal_measured() -> Result<()> {
+        let two = FinObj::new(2);
+        let p = Kernel::state(two.clone(), vec![1.0 - 1e-13, 1e-13])?;
+        let id = Kernel::<f64>::identity(&two)?;
+        let constant = Kernel::<f64>::from_fn(two.clone(), two, |_| 0)?;
+        assert_flag(
+            "measured: is_bayesian_inverse((1 - 1e-13, 1e-13), 𝟙, 𝟙)",
+            &is_bayesian_inverse(&p, &id, &id),
+            true,
+        );
+        assert_flag(
+            "measured: is_bayesian_inverse((1 - 1e-13, 1e-13), 𝟙, constant 0)",
+            &is_bayesian_inverse(&p, &id, &constant),
+            true,
+        );
+        assert_flag(
+            "measured: as_equal((1 - 1e-13, 1e-13) ≫ 𝟙, 𝟙, constant 0)",
+            &as_equal(&p.compose(&id)?, &id, &constant),
+            false,
+        );
+        Ok(())
+    }
+
+    /// The expected value is that of a measured run: the joint weight
+    /// `1e-200 * 1e-200` at `(y0, x0)` is `0.0`.
+    #[test]
+    fn bayesian_inverse_fills_an_underflowed_column_uniformly_measured() -> Result<()> {
+        let two = FinObj::new(2);
+        let p = Kernel::state(two.clone(), vec![1e-200, 1.0])?;
+        let f = Kernel::new(two.clone(), two.clone(), vec![1e-200, 1.0, 0.0, 1.0])?;
+        let expected = Kernel::new(two.clone(), two, vec![0.5, 0.5, 1e-200, 1.0])?;
+        assert_inverse(
+            "measured: bayesian_inverse((1e-200, 1), x0 → (1e-200, 1), x1 → (0, 1))",
+            &bayesian_inverse(&p, &f),
+            &expected,
+        );
+        Ok(())
+    }
+
+    /// The expected values of the last two cases are those of a measured run:
+    /// the weight `1e-200 * 1e-200` of `under` at `x1` is `0.0`.
+    #[test]
+    fn is_as_deterministic_under_approx_eq() -> Result<()> {
+        let (two, tilt) = (FinObj::new(2), F64_TOLERANCE / 4.0);
+        let k = floats(&k()?)?;
+        let near = Kernel::new(two.clone(), two.clone(), vec![1.0 - tilt, tilt, 0.5, 0.5])?;
+        let tiny = Kernel::state(two.clone(), vec![1.0, 1e-200])?;
+        let step = Kernel::new(
+            two.clone(),
+            two.clone(),
+            vec![1.0, 0.0, 1.0 - 1e-200, 1e-200],
+        )?;
+        let under = tiny.compose(&step)?;
+        assert_eq!(
+            under.column(0),
+            Some(&[1.0, 0.0][..]),
+            "measured: expected (1, 1e-200) ≫ step = (1, 0), observed on the left"
+        );
+        for (name, p, f, expected) in [
+            ("hot, k", floats(&hot()?)?, &k, true),
+            ("psi_t, k", floats(&psi_t()?)?, &k, false),
+            (
+                "(1, 0), x0 within F64_TOLERANCE / 4 of a function",
+                Kernel::state(two.clone(), vec![1.0, 0.0])?,
+                &near,
+                true,
+            ),
+            ("measured: (1, 1e-200), x1 → (1/2, 1/2)", tiny, &near, false),
+            (
+                "measured: (1, 1e-200) ≫ step, x1 → (1/2, 1/2)",
+                under,
+                &near,
+                true,
+            ),
+        ] {
+            assert_flag(
+                &format!("is_as_deterministic({name}) on p = {p:?}, f = {f:?}"),
+                &is_as_deterministic(&p, f),
+                expected,
             );
         }
         Ok(())

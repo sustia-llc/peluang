@@ -12,9 +12,9 @@ import PeluangLint
 
 `FinStoch.isAlmostSurelyDeterministic_iff` applied in each direction, the four entries of
 `FinStoch.halfDet`, `halfDet` almost surely deterministic with respect to the constant state at
-`true` through `isAlmostSurelyDeterministic_iff`, `eq_of_ofFun_const_mass_ne_zero` at a state of
-`boolObj`, `rw [ofFun_mass]` failing at a constant map into `boolObj` written with `true`, and
-`exists_isAlmostSurelyDeterministic_not_deterministic` applied once.
+`true` through `isAlmostSurelyDeterministic_iff`, `rw [ofFun_mass]` failing at a constant map
+into `boolObj` written with `true`, and `exists_isAlmostSurelyDeterministic_not_deterministic`
+applied once.
 -/
 
 public section
@@ -46,10 +46,6 @@ example : halfDet.mass false true = 1 / 2 :=
 
 example : halfDet.mass false false = 1 / 2 :=
   rfl
-
-example (x : boolObj.carrier)
-    (h : (Hom.ofFun (fun _ => true) : 𝟙_ FinStoch ⟶ boolObj).mass PUnit.unit x ≠ 0) : true = x :=
-  eq_of_ofFun_const_mass_ne_zero (X := boolObj) h
 
 example : IsAlmostSurelyDeterministic (Hom.ofFun fun _ => true : 𝟙_ FinStoch ⟶ boolObj)
     halfDet := by

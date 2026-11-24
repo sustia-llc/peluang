@@ -5,7 +5,7 @@ Released under the MIT license as described in the file LICENSE.
 module
 
 public import Peluang.BayesianInverse
-public import Peluang.Instances.FinStoch.AlmostSureDeterministic
+public import Peluang.Instances.FinStoch.AlmostSure
 public import Peluang.Instances.FinStoch.Conditional
 
 /-!

@@ -69,7 +69,7 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   the entries `0` and `1`. One such morphism is not deterministic.
 
 At `v0.5.2`, `THEOREM_MAP.md` has 67 rows that pair a Lean id with a Rust test.
-The crate has 194 tests with all features on.
+The crate has 204 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 

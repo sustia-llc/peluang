@@ -235,7 +235,7 @@ fn witness_is_bayesian_inverse_id() -> Result<()> {
     Ok(())
 }
 
-/// THEOREM_MAP: CategoryTheory.MarkovCategory.IsBayesianInverse.comp_eq
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.IsBayesianInverse.comp_eq
 #[test]
 fn witness_is_bayesian_inverse_comp_eq() -> Result<()> {
     let (psi_t, c) = (psi_t()?, c()?);
@@ -269,7 +269,7 @@ fn witness_is_bayesian_inverse_comp_eq() -> Result<()> {
     Ok(())
 }
 
-/// THEOREM_MAP: CategoryTheory.MarkovCategory.IsBayesianInverse.symm
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.IsBayesianInverse.symm
 #[test]
 fn witness_is_bayesian_inverse_symm() -> Result<()> {
     let (psi_t, c, q) = (psi_t()?, c()?, q()?);
@@ -316,6 +316,7 @@ fn witness_is_bayesian_inverse_symm() -> Result<()> {
 #[test]
 fn witness_is_bayesian_inverse_comp() -> Result<()> {
     let (psi_t, c, s, q) = (psi_t()?, c()?, s()?, q()?);
+    assert_kernel("psi_t ≫ c", &psi_t.compose(&c)?, &q);
     let c_dagger = inverse("c† = bayesian_inverse(psi_t, c)", &psi_t, &c, &c_dagger()?);
     let s_dagger = inverse("s† = bayesian_inverse(psi_t ≫ c, s)", &q, &s, &s_dagger()?);
     assert_bayesian_inverse(
@@ -452,7 +453,16 @@ fn witness_is_bayesian_inverse_iff_is_conditional() -> Result<()> {
             g,
             expected,
         );
-        let composite = conditional_composite(&joint, &w, &t, &rho.compose(g)?)?;
+        let got = rho
+            .compose(g)
+            .and_then(|k| conditional_composite(&joint, &w, &t, &k));
+        let Ok(composite) = got else {
+            panic!(
+                "Def. 11.5 composite of ρ_ W ≫ {name}: expected Ok of a kernel == {} is \
+                 {expected}, observed {got:?}",
+                show(&joint_literal)
+            );
+        };
         let observed = composite == joint_literal;
         assert_eq!(
             observed,
@@ -586,7 +596,11 @@ fn witness_is_almost_surely_deterministic_iff() -> Result<()> {
         ("hot", hot()?, [r(1, 1), r(0, 1)], true),
         ("psi_t", psi_t()?, [r(1, 5), r(4, 5)], false),
     ] {
-        assert_kernel(name, &p, &Kernel::state(t.clone(), weights.to_vec())?);
+        let got = Kernel::state(t.clone(), weights.to_vec());
+        let Ok(literal) = got else {
+            panic!("the literal of {name} = {weights:?}: expected Ok, observed {got:?}");
+        };
+        assert_kernel(name, &p, &literal);
         let right = (0..columns.len()).all(|x| weights[x] == r(0, 1) || zero_one(&columns[x]));
         assert_eq!(
             right, expected,
@@ -634,9 +648,9 @@ fn witness_is_almost_surely_deterministic_congr() -> Result<()> {
 
 #[test]
 fn bayesian_inverse_rejects_a_non_state_then_a_non_composable_pair() -> Result<()> {
-    let (t, w) = (obj_t()?, obj_w()?);
+    let (t, w, c) = (obj_t()?, obj_w()?, c()?);
     for (name, f) in [("composable s", s()?), ("non-composable e", e()?)] {
-        let got = bayesian_inverse(&c()?, &f);
+        let got = bayesian_inverse(&c, &f);
         assert!(
             matches!(&got, Err(Error::NotAState { domain }) if *domain == t),
             "bayesian_inverse(c, {name}): expected NotAState {{ domain: {t:?} }}, observed {got:?}"
@@ -648,6 +662,111 @@ fn bayesian_inverse_rejects_a_non_state_then_a_non_composable_pair() -> Result<(
             if *codomain == t && *domain == w),
         "bayesian_inverse(hot, s): expected NotComposable {{ codomain: {t:?}, domain: {w:?} }}, \
          observed {got:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn bayesian_inverse_rejects_a_one_element_domain_that_is_not_the_unit() -> Result<()> {
+    let one = FinObj::new(1);
+    let p = Kernel::new(one.clone(), obj_t()?, vec![r(1, 5), r(4, 5)])?;
+    let got = bayesian_inverse(&p, &c()?);
+    assert!(
+        matches!(&got, Err(Error::NotAState { domain }) if *domain == one),
+        "bayesian_inverse(p, c) with p : [1] → T: expected NotAState {{ domain: {one:?} }}, \
+         observed {got:?}"
+    );
+    Ok(())
+}
+
+/// `[2^19]`, where `Kernel::copy` returns `Error::TooLarge` for `2^19 * 2^38`
+/// weights.
+fn wide() -> FinObj {
+    FinObj::new(1 << 19)
+}
+
+#[test]
+fn bayesian_inverse_rejects_before_it_builds_a_kernel() -> Result<()> {
+    let (t, wide) = (obj_t()?, wide());
+    let f = Kernel::<Exact>::del(&wide)?;
+    let got = bayesian_inverse(&c()?, &f);
+    assert!(
+        matches!(&got, Err(Error::NotAState { domain }) if *domain == t),
+        "bayesian_inverse(c, ε[2^19]): expected NotAState {{ domain: {t:?} }}, observed {got:?}"
+    );
+    let got = bayesian_inverse(&hot()?, &f);
+    assert!(
+        matches!(&got, Err(Error::NotComposable { codomain, domain })
+            if *codomain == t && *domain == wide),
+        "bayesian_inverse(hot, ε[2^19]): expected NotComposable {{ codomain: {t:?}, domain: \
+         [2^19] }}, observed {got:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn is_bayesian_inverse_rejects_before_it_builds_a_kernel() -> Result<()> {
+    let (t, wide, unit) = (obj_t()?, wide(), FinObj::unit());
+    let (hot, c) = (hot()?, c()?);
+    let into_wide = Kernel::<Exact>::from_fn(unit.clone(), wide.clone(), |_| 0)?;
+    let del = Kernel::<Exact>::del(&wide)?;
+    for (name, p, g, codomain, domain) in [
+        (
+            "(hot, ε[2^19], I → [2^19]), p into f fails",
+            &hot,
+            &into_wide,
+            &t,
+            &wide,
+        ),
+        (
+            "(I → [2^19], ε[2^19], c), f into g fails",
+            &into_wide,
+            &c,
+            &unit,
+            &t,
+        ),
+        (
+            "(I → [2^19], ε[2^19], hot), g into f fails",
+            &into_wide,
+            &hot,
+            &t,
+            &wide,
+        ),
+    ] {
+        let got = is_bayesian_inverse(p, &del, g);
+        assert!(
+            matches!(&got, Err(Error::NotComposable { codomain: fst, domain: snd })
+                if fst == codomain && snd == domain),
+            "is_bayesian_inverse{name}: expected NotComposable {{ codomain: {codomain:?}, \
+             domain: {domain:?} }}, observed {got:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn is_as_deterministic_rejects_before_it_builds_a_kernel() -> Result<()> {
+    let (t, w) = (obj_t()?, obj_w()?);
+    let f = Kernel::<Exact>::from_fn(t.clone(), wide(), |_| 0)?;
+    let got = is_as_deterministic(&q()?, &f);
+    assert!(
+        matches!(&got, Err(Error::NotComposable { codomain, domain })
+            if *codomain == w && *domain == t),
+        "is_as_deterministic(q, T → [2^19]): expected NotComposable {{ codomain: {w:?}, domain: \
+         {t:?} }}, observed {got:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn is_as_deterministic_on_an_empty_domain_builds_no_kernel() -> Result<()> {
+    let empty = FinObj::new(0);
+    let p = Kernel::<Exact>::new(empty.clone(), empty.clone(), Vec::new())?;
+    let f = Kernel::<Exact>::new(empty, wide(), Vec::new())?;
+    let got = is_as_deterministic(&p, &f);
+    assert!(
+        matches!(got, Ok(true)),
+        "is_as_deterministic(0 → 0, 0 → [2^19]): expected Ok(true), observed {got:?}"
     );
     Ok(())
 }

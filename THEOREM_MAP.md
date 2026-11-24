@@ -93,8 +93,8 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.CopyDiscardCategory.IsBayesianInverse.congr | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_congr | Fritz 2020 Remark 13.10 |
 | CategoryTheory.CopyDiscardCategory.isBayesianInverse_iff_isConditional | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_iff_is_conditional | Fritz 2020 Remark 13.10, Def. 11.5 |
 | CategoryTheory.CopyDiscardCategory.IsBayesianInverse.tensor | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_tensor | Fritz 2020 Remark 13.10 |
-| CategoryTheory.MarkovCategory.IsBayesianInverse.comp_eq | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_comp_eq | Fritz 2020 Remark 13.10 |
-| CategoryTheory.MarkovCategory.IsBayesianInverse.symm | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_symm | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.comp_eq | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_comp_eq | Fritz 2020 Remark 13.10 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.symm | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_symm | Fritz 2020 Remark 13.10 |
 | FinStoch.isBayesianInverse_bayesInv | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_bayes_inv | Fritz 2020 Remark 13.10; Cho–Jacobs Example 3.8 |
 | FinStoch.isBayesianInverse_not_unique | tests/formalization_lean/bayes_tests.rs::witness_is_bayesian_inverse_not_unique | Fritz 2020 Remark 13.10 |
 | CategoryTheory.CopyDiscardCategory.isAlmostSurelyDeterministic_of_deterministic | tests/formalization_lean/bayes_tests.rs::witness_is_almost_surely_deterministic_of_deterministic | Fritz 2020 Def. 13.11, Def. 10.1 |

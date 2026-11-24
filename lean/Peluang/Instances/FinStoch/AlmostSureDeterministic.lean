@@ -84,14 +84,6 @@ theorem isAlmostSurelyDeterministic_iff {A X Y : FinStoch} (p : A ⟶ X) (f : X 
           rw [Finset.sum_pair e, f.sum_one, h1, h1'] at hle
           norm_num at hle
 
--- WITNESS: none (step of exists_isAlmostSurelyDeterministic_not_deterministic)
-/-- For `x₀ x : X.carrier` and `a : A.carrier`, a nonzero entry of the constant
-`Hom.ofFun fun _ => x₀ : A ⟶ X` at input `a` and output `x` gives `x₀ = x`. -/
-theorem eq_of_ofFun_const_mass_ne_zero {A X : FinStoch} {x₀ x : X.carrier} {a : A.carrier}
-    (h : (Hom.ofFun (fun _ => x₀) : A ⟶ X).mass a x ≠ 0) : x₀ = x := by
-  by_contra hne
-  exact h (by simp [ofFun_mass, hne])
-
 /-- The morphism `boolObj ⟶ boolObj` with mass `1` at output `true` and `0` at output `false`
 for input `true`, and mass `1/2` at each output for input `false`. -/
 def halfDet : boolObj ⟶ boolObj :=

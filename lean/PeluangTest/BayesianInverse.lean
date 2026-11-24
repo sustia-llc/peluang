@@ -13,9 +13,9 @@ import PeluangLint
 `IsBayesianInverse p f g` unfolds to its equation, dot notation `h₁.unique_as h₂`,
 `hf.comp hg`, `h.congr hf hg` and `hf.tensor hk` on `IsBayesianInverse` hypotheses,
 `isBayesianInverse_id`, `isBayesianInverse_iff_isConditional` and `exists_isBayesianInverse`
-applied once. For `h : IsBayesianInverse p f g` in a Markov category,
-`MarkovCategory.IsBayesianInverse.comp_eq h`, `MarkovCategory.IsBayesianInverse.symm h` and
-`symm` applied twice, and `h.comp_eq` and `h.symm` failing.
+applied once. For `h : IsBayesianInverse p f g`, dot notation `h.comp_eq`, `h.symm` and
+`h.symm.symm` in a Markov category, and `h.symm` failing in a copy-discard category with no
+`MarkovCategory` instance.
 -/
 
 public section
@@ -65,6 +65,11 @@ example {A B X Y W Z : C} {p : A ⟶ X} {q : B ⟶ W} {f : X ⟶ Y} {k : W ⟶ Z
     IsBayesianInverse (p ⊗ₘ q) (f ⊗ₘ k) (f' ⊗ₘ k') :=
   hf.tensor hk
 
+example {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X} (h : IsBayesianInverse p f g) :
+    IsBayesianInverse p f g := by
+  fail_if_success have := h.symm
+  exact h
+
 end CopyDiscard
 
 section Markov
@@ -72,18 +77,16 @@ section Markov
 variable {C : Type u} [Category.{v} C] [MonoidalCategory.{v} C] [MarkovCategory C]
 
 example {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X} (h : IsBayesianInverse p f g) :
-    p ≫ f ≫ g = p := by
-  fail_if_success exact h.comp_eq
-  exact MarkovCategory.IsBayesianInverse.comp_eq h
+    p ≫ f ≫ g = p :=
+  h.comp_eq
 
 example {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X} (h : IsBayesianInverse p f g) :
-    IsBayesianInverse (p ≫ f) g f := by
-  fail_if_success exact h.symm
-  exact MarkovCategory.IsBayesianInverse.symm h
+    IsBayesianInverse (p ≫ f) g f :=
+  h.symm
 
 example {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X} (h : IsBayesianInverse p f g) :
     IsBayesianInverse ((p ≫ f) ≫ g) f g :=
-  MarkovCategory.IsBayesianInverse.symm (MarkovCategory.IsBayesianInverse.symm h)
+  h.symm.symm
 
 end Markov
 
