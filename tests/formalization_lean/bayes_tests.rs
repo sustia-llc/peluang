@@ -2,8 +2,9 @@
 //! `Peluang.AlmostSure.Deterministic`,
 //! `Peluang.Instances.FinStoch.BayesianInverse` and
 //! `Peluang.Instances.FinStoch.AlmostSureDeterministic` at the running example,
-//! and the rejections of `bayesian_inverse`, `is_bayesian_inverse` and
-//! `is_as_deterministic`.
+//! the rejections of `bayesian_inverse`, `is_bayesian_inverse` and
+//! `is_as_deterministic`, and `is_as_deterministic` on an empty domain and on
+//! a one-element domain.
 
 use peluang::bayes::{bayesian_inverse, is_bayesian_inverse};
 use peluang::conditional::conditional;
@@ -435,6 +436,19 @@ fn witness_is_bayesian_inverse_comp() -> Result<()> {
         &composite,
         &canonical,
     );
+    let reached = hot.compose(&cg)?;
+    assert_kernel(
+        "hot ≫ c ≫ g",
+        &reached,
+        &Kernel::state(obj_s()?, vec![r(1, 1), r(0, 1)])?,
+    );
+    assert_as_equal(
+        "as_equal(hot ≫ c ≫ g, bayesian_inverse(hot, c ≫ g), g' ≫ g₂)",
+        &reached,
+        &canonical,
+        &composite,
+        true,
+    );
     Ok(())
 }
 
@@ -843,9 +857,10 @@ fn is_as_deterministic_rejects_a_non_composable_pair_on_an_empty_domain() -> Res
 }
 
 #[test]
-fn is_as_deterministic_on_a_one_element_domain_reads_its_row() -> Result<()> {
+fn is_as_deterministic_on_a_one_element_domain_reads_its_column() -> Result<()> {
     let unit = FinObj::unit();
-    let id = Kernel::new(unit.clone(), unit, vec![r(1, 1)])?;
+    let id = Kernel::new(unit.clone(), unit.clone(), vec![r(1, 1)])?;
+    assert_kernel("𝟙 I", &Kernel::identity(&unit)?, &id);
     assert_as_deterministic("is_as_deterministic(𝟙 I, psi_t)", &id, &psi_t()?, false);
     assert_as_deterministic("is_as_deterministic(𝟙 I, hot)", &id, &hot()?, true);
     Ok(())

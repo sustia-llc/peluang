@@ -6,7 +6,9 @@
 //! wrong split by `is_independent` and of misaligned domains by
 //! `cond_indep_form`, results across `PAR_THRESHOLD`, size
 //! errors, and the post's eq. (9). In every feature lane: the `FinObj` object
-//! laws and rejections. On `f64` weights under `f64-prob`: the `Prob` trait,
+//! laws and rejections, and on weights with a left-projection `add`,
+//! `bayesian_inverse` returning `Error::NoUniformWeight`. On `f64` weights
+//! under `f64-prob`: the `Prob` trait,
 //! `Kernel::approx_eq`, the input tests of `Kernel::new`, worked `compose`,
 //! `tensor`, marginals and `is_deterministic` under `Kernel::approx_eq`,
 //! `is_independent` under `Prob::approx_eq`, and `bayesian_inverse`,
@@ -71,8 +73,9 @@ mod rejection {
     }
 
     /// Under left-projection `add`, a fold from `P::zero()` stays at
-    /// `P::zero()`: the mass of each column of the joint, and `P::one()` added
-    /// three times.
+    /// `P::zero()`: each entry of the joint, which `compose` sums through
+    /// `prob::sum`, the mass of each slice of it in `conditional`, and
+    /// `P::one()` added three times.
     #[test]
     fn bayesian_inverse_reports_no_uniform_weight_on_left_projection_add() -> Result<()> {
         let (x, y) = (FinObj::new(3), FinObj::new(2));
