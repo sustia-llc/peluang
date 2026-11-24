@@ -6,6 +6,31 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-24
+
+### Added
+
+- `lean/Peluang/BayesianInverse.lean`: `IsBayesianInverse p f g` for
+  `p : A ⟶ X` in a copy-discard category (Fritz 2020 Remark 13.10, equation
+  (13.2)). Its theorems are `unique_as`, `isBayesianInverse_id`, `comp`,
+  `congr`, `tensor`, `isBayesianInverse_iff_isConditional` and
+  `exists_isBayesianInverse`. In a Markov category: `comp_eq` and `symm`.
+- `lean/Peluang/AlmostSure/Deterministic.lean`:
+  `IsAlmostSurelyDeterministic p f` (Def. 13.11), with
+  `isAlmostSurelyDeterministic_of_deterministic`, `congr` (Lemma 13.12) and
+  `comp_deterministic`.
+- `lean/Peluang/Instances/FinStoch/BayesianInverse.lean`: `FinStoch.bayesInv`,
+  `isBayesianInverse_bayesInv` and `isBayesianInverse_not_unique`.
+- `lean/Peluang/Instances/FinStoch/AlmostSureDeterministic.lean`:
+  `isAlmostSurelyDeterministic_iff` and
+  `exists_isAlmostSurelyDeterministic_not_deterministic`.
+- `bayes::bayesian_inverse`, `bayes::is_bayesian_inverse` and
+  `deterministic::is_as_deterministic`.
+- `Error::NotAState`: `bayes::bayesian_inverse` returns it for a `p` whose
+  domain is not the unit object.
+- `tests/formalization_lean/bayes_tests.rs`: 15 witness tests. `THEOREM_MAP.md`
+  goes from 52 to 67 rows.
+
 ### Changed
 
 - The Rust channel moves from `1.99.1` to `1.100.0`: `rust-toolchain.toml`,

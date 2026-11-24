@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.5.1` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.2` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -48,9 +48,28 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   `W = I` is Def. 12.12. In a copy-discard category, independence is the Café
   post's conditional form D19, and Def. 12.16 at `A = I` is Def. 12.1. In
   FinStoch, the copied fair coin does not display independence.
+- In a copy-discard category, `g : Y ⟶ X` is a Bayesian inverse of `f : X ⟶ Y`
+  with respect to `p : A ⟶ X` when
+  `p ≫ Δ[X] ≫ (X ◁ f) = (p ≫ f) ≫ Δ[Y] ≫ (g ▷ Y)` (Remark 13.10, equation
+  (13.2); Cho–Jacobs, arXiv:1709.00322, equation (5)). Two Bayesian inverses
+  are almost surely equal with respect to `p ≫ f`. The predicate holds for
+  identities. Composition, tensor products and almost-sure equality keep it.
+  For a state `p`, it is equivalent to a conditional of `p ≫ Δ[X] ≫ (f ▷ X)`.
+  A category with conditionals then has a Bayesian inverse of every `f`. In a
+  Markov category, `p ≫ f ≫ g = p`, and `f` is a Bayesian inverse of `g` with
+  respect to `p ≫ f`.
+- `FinStoch.bayesInv p f` is a Bayesian inverse of `f` with respect to a state
+  `p` (Cho–Jacobs Example 3.8). Bayesian inverses in FinStoch are not unique:
+  one morphism has two distinct Bayesian inverses.
+- In a copy-discard category, `f : X ⟶ Y` is `p`-almost surely deterministic
+  when `f ≫ Δ[Y]` and `Δ[X] ≫ (f ⊗ₘ f)` are `p`-almost surely equal
+  (Def. 13.11). A deterministic morphism has this property. Almost-sure
+  equality (Lemma 13.12) and postcomposition with a deterministic morphism
+  keep it. In FinStoch, it holds iff each row of `f` that `p` reaches has only
+  the entries `0` and `1`. One such morphism is not deterministic.
 
-At `v0.5.1`, `THEOREM_MAP.md` has 52 rows that pair a Lean id with a Rust test.
-The crate has 176 tests with all features on.
+At `v0.5.2`, `THEOREM_MAP.md` has 67 rows that pair a Lean id with a Rust test.
+The crate has 194 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -64,9 +83,10 @@ The crate has 176 tests with all features on.
   - `finset.rs`: finite objects, with `tensor` as concatenation of factors.
   - `kernel.rs`: `Kernel<P>`, a stochastic matrix. `Kernel::new` tests its input.
   - `markov.rs`: `Compose`, `Tensor`, the structure maps and the marginals.
-  - `deterministic.rs`: `is_deterministic`.
+  - `deterministic.rs`: `is_deterministic` and `is_as_deterministic`.
   - `almost_sure.rs`: `as_equal`.
   - `conditional.rs`: `conditional`.
+  - `bayes.rs`: `bayesian_inverse` and `is_bayesian_inverse`.
   - `independence.rs`: `is_independent` and `cond_indep_form`.
   - `exec.rs` (behind `async`) and `error.rs`.
 - `lean/`: the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
