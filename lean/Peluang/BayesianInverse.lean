@@ -209,7 +209,8 @@ theorem _root_.CategoryTheory.CopyDiscardCategory.IsBayesianInverse.comp_eq {A X
 
 /-- In a Markov category, for `p : A ⟶ X`, `f : X ⟶ Y` and a Bayesian inverse `g : Y ⟶ X` of
 `f` with respect to `p`, `f` is a Bayesian inverse of `g` with respect to `p ≫ f`
-(Fritz 2020, Remark 13.10). -/
+(Fritz 2020, Remark 13.10). For `h : IsBayesianInverse p f g`, `h.symm` is this theorem, and
+`Eq.symm h` is equation (13.2) read right to left. -/
 theorem _root_.CategoryTheory.CopyDiscardCategory.IsBayesianInverse.symm {A X Y : C}
     {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X}
     (h : IsBayesianInverse p f g) : IsBayesianInverse (p ≫ f) g f := by

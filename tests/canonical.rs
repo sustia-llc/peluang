@@ -17,7 +17,10 @@ mod common;
 mod fixtures;
 
 mod rejection {
-    use peluang::error::Error;
+    use peluang::bayes::bayesian_inverse;
+    use peluang::error::{Error, Result};
+    use peluang::finset::FinObj;
+    use peluang::kernel::Kernel;
     use peluang::prob::{Exact, Prob, verify_prob_axioms};
 
     /// Exact weights whose `add` is left projection: associative, with `zero`
@@ -65,6 +68,23 @@ mod rejection {
             matches!(got, Err(Error::AxiomViolation { law: "add_comm" })),
             "expected Err(AxiomViolation {{ law: \"add_comm\" }}) on left-projection add, got {got:?}"
         );
+    }
+
+    /// Under left-projection `add`, a fold from `P::zero()` stays at
+    /// `P::zero()`: the mass of each column of the joint, and `P::one()` added
+    /// three times.
+    #[test]
+    fn bayesian_inverse_reports_no_uniform_weight_on_left_projection_add() -> Result<()> {
+        let (x, y) = (FinObj::new(3), FinObj::new(2));
+        let p = Kernel::<LeftProj>::from_fn(FinObj::unit(), x.clone(), |_| 0)?;
+        let f = Kernel::<LeftProj>::from_fn(x, y, |_| 0)?;
+        let got = bayesian_inverse(&p, &f);
+        assert!(
+            matches!(got, Err(Error::NoUniformWeight { card: 3 })),
+            "bayesian_inverse(point at 0 of [3], constant 0 : [3] → [2]) on left-projection add: \
+             expected Err(NoUniformWeight {{ card: 3 }}), observed {got:?}"
+        );
+        Ok(())
     }
 }
 
@@ -1160,8 +1180,11 @@ mod float_kernels {
         Ok(())
     }
 
-    /// The expected values of the last two cases are those of a measured run:
-    /// the weight `1e-200 * 1e-200` of `under` at `x1` is `0.0`.
+    /// The expected values of the last two cases are those of a measured run.
+    /// In the fourth case the weight `1e-200` of `tiny` at `x1` is below
+    /// `F64_TOLERANCE` and `!= 0.0`, so `x1` counts as reached. In the fifth
+    /// case the weight `1e-200 * 1e-200` of `under` at `x1` is `0.0`, so `x1`
+    /// counts as unreached.
     #[test]
     fn is_as_deterministic_under_approx_eq() -> Result<()> {
         let (two, tilt) = (FinObj::new(2), F64_TOLERANCE / 4.0);

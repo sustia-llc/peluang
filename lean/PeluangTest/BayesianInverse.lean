@@ -14,8 +14,9 @@ import PeluangLint
 `hf.comp hg`, `h.congr hf hg` and `hf.tensor hk` on `IsBayesianInverse` hypotheses,
 `isBayesianInverse_id`, `isBayesianInverse_iff_isConditional` and `exists_isBayesianInverse`
 applied once. For `h : IsBayesianInverse p f g`, dot notation `h.comp_eq`, `h.symm` and
-`h.symm.symm` in a Markov category, and `h.symm` failing in a copy-discard category with no
-`MarkovCategory` instance.
+`h.symm.symm` in a Markov category, `h.symm` and `h.comp_eq` failing in a copy-discard category
+with no `MarkovCategory` instance, and `Eq.symm h` at the equation of `IsBayesianInverse p f g`
+read right to left.
 -/
 
 public section
@@ -68,7 +69,12 @@ example {A B X Y W Z : C} {p : A ⟶ X} {q : B ⟶ W} {f : X ⟶ Y} {k : W ⟶ Z
 example {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X} (h : IsBayesianInverse p f g) :
     IsBayesianInverse p f g := by
   fail_if_success have := h.symm
+  fail_if_success have := h.comp_eq
   exact h
+
+example {A X Y : C} {p : A ⟶ X} {f : X ⟶ Y} {g : Y ⟶ X} (h : IsBayesianInverse p f g) :
+    (p ≫ f) ≫ Δ[Y] ≫ (g ▷ Y) = p ≫ Δ[X] ≫ (X ◁ f) :=
+  Eq.symm h
 
 end CopyDiscard
 
