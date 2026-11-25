@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.5.3` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.4` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -89,9 +89,33 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   FinStoch, one deterministic composite has a first factor that is not
   deterministic. The hypothesis of causality holds there for two distinct
   morphisms `h₁` and `h₂`.
+- In a copy-discard category, the tensor product of a `p`-almost surely equal
+  pair and a `q`-almost surely equal pair is `(p ⊗ₘ q)`-almost surely equal
+  (the sentence after Lemma 13.5).
+- For a monoidal category `C`, the category `Under (𝟙_ C)` of states is
+  monoidal, with `(X, ψ) ⊗ (Y, φ) = (X ⊗ Y, (λ_ (𝟙_ C)).inv ≫ (ψ ⊗ₘ φ))`. It is
+  braided or symmetric when `C` is. A quotient of a monoidal category by a
+  relation that is stable under whiskering is monoidal, and braided or
+  symmetric when the category is. These instances have no `THEOREM_MAP.md` row.
+- `ProbStoch C` is the quotient of `Under (𝟙_ C)` by almost-sure equality with
+  respect to the state of the domain, for a causal Markov category `C`
+  (Def. 13.8). The relation is a congruence, and two morphisms of states have
+  one image iff they are almost surely equal. Instance search gives the
+  symmetric monoidal structure of `ProbStoch C`, and the quotient functor
+  keeps `⊗ₘ` (Prop. 13.9 (a)).
+- In a causal Markov category with conditionals, `ProbStoch.dagger` sends the
+  class of `f` to the class of each Bayesian inverse of `f` (Remark 13.10). It
+  keeps identities, reverses composition and is an involution (footnote 28).
+  `ProbStoch.homEquivCoupling` is a bijection from the morphisms
+  `(X, ψ) ⟶ (Y, φ)` of `ProbStoch C` to the morphisms `𝟙_ C ⟶ X ⊗ Y` with
+  marginals `ψ` and `φ`. It sends the class of `f` to `ψ ≫ Δ[X] ≫ (X ◁ f)`
+  (Prop. 13.9 (b), first step of the proof). The category of couplings of
+  Remark 12.10 is not stated.
+- In FinStoch, two distinct morphisms of states have one image in
+  `ProbStoch FinStoch`, and two morphisms of states have distinct images.
 
-At `v0.5.3`, `THEOREM_MAP.md` has 76 rows that pair a Lean id with a Rust test.
-The crate has 224 tests with all features on.
+At `v0.5.4`, `THEOREM_MAP.md` has 87 rows that pair a Lean id with a Rust test.
+The crate has 238 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -112,6 +136,7 @@ The crate has 224 tests with all features on.
   - `independence.rs`: `is_independent` and `cond_indep_form`.
   - `information_flow.rs`: `copy_then`, `copy_comp_natural` and
     `copy_comp_natural_as`.
+  - `prob_space.rs`: `is_state_preserving` and `coupling`.
   - `exec.rs` (behind `async`) and `error.rs`.
 - `lean/`: the Lake project (`Peluang`), pinned by `lean/lean-toolchain`,
   `lean/lakefile.lean` and `lean/lake-manifest.json`; `lean/Peluang.lean` is
