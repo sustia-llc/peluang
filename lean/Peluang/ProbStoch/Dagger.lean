@@ -81,6 +81,7 @@ noncomputable def ProbStoch.bayesInv {X Y : Under (𝟙_ C)} (f : X ⟶ Y) : Y �
     rw [← Under.w f, Category.assoc]
     exact e)
 
+-- WITNESS: none (a chosen Bayesian inverse; witnessed through ProbStoch.dagger_map)
 /-- For a causal Markov category `C` with conditionals and a morphism `f : X ⟶ Y` of
 `Under (𝟙_ C)`, `(ProbStoch.bayesInv f).right` is a Bayesian inverse of `f.right` with respect
 to `X.hom` (Fritz 2020, Remark 13.10, equation (13.2)). -/

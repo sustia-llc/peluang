@@ -10,3 +10,4 @@ mod fixtures;
 mod independence_tests;
 mod information_flow_tests;
 mod marginal_tests;
+mod prob_space_tests;

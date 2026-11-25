@@ -112,3 +112,14 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | FinStoch.exists_deterministic_comp_not_deterministic | tests/formalization_lean/information_flow_tests.rs::witness_exists_deterministic_comp_not_deterministic | Fritz 2020 Def. 11.22 |
 | FinStoch.exists_almostSurelyEq_comp_ne | tests/formalization_lean/information_flow_tests.rs::witness_exists_almost_surely_eq_comp_ne | Fritz 2020 Def. 11.31 |
 | mathlib:CategoryTheory.PositiveCategory.instDeterministicOfIsIso | tests/formalization_lean/information_flow_tests.rs::mutually_inverse_kernels_are_deterministic | Fritz 2020 Remark 11.28 |
+| CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.tensorHom | tests/formalization_lean/prob_space_tests.rs::witness_almost_surely_eq_tensor_hom | Fritz 2020 Lemma 13.5 |
+| CategoryTheory.ProbStoch.functor_map_eq_iff | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_functor_map_eq_iff | Fritz 2020 Def. 13.8, Prop. 13.9 |
+| CategoryTheory.ProbStoch.functor_map_tensorHom | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_functor_map_tensor_hom | Fritz 2020 Prop. 13.9 |
+| FinStoch.exists_ne_probStoch_map_eq | tests/formalization_lean/prob_space_tests.rs::witness_exists_ne_prob_stoch_map_eq | Fritz 2020 Def. 13.8 |
+| FinStoch.exists_probStoch_map_ne | tests/formalization_lean/prob_space_tests.rs::witness_exists_prob_stoch_map_ne | Fritz 2020 Def. 13.8 |
+| CategoryTheory.CopyDiscardCategory.IsBayesianInverse.almostSurelyEq_of_almostSurelyEq | tests/formalization_lean/prob_space_tests.rs::witness_is_bayesian_inverse_almost_surely_eq_of_almost_surely_eq | Fritz 2020 Remark 13.10 |
+| CategoryTheory.ProbStoch.dagger_map | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_dagger_map | Fritz 2020 Remark 13.10 |
+| CategoryTheory.ProbStoch.dagger_id | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_dagger_id | Fritz 2020 Remark 13.10 |
+| CategoryTheory.ProbStoch.dagger_comp | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_dagger_comp | Fritz 2020 Remark 13.10 |
+| CategoryTheory.ProbStoch.dagger_dagger | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_dagger_dagger | Fritz 2020 Remark 13.10 |
+| CategoryTheory.ProbStoch.homEquivCoupling_map | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_hom_equiv_coupling_map | Fritz 2020 Prop. 13.9 |

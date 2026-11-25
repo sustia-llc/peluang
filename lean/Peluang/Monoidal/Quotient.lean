@@ -110,6 +110,7 @@ instance monoidalCategory : MonoidalCategory (Quotient r) where
   pentagon W X Y Z := congrArg (functor r).map (MonoidalCategory.pentagon W.as X.as Y.as Z.as)
   triangle X Y := congrArg (functor r).map (MonoidalCategory.triangle X.as Y.as)
 
+-- WITNESS: none (witnessed through ProbStoch.functor_map_tensorHom)
 /-- For a monoidal category `D`, a relation `r : HomRel D` stable under whiskering and
 morphisms `f : X ⟶ Y` and `g : X' ⟶ Y'` of `D`, `Quotient.functor r` sends `f ⊗ₘ g` to the
 tensor product of the images of `f` and `g`. -/

@@ -16,3 +16,4 @@ pub mod information_flow;
 pub mod kernel;
 pub mod markov;
 pub mod prob;
+pub mod prob_space;

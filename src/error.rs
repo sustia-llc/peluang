@@ -79,10 +79,11 @@ pub enum Error {
         snd: FinObj,
     },
 
-    /// `bayes::bayesian_inverse` received a `p` whose domain is not the unit object.
+    /// `bayes::bayesian_inverse` received a `p`, or `prob_space::coupling` a
+    /// `psi`, whose domain is not the unit object.
     #[error("domain {domain:?} is not the unit object")]
     NotAState {
-        /// The domain of `p`.
+        /// The domain of that kernel.
         domain: FinObj,
     },
 

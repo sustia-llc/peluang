@@ -58,6 +58,7 @@ namespace CopyDiscardCategory
 
 variable {C : Type u} [Category.{v} C] [MonoidalCategory.{v} C] [CopyDiscardCategory C]
 
+-- WITNESS: none (step of ProbStoch.homEquivCoupling; witnessed through homEquivCoupling_map)
 /-- In a copy-discard category, for `p : A ⟶ X` and `f : X ⟶ Y`, the second marginal of
 `p ≫ Δ[X] ≫ (X ◁ f)` is `p ≫ f`. -/
 theorem marginalSnd_comp_copy_whiskerLeft {A X Y : C} (p : A ⟶ X) (f : X ⟶ Y) :
@@ -65,6 +66,7 @@ theorem marginalSnd_comp_copy_whiskerLeft {A X Y : C} (p : A ⟶ X) (f : X ⟶ Y
   rw [marginalSnd_comp, marginalSnd_comp, marginalSnd_whiskerLeft, counit_comul_assoc,
     Iso.inv_hom_id_assoc]
 
+-- WITNESS: none (step of ProbStoch.homEquivCoupling; witnessed through homEquivCoupling_map)
 /-- In a copy-discard category, for `p : A ⟶ X` and `f g : X ⟶ Y`, `f` and `g` are `p`-almost
 surely equal iff `p ≫ Δ[X] ≫ (X ◁ f) = p ≫ Δ[X] ≫ (X ◁ g)`. -/
 theorem almostSurelyEq_iff_copy_whiskerLeft {A X Y : C} (p : A ⟶ X) (f g : X ⟶ Y) :
@@ -76,6 +78,7 @@ theorem almostSurelyEq_iff_copy_whiskerLeft {A X Y : C} (p : A ⟶ X) (f g : X �
   · intro h
     rw [copy_comp_whiskerRight_eq f, copy_comp_whiskerRight_eq g, reassoc_of% h]
 
+-- WITNESS: none (step of ProbStoch.homEquivCoupling; witnessed through homEquivCoupling_map)
 /-- In a copy-discard category, for `γ : 𝟙_ C ⟶ X ⊗ Y` and `g : X ⟶ Y`, `(ρ_ X).hom ≫ g` is a
 conditional of `γ` on `X` iff `γ = marginalFst γ ≫ Δ[X] ≫ (X ◁ g)`. -/
 theorem isConditional_rightUnitor_comp_iff {X Y : C} (γ : 𝟙_ C ⟶ X ⊗ Y) (g : X ⟶ Y) :
@@ -94,6 +97,7 @@ section Markov
 
 variable {C : Type u} [Category.{v} C] [MonoidalCategory.{v} C] [MarkovCategory C]
 
+-- WITNESS: none (step of ProbStoch.homEquivCoupling; witnessed through homEquivCoupling_map)
 /-- In a Markov category, for `p : A ⟶ X` and `f : X ⟶ Y`, the first marginal of
 `p ≫ Δ[X] ≫ (X ◁ f)` is `p`. -/
 theorem MarkovCategory.marginalFst_comp_copy_whiskerLeft {A X Y : C} (p : A ⟶ X) (f : X ⟶ Y) :
@@ -120,6 +124,7 @@ noncomputable def ProbStoch.couplingHom (X Y : Under (𝟙_ C))
       isConditional_rightUnitor_comp_iff, γ.2.1] at hk
     rw [← marginalSnd_comp_copy_whiskerLeft, ← hk, γ.2.2])
 
+-- WITNESS: none (a chosen morphism of states; witnessed through homEquivCoupling_map)
 /-- For a causal Markov category `C` with conditionals, objects `X Y` of `Under (𝟙_ C)` and a
 morphism `γ : 𝟙_ C ⟶ X.right ⊗ Y.right` with first marginal `X.hom` and second marginal `Y.hom`,
 `γ = X.hom ≫ Δ[X.right] ≫ (X.right ◁ g.right)` for `g = ProbStoch.couplingHom X Y γ`
