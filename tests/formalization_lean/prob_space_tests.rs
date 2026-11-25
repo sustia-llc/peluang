@@ -199,6 +199,13 @@ fn witness_prob_stoch_functor_map_eq_iff() -> Result<()> {
     );
     assert_differs("c ≫ s against c3 ≫ s2", &cs, &c3s2);
     assert_as_equal("as_equal(hot, c ≫ s, c3 ≫ s2)", &hot, &cs, &c3s2, true);
+    assert_state_preserving(
+        "control: is_state_preserving(psi_t, c, hot ≫ c)",
+        &psi_t,
+        &c,
+        &reached,
+        false,
+    );
 
     let (flat, image) = (flat()?, Kernel::state(obj_s()?, vec![r(1, 3), r(2, 3)])?);
     assert_state_preserving(
@@ -247,6 +254,13 @@ fn witness_exists_ne_prob_stoch_map_eq() -> Result<()> {
     );
     assert_differs("𝟙 B against const_b", &id, &const_b);
     assert_as_equal("as_equal(on_b, 𝟙 B, const_b)", &on_b, &id, &const_b, true);
+    assert_as_equal(
+        "control: as_equal(coin, 𝟙 B, const_b), false reached",
+        &coin()?,
+        &id,
+        &const_b,
+        false,
+    );
     assert_state_preserving(
         "control: is_state_preserving(on_b, not_b, on_b)",
         &on_b,
@@ -384,6 +398,14 @@ fn witness_is_bayesian_inverse_almost_surely_eq_of_almost_surely_eq() -> Result<
     assert_differs("g₁ against g₃, rainy (1, 0)", &g1, &g3);
     assert_bayesian_inverse("h₂: is_bayesian_inverse(hot, c3, g₃)", &hot, &c3, &g3, true);
     assert_as_equal("as_equal(hot ≫ c, g₁, g₃)", &reached, &g1, &g3, true);
+    let changed = w_to_t([r(1, 1), r(0, 1)], [r(1, 2), r(1, 2)], [r(1, 1), r(0, 1)])?;
+    assert_bayesian_inverse(
+        "control: is_bayesian_inverse(hot, c, g₃ with cloudy (1/2, 1/2))",
+        &hot,
+        &c,
+        &changed,
+        false,
+    );
 
     assert_as_equal(
         "control hf: as_equal(psi_t, c, c3), cold reached",

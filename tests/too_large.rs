@@ -9,8 +9,11 @@
 //! an empty domain and `marginal_fst` reserve no terms under it. Under it,
 //! `prob_space::coupling` and `prob_space::is_state_preserving` return their
 //! `Error::NotAState`, `Error::NotComposable` and, for `is_state_preserving`,
-//! `Error::NotParallel` on kernels whose result buffer it refuses, and
-//! `Error::TooLarge` for that buffer on the same kernels with no rejection.
+//! `Error::NotParallel` on kernels whose result buffer it refuses, each before
+//! a reservation of that buffer, and `Error::TooLarge` for that buffer on the
+//! same kernels with no rejection. Under it, `coupling` returns the
+//! `Error::TooLarge` of the factor list of `X ⊗ Y` on an `f : X → Y` whose
+//! `X.card() * Y.card()` weights it does not refuse.
 //! `refusing` restores the limit when `op` panics.
 
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -213,20 +216,28 @@ fn coupling_rejects_before_it_reserves_and_reports_a_refused_reservation() -> Re
 }
 
 /// With `f : [2] → [REFUSED]` and `phi : I → [REFUSED]`: `is_state_preserving`
-/// returns `Error::NotAState` on `(𝟙 [2], f, phi)`, `Error::NotParallel` on
-/// `(I → [2], f, I → [2])` and `Error::TooLarge` for `1 * REFUSED` on
-/// `(I → [2], f, phi)`.
+/// returns `Error::NotAState` on `(𝟙 [2], f, phi)`, `Error::NotComposable` on
+/// `(I → [3], f, phi)` and `Error::NotParallel` on `(I → [2], f, I → [2])`,
+/// each before a reservation of `1 * REFUSED` weights, and `Error::TooLarge`
+/// for `1 * REFUSED` on `(I → [2], f, phi)`.
 #[test]
 fn is_state_preserving_rejects_before_it_reserves_and_reports_a_refused_reservation() -> Result<()>
 {
     let (unit, two, wide) = (FinObj::unit(), FinObj::new(2), FinObj::new(REFUSED));
+    let three = FinObj::new(3);
     let f = Kernel::<Exact>::from_fn(two.clone(), wide.clone(), |x| x)?;
     let phi = point_mass(wide.clone())?;
     let id = Kernel::<Exact>::identity(&two)?;
-    let on_two = point_mass(two.clone())?;
+    let (on_two, on_three) = (point_mass(two.clone())?, point_mass(three.clone())?);
     assert_not_a_state(
         "is_state_preserving(𝟙 [2], f, phi)",
         &refusing(|| is_state_preserving(&id, &f, &phi)),
+        &two,
+    );
+    assert_not_composable(
+        "is_state_preserving(I → [3], f, phi)",
+        &refusing(|| is_state_preserving(&on_three, &f, &phi)),
+        &three,
         &two,
     );
     let got = refusing(|| is_state_preserving(&on_two, &f, &on_two));
@@ -242,6 +253,26 @@ fn is_state_preserving_rejects_before_it_reserves_and_reports_a_refused_reservat
         &refusing(|| is_state_preserving(&on_two, &f, &phi)),
         1,
         REFUSED,
+    );
+    Ok(())
+}
+
+/// With `X` of `factors` factors of one element, `factors * size_of::<Factor>()`
+/// at or above the refused byte size, and `f : X → [2]`, whose coupling holds
+/// `1 * 2` weights: `coupling` returns the `Error::TooLarge` of the factor list
+/// of `X ⊗ [2]`, for `(factors + 1) * 1`, on `(I → X, f)`.
+#[test]
+fn coupling_reports_a_refused_factor_list_reservation() -> Result<()> {
+    let (one, two) = (FinObj::new(1), FinObj::new(2));
+    let factors = (REFUSED * size_of::<Exact>()).div_ceil(size_of::<Factor>());
+    let list = (1..factors).try_fold(one.clone(), |list, _| list.tensor(&one))?;
+    let psi = point_mass(list.clone())?;
+    let f = Kernel::<Exact>::from_fn(list, two, |_| 0)?;
+    assert_refused(
+        "coupling(I → X, f), factor list of X ⊗ [2]",
+        &refusing(|| coupling(&psi, &f)),
+        factors + 1,
+        1,
     );
     Ok(())
 }

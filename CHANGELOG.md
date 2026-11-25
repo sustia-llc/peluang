@@ -44,8 +44,8 @@ git tag is the authoritative pin.
 - `prob_space::is_state_preserving` and `prob_space::coupling`.
 - `tests/formalization_lean/prob_space_tests.rs`: 15 tests, 11 of them with a
   `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 76 to 87 rows.
-- `tests/too_large.rs`: two tests of the error order of the two new functions
-  under the refusing allocator. `tests/canonical.rs`: one `f64-prob` test of
+- `tests/too_large.rs`: three tests of the two new functions under the
+  refusing allocator. `tests/canonical.rs`: one `f64-prob` test of
   `is_state_preserving`.
 
 ### Changed
