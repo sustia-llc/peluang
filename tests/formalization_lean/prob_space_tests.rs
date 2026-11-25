@@ -1,13 +1,14 @@
 //! Witnesses of the theorems of `Peluang.ProbStoch.Basic`,
 //! `Peluang.ProbStoch.Dagger`, `Peluang.ProbStoch.Coupling` and
 //! `Peluang.Instances.FinStoch.ProbStoch` at the running example:
-//! `is_state_preserving` and `coupling` beside `as_equal`, `bayesian_inverse`
-//! and `is_bayesian_inverse`. Also, untagged: the `Error::NotAState` and
-//! `Error::NotComposable` of `coupling`, the `Error::NotComposable` and
-//! `Error::NotParallel` of `is_state_preserving`, and `is_state_preserving` on
-//! a `psi` whose domain is not the unit.
+//! `is_state_preserving` and `coupling` beside `as_equal`, `bayesian_inverse`,
+//! `is_bayesian_inverse` and `conditional`. Also, untagged: `coupling` against
+//! the composite `psi ≫ Δ[X] ≫ (X ◁ f)`, the `Error::NotAState` and
+//! `Error::NotComposable` of `coupling`, and the `Error::NotAState`,
+//! `Error::NotComposable` and `Error::NotParallel` of `is_state_preserving`.
 
 use peluang::bayes::bayesian_inverse;
+use peluang::conditional::conditional;
 use peluang::error::{Error, Result};
 use peluang::finset::FinObj;
 use peluang::kernel::Kernel;
@@ -17,24 +18,10 @@ use peluang::prob_space::{coupling, is_state_preserving};
 
 use crate::fixtures::{
     assert_as_equal, assert_bayesian_inverse, assert_differs, assert_kernel,
-    assert_state_preserving, c, c3, coin, const_b, copy_whisker, dd, e, h, hot, k, lit, not_b,
-    obj_b, obj_s, obj_t, obj_w, on_b, points, psi_t, r, s, s2, show,
+    assert_state_preserving, c, c_dagger, c3, coin, const_b, copy_whisker, dd, e, h, hot, hot_c,
+    inverse, k, lit, not_b, obj_b, obj_s, obj_t, obj_w, on_b, point, points, psi_t, q, r, s, s2,
+    show, w_to_t,
 };
-
-/// `q : I → W`, `(1/10, 3/10, 3/5)`: the literal of `psi_t ≫ c`.
-fn q() -> Result<Kernel<Exact>> {
-    Kernel::state(obj_w()?, vec![r(1, 10), r(3, 10), r(3, 5)])
-}
-
-/// `hot ≫ c : I → W`, `(1/2, 1/2, 0)`, as a literal.
-fn hot_c() -> Result<Kernel<Exact>> {
-    Kernel::state(obj_w()?, vec![r(1, 2), r(1, 2), r(0, 1)])
-}
-
-/// The kernel `W → T` with the columns `sunny`, `cloudy`, `rainy`.
-fn w_to_t(sunny: [Exact; 2], cloudy: [Exact; 2], rainy: [Exact; 2]) -> Result<Kernel<Exact>> {
-    lit(obj_w()?, obj_t()?, &[&sunny, &cloudy, &rainy])
-}
 
 /// The kernel `W → T` with sunny `(1, 0)`, cloudy `(1, 0)` and the column
 /// `rainy`.
@@ -42,10 +29,13 @@ fn g_rainy(rainy: [Exact; 2]) -> Result<Kernel<Exact>> {
     w_to_t([r(1, 1), r(0, 1)], [r(1, 1), r(0, 1)], rainy)
 }
 
-/// `c† : W → T`, sunny `(1, 0)`, cloudy `(1/3, 2/3)`, rainy `(0, 1)`: the
-/// literal of `bayesian_inverse(psi_t, c)`.
-fn c_dagger() -> Result<Kernel<Exact>> {
-    w_to_t([r(1, 1), r(0, 1)], [r(1, 3), r(2, 3)], [r(0, 1), r(1, 1)])
+/// `flat : T → S`: hot and cold to `(1/3, 2/3)`.
+fn flat() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_s()?,
+        &[&[r(1, 3), r(2, 3)], &[r(1, 3), r(2, 3)]],
+    )
 }
 
 /// The literal of `coupling(hot, c) : I → T ⊗ W`, `(1/2, 1/2, 0, 0, 0, 0)`.
@@ -63,28 +53,6 @@ fn coupling_psi_t_c() -> Result<Kernel<Exact>> {
         obj_t()?.tensor(&obj_w()?)?,
         vec![r(1, 10), r(1, 10), r(0, 1), r(0, 1), r(1, 5), r(3, 5)],
     )
-}
-
-/// `bayesian_inverse(p, f)` after asserting that it equals `expected`; panics
-/// with `name` and the error when the engine returns an error.
-#[track_caller]
-fn inverse(
-    name: &str,
-    p: &Kernel<Exact>,
-    f: &Kernel<Exact>,
-    expected: &Kernel<Exact>,
-) -> Kernel<Exact> {
-    let observed = match bayesian_inverse(p, f) {
-        Ok(observed) => observed,
-        Err(e) => panic!(
-            "{name} with p = {}, f = {}: expected Ok({}), observed Err({e:?})",
-            show(p),
-            show(f),
-            show(expected)
-        ),
-    };
-    assert_kernel(name, &observed, expected);
-    observed
 }
 
 /// `coupling(psi, f)` after asserting that it equals `expected`; panics with
@@ -112,7 +80,7 @@ fn coupled(
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.tensorHom
 #[test]
 fn witness_almost_surely_eq_tensor_hom() -> Result<()> {
-    let (hot, c, c3, s, s2) = (hot()?, c()?, c3()?, s()?, s2()?);
+    let (hot, psi_t, c, c3, s, s2) = (hot()?, psi_t()?, c()?, c3()?, s()?, s2()?);
     assert_differs("c against c3", &c, &c3);
     assert_differs("s against s2", &s, &s2);
     assert_as_equal("hf: as_equal(hot, c, c3)", &hot, &c, &c3, true);
@@ -136,12 +104,27 @@ fn witness_almost_surely_eq_tensor_hom() -> Result<()> {
     );
 
     let control = Kernel::state(
-        tw,
+        tw.clone(),
         vec![r(1, 10), r(1, 10), r(0, 1), r(2, 5), r(2, 5), r(0, 1)],
     )?;
-    assert_kernel("psi_t ⊗ₘ (hot ≫ c)", &psi_t()?.tensor(&reached)?, &control);
+    assert_kernel("psi_t ⊗ₘ (hot ≫ c)", &psi_t.tensor(&reached)?, &control);
     assert_as_equal(
         "control: as_equal(psi_t ⊗ₘ (hot ≫ c), c ⊗ₘ s, c3 ⊗ₘ s2), (cold, sunny) reached",
+        &control,
+        &lhs,
+        &rhs,
+        false,
+    );
+
+    let q = q()?;
+    assert_kernel("psi_t ≫ c", &psi_t.compose(&c)?, &q);
+    let control = Kernel::state(
+        tw,
+        vec![r(1, 10), r(3, 10), r(3, 5), r(0, 1), r(0, 1), r(0, 1)],
+    )?;
+    assert_kernel("hot ⊗ₘ (psi_t ≫ c)", &hot.tensor(&q)?, &control);
+    assert_as_equal(
+        "control: as_equal(hot ⊗ₘ (psi_t ≫ c), c ⊗ₘ s, c3 ⊗ₘ s2), (hot, rainy) reached",
         &control,
         &lhs,
         &rhs,
@@ -154,9 +137,39 @@ fn witness_almost_surely_eq_tensor_hom() -> Result<()> {
 #[test]
 fn witness_prob_stoch_functor_map_eq_iff() -> Result<()> {
     let (hot, psi_t, c, c3, s, s2) = (hot()?, psi_t()?, c()?, c3()?, s()?, s2()?);
-    assert_as_equal("as_equal(hot, c, c3)", &hot, &c, &c3, true);
     let reached = hot_c()?;
     assert_kernel("hot ≫ c", &hot.compose(&c)?, &reached);
+    assert_state_preserving(
+        "is_state_preserving(hot, c, hot ≫ c)",
+        &hot,
+        &c,
+        &reached,
+        true,
+    );
+    assert_state_preserving(
+        "is_state_preserving(hot, c3, hot ≫ c)",
+        &hot,
+        &c3,
+        &reached,
+        true,
+    );
+    assert_as_equal("as_equal(hot, c, c3)", &hot, &c, &c3, true);
+
+    let target = Kernel::state(obj_s()?, vec![r(2, 3), r(1, 3)])?;
+    assert_state_preserving(
+        "is_state_preserving(hot ≫ c, s, (2/3, 1/3))",
+        &reached,
+        &s,
+        &target,
+        true,
+    );
+    assert_state_preserving(
+        "is_state_preserving(hot ≫ c, s2, (2/3, 1/3))",
+        &reached,
+        &s2,
+        &target,
+        true,
+    );
     assert_as_equal("as_equal(hot ≫ c, s, s2)", &reached, &s, &s2, true);
 
     let (cs, c3s2) = (c.compose(&s)?, c3.compose(&s2)?);
@@ -170,13 +183,43 @@ fn witness_prob_stoch_functor_map_eq_iff() -> Result<()> {
             &[&[r(2, 3), r(1, 3)], &[r(11, 18), r(7, 18)]],
         )?,
     );
+    assert_state_preserving(
+        "is_state_preserving(hot, c ≫ s, (2/3, 1/3))",
+        &hot,
+        &cs,
+        &target,
+        true,
+    );
+    assert_state_preserving(
+        "is_state_preserving(hot, c3 ≫ s2, (2/3, 1/3))",
+        &hot,
+        &c3s2,
+        &target,
+        true,
+    );
     assert_differs("c ≫ s against c3 ≫ s2", &cs, &c3s2);
     assert_as_equal("as_equal(hot, c ≫ s, c3 ≫ s2)", &hot, &cs, &c3s2, true);
-    assert_as_equal(
-        "control: as_equal(psi_t, c ≫ s, c3 ≫ s2), cold reached",
+
+    let (flat, image) = (flat()?, Kernel::state(obj_s()?, vec![r(1, 3), r(2, 3)])?);
+    assert_state_preserving(
+        "control: is_state_preserving(psi_t, c ≫ s, (1/3, 2/3))",
         &psi_t,
         &cs,
-        &c3s2,
+        &image,
+        true,
+    );
+    assert_state_preserving(
+        "control: is_state_preserving(psi_t, flat, (1/3, 2/3))",
+        &psi_t,
+        &flat,
+        &image,
+        true,
+    );
+    assert_as_equal(
+        "control: as_equal(psi_t, c ≫ s, flat)",
+        &psi_t,
+        &cs,
+        &flat,
         false,
     );
     Ok(())
@@ -258,10 +301,8 @@ fn witness_prob_stoch_functor_map_tensor_hom() -> Result<()> {
         true,
     );
 
-    let state = Kernel::state(
-        obj_t()?.tensor(&obj_b()?)?,
-        vec![r(1, 10), r(1, 10), r(2, 5), r(2, 5)],
-    )?;
+    let tb = obj_t()?.tensor(&obj_b()?)?;
+    let state = Kernel::state(tb.clone(), vec![r(1, 10), r(1, 10), r(2, 5), r(2, 5)])?;
     assert_kernel("psi_t ⊗ₘ coin", &psi_t.tensor(&coin)?, &state);
     let wb = obj_w()?.tensor(&obj_b()?)?;
     let image = Kernel::state(
@@ -290,6 +331,39 @@ fn witness_prob_stoch_functor_map_tensor_hom() -> Result<()> {
         &other,
         false,
     );
+
+    let (hot, c3) = (hot()?, c3()?);
+    assert_as_equal("as_equal(hot, c, c3)", &hot, &c, &c3, true);
+    let state = Kernel::state(tb, vec![r(1, 2), r(1, 2), r(0, 1), r(0, 1)])?;
+    assert_kernel("hot ⊗ₘ coin", &hot.tensor(&coin)?, &state);
+    let (g, control) = (c3.tensor(&not_b)?, c.tensor(&Kernel::identity(&obj_b()?)?)?);
+    for (name, kernel) in [
+        ("c ⊗ₘ not_b", &f),
+        ("c3 ⊗ₘ not_b", &g),
+        ("control: c ⊗ₘ 𝟙 B", &control),
+    ] {
+        assert_state_preserving(
+            &format!("is_state_preserving(hot ⊗ₘ coin, {name}, (hot ≫ c) ⊗ₘ coin)"),
+            &state,
+            kernel,
+            &other,
+            true,
+        );
+    }
+    assert_as_equal(
+        "as_equal(hot ⊗ₘ coin, c ⊗ₘ not_b, c3 ⊗ₘ not_b)",
+        &state,
+        &f,
+        &g,
+        true,
+    );
+    assert_as_equal(
+        "control: as_equal(hot ⊗ₘ coin, c ⊗ₘ not_b, c ⊗ₘ 𝟙 B)",
+        &state,
+        &f,
+        &control,
+        false,
+    );
     Ok(())
 }
 
@@ -305,7 +379,6 @@ fn witness_is_bayesian_inverse_almost_surely_eq_of_almost_surely_eq() -> Result<
     assert_bayesian_inverse("h₂: is_bayesian_inverse(hot, c3, g₂)", &hot, &c3, &g2, true);
     let reached = hot_c()?;
     assert_kernel("hot ≫ c", &hot.compose(&c)?, &reached);
-    assert_as_equal("as_equal(hot ≫ c, g₁, g₂)", &reached, &g1, &g2, true);
 
     let g3 = g_rainy([r(1, 1), r(0, 1)])?;
     assert_differs("g₁ against g₃, rainy (1, 0)", &g1, &g3);
@@ -354,10 +427,17 @@ fn witness_prob_stoch_dagger_map() -> Result<()> {
     assert_kernel("hot ≫ c", &hot.compose(&c)?, &reached);
     assert_as_equal("as_equal(hot ≫ c, g₁, g₂)", &reached, &g1, &g2, true);
 
-    let dagger = inverse(
-        "bayesian_inverse(hot, c)",
+    let dagger = bayesian_inverse(&hot, &c)?;
+    assert_bayesian_inverse(
+        "is_bayesian_inverse(hot, c, bayesian_inverse(hot, c))",
         &hot,
         &c,
+        &dagger,
+        true,
+    );
+    assert_kernel(
+        "bayesian_inverse(hot, c)",
+        &dagger,
         &g_rainy([r(1, 2), r(1, 2)])?,
     );
     assert_differs("bayesian_inverse(hot, c) against g₁", &dagger, &g1);
@@ -419,16 +499,10 @@ fn witness_prob_stoch_dagger_id() -> Result<()> {
     );
 
     assert_kernel("psi_t ≫ 𝟙 T", &psi_t.compose(&id)?, &psi_t);
-    let exact = inverse("bayesian_inverse(psi_t, 𝟙 T)", &psi_t, &id, &id);
+    inverse("bayesian_inverse(psi_t, 𝟙 T)", &psi_t, &id, &id);
     assert_as_equal(
-        "as_equal(psi_t, bayesian_inverse(psi_t, 𝟙 T), 𝟙 T)",
-        &psi_t,
-        &exact,
-        &id,
-        true,
-    );
-    assert_as_equal(
-        "control: as_equal(psi_t, bayesian_inverse(hot, 𝟙 T), 𝟙 T), cold reached",
+        "non-vacuity of as_equal, not an instance of the theorem: as_equal(psi_t, \
+         bayesian_inverse(hot, 𝟙 T), 𝟙 T), cold reached",
         &psi_t,
         &filled,
         &id,
@@ -500,8 +574,9 @@ fn witness_prob_stoch_dagger_comp() -> Result<()> {
     let at = Kernel::state(obj_s()?, vec![r(2, 5), r(3, 5)])?;
     assert_kernel("psi_t ≫ c ≫ dd", &psi_t.compose(&cd)?, &at);
     assert_as_equal(
-        "control: as_equal(psi_t ≫ c ≫ dd, bayesian_inverse(hot, c ≫ dd), bayesian_inverse(hot ≫ \
-         c, dd) ≫ bayesian_inverse(hot, c)), off reached",
+        "non-vacuity of as_equal, not an instance of the theorem: as_equal(psi_t ≫ c ≫ dd, \
+         bayesian_inverse(hot, c ≫ dd), bayesian_inverse(hot ≫ c, dd) ≫ bayesian_inverse(hot, \
+         c)), off reached",
         &at,
         &whole,
         &composite,
@@ -515,7 +590,7 @@ fn witness_prob_stoch_dagger_comp() -> Result<()> {
         obj_t()?,
         &[&[r(2, 5), r(3, 5)], &[r(1, 10), r(9, 10)]],
     )?;
-    let whole = inverse("bayesian_inverse(psi_t, c ≫ s)", &psi_t, &cs, &literal);
+    inverse("bayesian_inverse(psi_t, c ≫ s)", &psi_t, &cs, &literal);
     let reached = q()?;
     assert_kernel("psi_t ≫ c", &psi_t.compose(&c)?, &reached);
     let second = inverse(
@@ -537,16 +612,6 @@ fn witness_prob_stoch_dagger_comp() -> Result<()> {
         "bayesian_inverse(psi_t ≫ c, s) ≫ bayesian_inverse(psi_t, c)",
         &composite,
         &literal,
-    );
-    let at = Kernel::state(obj_s()?, vec![r(1, 3), r(2, 3)])?;
-    assert_kernel("psi_t ≫ c ≫ s", &psi_t.compose(&cs)?, &at);
-    assert_as_equal(
-        "as_equal(psi_t ≫ c ≫ s, bayesian_inverse(psi_t, c ≫ s), bayesian_inverse(psi_t ≫ c, s) ≫ \
-         bayesian_inverse(psi_t, c))",
-        &at,
-        &whole,
-        &composite,
-        true,
     );
     Ok(())
 }
@@ -583,8 +648,8 @@ fn witness_prob_stoch_dagger_dagger() -> Result<()> {
         true,
     );
     assert_as_equal(
-        "control: as_equal(psi_t, bayesian_inverse(hot ≫ c, bayesian_inverse(hot, c)), c), cold \
-         reached",
+        "non-vacuity of as_equal, not an instance of the theorem: as_equal(psi_t, \
+         bayesian_inverse(hot ≫ c, bayesian_inverse(hot, c)), c), cold reached",
         &psi_t,
         &back,
         &c,
@@ -599,18 +664,11 @@ fn witness_prob_stoch_dagger_dagger() -> Result<()> {
         obj_w()?,
         &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(0, 1), r(1, 4), r(3, 4)]],
     )?;
-    let back = inverse(
+    inverse(
         "bayesian_inverse(psi_t ≫ c, bayesian_inverse(psi_t, c))",
         &reached,
         &dagger,
         &literal,
-    );
-    assert_as_equal(
-        "as_equal(psi_t, bayesian_inverse(psi_t ≫ c, bayesian_inverse(psi_t, c)), c)",
-        &psi_t,
-        &back,
-        &c,
-        true,
     );
     Ok(())
 }
@@ -667,28 +725,91 @@ fn witness_prob_stoch_hom_equiv_coupling_map() -> Result<()> {
         &copy_whisker(&psi_t, &c)?,
         &left_wire,
     );
-    assert_differs(
-        "coupling(psi_t, c) against psi_t ≫ Δ[T] ≫ (c ▷ T)",
-        &joint,
-        &left_wire,
-    );
     assert_kernel(
         "coupling(psi_t, c) ≫ σ[T, W]",
         &joint.compose(&Kernel::swap(&t, &w)?)?,
         &left_wire,
     );
 
-    for (name, p, expected) in [("hot", &hot, true), ("psi_t", &psi_t, false)] {
-        assert_as_equal(&format!("as_equal({name}, c, c3)"), p, &c, &c3, expected);
-        let (fst, snd) = (coupling(p, &c)?, coupling(p, &c3)?);
+    let control = points(t.clone(), w.clone(), &[0, 2])?;
+    for (name, p, joint, literal) in [("psi_t", &psi_t, &joint, &c), ("hot", &hot, &fst, &c3)] {
+        let call = format!("conditional(coupling({name}, c), T, W)");
+        let got = conditional(joint, &t, &w);
+        let Ok(g) = got else {
+            panic!("{call}: expected Ok({}), observed {got:?}", show(literal));
+        };
+        assert_as_equal(&format!("as_equal({name}, {call}, c)"), p, &g, &c, true);
+        coupled(&format!("coupling({name}, {call})"), p, &g, joint);
+        assert_kernel(&call, &g, literal);
+        assert_as_equal(
+            &format!("control: as_equal({name}, hot to sunny and cold to rainy, c)"),
+            p,
+            &control,
+            &c,
+            false,
+        );
+        assert_differs(
+            &format!(
+                "control: coupling({name}, hot to sunny and cold to rainy) against \
+                 coupling({name}, c)"
+            ),
+            &coupling(p, &control)?,
+            joint,
+        );
+    }
+
+    let (reached, s, s2) = (hot_c()?, s()?, s2()?);
+    let (cs, flat) = (c.compose(&s)?, flat()?);
+    let on = Kernel::state(obj_s()?, vec![r(2, 3), r(1, 3)])?;
+    let off = Kernel::state(obj_s()?, vec![r(1, 3), r(2, 3)])?;
+    for (name, p, f, g, phi, expected) in [
+        ("(hot ≫ c, s, s2)", &reached, &s, &s2, &on, true),
+        ("(psi_t, c ≫ s, flat)", &psi_t, &cs, &flat, &off, false),
+    ] {
+        for (side, kernel) in [("first", f), ("second", g)] {
+            assert_state_preserving(
+                &format!(
+                    "is_state_preserving of the {side} kernel of {name} into {}",
+                    show(phi)
+                ),
+                p,
+                kernel,
+                phi,
+                true,
+            );
+        }
+        assert_as_equal(&format!("as_equal{name}"), p, f, g, expected);
+        let (fst, snd) = (coupling(p, f)?, coupling(p, g)?);
         let observed = fst == snd;
         assert_eq!(
             observed,
             expected,
-            "coupling({name}, c) == coupling({name}, c3): expected {expected}, observed \
+            "the couplings of the two kernels of {name} are equal: expected {expected}, observed \
              {observed}: {} vs {}",
             show(&fst),
             show(&snd)
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn coupling_equals_the_composite_of_copy_and_left_whisker() -> Result<()> {
+    for (name, psi, f) in [
+        ("(psi_t, c)", psi_t()?, c()?),
+        ("(hot, c)", hot()?, c()?),
+        ("(psi_t ≫ c, s)", q()?, s()?),
+        ("(coin, not_b)", coin()?, not_b()?),
+    ] {
+        let x = f.domain();
+        let composite = psi
+            .compose(&Kernel::copy(x)?)?
+            .compose(&Kernel::whisker_left(x, &f)?)?;
+        coupled(
+            &format!("coupling{name} against psi ≫ Δ[X] ≫ (X ◁ f)"),
+            &psi,
+            &f,
+            &composite,
         );
     }
     Ok(())
@@ -715,10 +836,33 @@ fn coupling_rejects_a_non_state_then_a_non_composable_pair() -> Result<()> {
 }
 
 #[test]
+fn is_state_preserving_rejects_a_non_state_first() -> Result<()> {
+    let (t, c, s, e, h, q) = (obj_t()?, c()?, s()?, e()?, h()?, q()?);
+    let id = Kernel::identity(&t)?;
+    for (name, psi, f, phi) in [
+        ("(c, s, h), composable and parallel", &c, &s, &h),
+        ("(c, e, h), non-composable", &c, &e, &h),
+        ("(c, s, q), non-parallel", &c, &s, &q),
+        ("(c, e, q), non-composable and non-parallel", &c, &e, &q),
+        ("(𝟙 T, c, q), composable and non-parallel", &id, &c, &q),
+    ] {
+        let got = is_state_preserving(psi, f, phi);
+        assert!(
+            matches!(&got, Err(Error::NotAState { domain }) if *domain == t),
+            "is_state_preserving{name}: expected NotAState {{ domain: {t:?} }}, observed {got:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn is_state_preserving_rejects_a_non_composable_pair_then_a_non_parallel_state() -> Result<()> {
-    let (unit, t, w, sp) = (FinObj::unit(), obj_t()?, obj_w()?, obj_s()?);
+    let (unit, t, w) = (FinObj::unit(), obj_t()?, obj_w()?);
     let (hot, psi_t, c, s) = (hot()?, psi_t()?, c()?, s()?);
-    for (name, phi) in [("parallel coin", coin()?), ("non-parallel c", c.clone())] {
+    for (name, phi) in [
+        ("parallel on : I → S", point(obj_s()?, 0)?),
+        ("non-parallel c", c.clone()),
+    ] {
         let got = is_state_preserving(&hot, &s, &phi);
         assert!(
             matches!(&got, Err(Error::NotComposable { codomain, domain })
@@ -727,30 +871,20 @@ fn is_state_preserving_rejects_a_non_composable_pair_then_a_non_parallel_state()
              domain: {w:?} }}, observed {got:?}"
         );
     }
-    for (name, psi, phi, fst, snd) in [
+    for (name, phi, snd) in [
         (
             "(psi_t, c, psi_t), the codomain of phi differs",
             &psi_t,
-            &psi_t,
-            (&unit, &w),
             (&unit, &t),
         ),
         (
-            "(psi_t, c, s), the domain of phi differs",
-            &psi_t,
-            &s,
-            (&unit, &w),
-            (&w, &sp),
-        ),
-        (
-            "(𝟙 T, c, q), the domain of psi is not the unit",
-            &Kernel::identity(&t)?,
-            &q()?,
-            (&t, &w),
-            (&unit, &w),
+            "(psi_t, c, 𝟙 W), the domain of phi differs",
+            &Kernel::identity(&w)?,
+            (&w, &w),
         ),
     ] {
-        let got = is_state_preserving(psi, &c, phi);
+        let fst = (&unit, &w);
+        let got = is_state_preserving(&psi_t, &c, phi);
         assert!(
             matches!(&got, Err(Error::NotParallel { fst: a, snd: b })
                 if (&a.0, &a.1) == fst && (&b.0, &b.1) == snd),
@@ -758,19 +892,5 @@ fn is_state_preserving_rejects_a_non_composable_pair_then_a_non_parallel_state()
              observed {got:?}"
         );
     }
-    Ok(())
-}
-
-#[test]
-fn is_state_preserving_compares_the_composite_on_a_domain_that_is_not_the_unit() -> Result<()> {
-    let (c, s) = (c()?, s()?);
-    assert_state_preserving("is_state_preserving(c, s, h)", &c, &s, &h()?, true);
-    assert_state_preserving(
-        "control: is_state_preserving(c, s, k)",
-        &c,
-        &s,
-        &k()?,
-        false,
-    );
     Ok(())
 }

@@ -6,8 +6,12 @@
 //! the buffer of the terms of `compose` and `marginal_snd`, and the three factor
 //! list routes, the factor list of `FinObj::tensor` and the domain and codomain
 //! factor lists of `Tensor::tensor`, which reserve `Factor`s of that byte size. `compose` on
-//! an empty domain and `marginal_fst` reserve no terms under it. `refusing`
-//! restores the limit when `op` panics.
+//! an empty domain and `marginal_fst` reserve no terms under it. Under it,
+//! `prob_space::coupling` and `prob_space::is_state_preserving` return their
+//! `Error::NotAState`, `Error::NotComposable` and, for `is_state_preserving`,
+//! `Error::NotParallel` on kernels whose result buffer it refuses, and
+//! `Error::TooLarge` for that buffer on the same kernels with no rejection.
+//! `refusing` restores the limit when `op` panics.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
@@ -22,6 +26,7 @@ use peluang::finset::{Factor, FinObj};
 use peluang::kernel::Kernel;
 use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
+use peluang::prob_space::{coupling, is_state_preserving};
 
 const REFUSED: usize = 64;
 
@@ -158,6 +163,96 @@ fn tensors_report_a_refused_reservation() -> Result<()> {
         &refusing(|| f.tensor(&g)),
         factors,
         1,
+    );
+    Ok(())
+}
+
+/// Asserts `got` is `Error::NotAState` with `expected`, naming `call`.
+#[track_caller]
+fn assert_not_a_state<T: Debug>(call: &str, got: &Result<T>, expected: &FinObj) {
+    assert!(
+        matches!(got, Err(Error::NotAState { domain }) if domain == expected),
+        "{call}: expected NotAState {{ domain: {expected:?} }}, observed {got:?}"
+    );
+}
+
+/// Asserts `got` is `Error::NotComposable` with `cod` and `dom`, naming `call`.
+#[track_caller]
+fn assert_not_composable<T: Debug>(call: &str, got: &Result<T>, cod: &FinObj, dom: &FinObj) {
+    assert!(
+        matches!(got, Err(Error::NotComposable { codomain, domain })
+            if codomain == cod && domain == dom),
+        "{call}: expected NotComposable {{ codomain: {cod:?}, domain: {dom:?} }}, observed {got:?}"
+    );
+}
+
+/// With `f : [2] → [REFUSED]`, whose coupling holds `2 * REFUSED` weights:
+/// `coupling` returns `Error::NotAState` on `(𝟙 [2], f)`,
+/// `Error::NotComposable` on `(I → [3], f)` and `Error::TooLarge` for
+/// `1 * (2 * REFUSED)` on `(I → [2], f)`.
+#[test]
+fn coupling_rejects_before_it_reserves_and_reports_a_refused_reservation() -> Result<()> {
+    let (two, three) = (FinObj::new(2), FinObj::new(3));
+    let f = Kernel::<Exact>::from_fn(two.clone(), FinObj::new(REFUSED), |x| x)?;
+    let id = Kernel::<Exact>::identity(&two)?;
+    let (on_two, on_three) = (point_mass(two.clone())?, point_mass(three.clone())?);
+    assert_not_a_state("coupling(𝟙 [2], f)", &refusing(|| coupling(&id, &f)), &two);
+    assert_not_composable(
+        "coupling(I → [3], f)",
+        &refusing(|| coupling(&on_three, &f)),
+        &three,
+        &two,
+    );
+    assert_refused(
+        "coupling(I → [2], f), result buffer",
+        &refusing(|| coupling(&on_two, &f)),
+        1,
+        2 * REFUSED,
+    );
+    Ok(())
+}
+
+/// With `f : [2] → [REFUSED]` and `phi : I → [REFUSED]`: `is_state_preserving`
+/// returns `Error::NotAState` on `(𝟙 [2], f, phi)`, `Error::NotComposable` on
+/// `(I → [3], f, phi)`, `Error::NotParallel` on `(I → [2], f, I → [2])` and
+/// `Error::TooLarge` for `1 * REFUSED` on `(I → [2], f, phi)`.
+#[test]
+fn is_state_preserving_rejects_before_it_reserves_and_reports_a_refused_reservation() -> Result<()>
+{
+    let (unit, two, three, wide) = (
+        FinObj::unit(),
+        FinObj::new(2),
+        FinObj::new(3),
+        FinObj::new(REFUSED),
+    );
+    let f = Kernel::<Exact>::from_fn(two.clone(), wide.clone(), |x| x)?;
+    let phi = point_mass(wide.clone())?;
+    let id = Kernel::<Exact>::identity(&two)?;
+    let (on_two, on_three) = (point_mass(two.clone())?, point_mass(three.clone())?);
+    assert_not_a_state(
+        "is_state_preserving(𝟙 [2], f, phi)",
+        &refusing(|| is_state_preserving(&id, &f, &phi)),
+        &two,
+    );
+    assert_not_composable(
+        "is_state_preserving(I → [3], f, phi)",
+        &refusing(|| is_state_preserving(&on_three, &f, &phi)),
+        &three,
+        &two,
+    );
+    let got = refusing(|| is_state_preserving(&on_two, &f, &on_two));
+    let (fst, snd) = ((&unit, &wide), (&unit, &two));
+    assert!(
+        matches!(&got, Err(Error::NotParallel { fst: a, snd: b })
+            if (&a.0, &a.1) == fst && (&b.0, &b.1) == snd),
+        "is_state_preserving(I → [2], f, I → [2]): expected NotParallel {{ fst: {fst:?}, snd: \
+         {snd:?} }}, observed {got:?}"
+    );
+    assert_refused(
+        "is_state_preserving(I → [2], f, phi), result buffer",
+        &refusing(|| is_state_preserving(&on_two, &f, &phi)),
+        1,
+        REFUSED,
     );
     Ok(())
 }

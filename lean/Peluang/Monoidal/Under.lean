@@ -103,7 +103,8 @@ instance Under.monoidalCategory : MonoidalCategory (Under (𝟙_ C)) where
     exact MonoidalCategory.triangle X.right Y.right
 
 /-- For a braided monoidal category `C`, the category `Under (𝟙_ C)` of states of `C` is
-braided: the braiding of `X` and `Y` is `β_ X.right Y.right` on `.right`. -/
+braided: the braiding of `X` and `Y` is `β_ X.right Y.right` on `.right`
+(Fritz 2020, Prop. 13.9 (a)). -/
 instance Under.braidedCategory [BraidedCategory C] : BraidedCategory (Under (𝟙_ C)) where
   braiding X Y := Under.isoMk (β_ X.right Y.right) (by
     change ((λ_ (𝟙_ C)).inv ≫ (X.hom ⊗ₘ Y.hom)) ≫ (β_ X.right Y.right).hom =
@@ -124,7 +125,7 @@ instance Under.braidedCategory [BraidedCategory C] : BraidedCategory (Under (�
     exact BraidedCategory.hexagon_reverse X.right Y.right Z.right
 
 /-- For a symmetric monoidal category `C`, the category `Under (𝟙_ C)` of states of `C` is
-symmetric. -/
+symmetric (Fritz 2020, Prop. 13.9 (a)). -/
 instance Under.symmetricCategory [SymmetricCategory C] :
     SymmetricCategory (Under (𝟙_ C)) where
   symmetry X Y := by

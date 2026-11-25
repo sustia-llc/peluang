@@ -15,8 +15,9 @@ git tag is the authoritative pin.
   Def. 13.8). `ProbStoch C` is the quotient of `Under (𝟙_ C)` by almost-sure
   equality with respect to the state of the domain. The file adds `AlmostSurelyEq.tensorHom`
   (the sentence after Lemma 13.5), the instances `probStochRel.congruence`
-  and `probStochRel.isStableUnderWhisker`, `ProbStoch.functor_map_eq_iff`
-  and `ProbStoch.functor_map_tensorHom` (Prop. 13.9 (a)).
+  (Prop. 13.9 (a)) and `probStochRel.isStableUnderWhisker`,
+  `ProbStoch.functor_map_eq_iff` (Def. 13.8) and
+  `ProbStoch.functor_map_tensorHom` (Prop. 13.9 (a)).
 - `lean/Peluang/Monoidal/Under.lean`: the monoidal, braided and symmetric
   instances on `Under (𝟙_ C)` for a monoidal, braided or symmetric `C`.
 - `lean/Peluang/Monoidal/Quotient.lean`: the class
@@ -41,12 +42,17 @@ git tag is the authoritative pin.
   `FinStoch.exists_ne_probStoch_map_eq` and
   `FinStoch.exists_probStoch_map_ne`.
 - `prob_space::is_state_preserving` and `prob_space::coupling`.
-- `tests/formalization_lean/prob_space_tests.rs`: 14 tests, 11 of them with a
+- `tests/formalization_lean/prob_space_tests.rs`: 15 tests, 11 of them with a
   `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 76 to 87 rows.
+- `tests/too_large.rs`: two tests of the error order of the two new functions
+  under the refusing allocator. `tests/canonical.rs`: one `f64-prob` test of
+  `is_state_preserving`.
 
 ### Changed
 
-- The docstring of `Error::NotAState` names `prob_space::coupling`.
+- The docstring of `Error::NotAState` names `prob_space::coupling` and
+  `prob_space::is_state_preserving`. The field docstrings of
+  `Error::NotParallel` name both of its callers.
 
 ## [0.5.3] - 2026-11-24
 

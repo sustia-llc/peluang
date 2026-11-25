@@ -17,25 +17,9 @@ use peluang::prob::Exact;
 
 use crate::fixtures::{
     assert_as_deterministic, assert_as_equal, assert_bayesian_inverse, assert_deterministic,
-    assert_differs, assert_kernel, c, conditional_composite, d, e, hot, k, lit, obj_b, obj_s,
-    obj_t, obj_w, point, points, psi_t, r, s, show,
+    assert_differs, assert_kernel, c, c_dagger, c3, conditional_composite, d, e, hot, hot_c,
+    inverse, k, lit, obj_b, obj_s, obj_t, obj_w, point, points, psi_t, q, r, s, show, w_to_t,
 };
-
-/// `q : I → W`, `(1/10, 3/10, 3/5)`: the literal of `psi_t ≫ c`.
-fn q() -> Result<Kernel<Exact>> {
-    Kernel::state(obj_w()?, vec![r(1, 10), r(3, 10), r(3, 5)])
-}
-
-/// The kernel `W → T` with the columns `sunny`, `cloudy`, `rainy`.
-fn w_to_t(sunny: [Exact; 2], cloudy: [Exact; 2], rainy: [Exact; 2]) -> Result<Kernel<Exact>> {
-    lit(obj_w()?, obj_t()?, &[&sunny, &cloudy, &rainy])
-}
-
-/// `c† : W → T`, sunny `(1, 0)`, cloudy `(1/3, 2/3)`, rainy `(0, 1)`: the
-/// literal of `bayesian_inverse(psi_t, c)`.
-fn c_dagger() -> Result<Kernel<Exact>> {
-    w_to_t([r(1, 1), r(0, 1)], [r(1, 3), r(2, 3)], [r(0, 1), r(1, 1)])
-}
 
 /// `c†` with the cloudy column `(2/3, 1/3)`.
 fn c_dagger_flipped() -> Result<Kernel<Exact>> {
@@ -53,11 +37,6 @@ fn g_two() -> Result<Kernel<Exact>> {
     w_to_t([r(1, 1), r(0, 1)], [r(1, 1), r(0, 1)], [r(1, 1), r(0, 1)])
 }
 
-/// `hot ≫ c : I → W`, `(1/2, 1/2, 0)`, as a literal.
-fn hot_c() -> Result<Kernel<Exact>> {
-    Kernel::state(obj_w()?, vec![r(1, 2), r(1, 2), r(0, 1)])
-}
-
 /// `s† : S → W`, on `(1/10, 9/10, 0)`, off `(1/10, 0, 9/10)`: the literal of
 /// `bayesian_inverse(q, s)`.
 fn s_dagger() -> Result<Kernel<Exact>> {
@@ -71,15 +50,6 @@ fn s_dagger() -> Result<Kernel<Exact>> {
     )
 }
 
-/// `c' : T → W`: `c` with the cold column `(1/3, 1/3, 1/3)`.
-fn c_prime() -> Result<Kernel<Exact>> {
-    lit(
-        obj_t()?,
-        obj_w()?,
-        &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(1, 3), r(1, 3), r(1, 3)]],
-    )
-}
-
 /// `k' : T → S`: `k` with the cold column `(1/2, 1/2)`.
 fn k_prime() -> Result<Kernel<Exact>> {
     lit(
@@ -87,28 +57,6 @@ fn k_prime() -> Result<Kernel<Exact>> {
         obj_s()?,
         &[&[r(1, 1), r(0, 1)], &[r(1, 2), r(1, 2)]],
     )
-}
-
-/// `bayesian_inverse(p, f)` after asserting that it equals `expected`; panics
-/// with `name` and the error when the engine returns an error.
-#[track_caller]
-fn inverse(
-    name: &str,
-    p: &Kernel<Exact>,
-    f: &Kernel<Exact>,
-    expected: &Kernel<Exact>,
-) -> Kernel<Exact> {
-    let observed = match bayesian_inverse(p, f) {
-        Ok(observed) => observed,
-        Err(e) => panic!(
-            "{name} with p = {}, f = {}: expected Ok({}), observed Err({e:?})",
-            show(p),
-            show(f),
-            show(expected)
-        ),
-    };
-    assert_kernel(name, &observed, expected);
-    observed
 }
 
 /// Whether each weight of `column` is 0 or 1.
@@ -468,7 +416,7 @@ fn witness_is_bayesian_inverse_comp() -> Result<()> {
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.IsBayesianInverse.congr
 #[test]
 fn witness_is_bayesian_inverse_congr() -> Result<()> {
-    let (hot, c, c1, g1, g2) = (hot()?, c()?, c_prime()?, g_one()?, g_two()?);
+    let (hot, c, c1, g1, g2) = (hot()?, c()?, c3()?, g_one()?, g_two()?);
     assert_differs("c against c'", &c, &c1);
     assert_as_equal("hf: as_equal(hot, c, c')", &hot, &c, &c1, true);
     assert_as_equal(

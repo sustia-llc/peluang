@@ -13,7 +13,7 @@
 //! `Kernel::approx_eq`, the input tests of `Kernel::new`, worked `compose`,
 //! `tensor`, marginals and `is_deterministic` under `Kernel::approx_eq`,
 //! `is_independent` under `Prob::approx_eq`, and `bayesian_inverse`,
-//! `is_bayesian_inverse` and `is_as_deterministic`.
+//! `is_bayesian_inverse`, `is_state_preserving` and `is_as_deterministic`.
 
 mod common;
 #[path = "formalization_lean/fixtures.rs"]
@@ -937,6 +937,7 @@ mod float_kernels {
     use peluang::kernel::Kernel;
     use peluang::markov::{Compose, Tensor};
     use peluang::prob::{Exact, F64_TOLERANCE};
+    use peluang::prob_space::is_state_preserving;
 
     fn column(weights: Vec<f64>) -> Result<Kernel<f64>> {
         Kernel::new(FinObj::new(1), FinObj::new(weights.len()), weights)
@@ -1136,6 +1137,31 @@ mod float_kernels {
             assert_flag(
                 &format!("is_bayesian_inverse(psi_t, c, {name}) on {g:?}"),
                 &is_bayesian_inverse(&psi_t, &c, &g),
+                expected,
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn is_state_preserving_under_approx_eq() -> Result<()> {
+        let (psi_t, c) = (floats(&psi_t()?)?, floats(&c()?)?);
+        let (within, beyond) = (F64_TOLERANCE / 4.0, 4.0 * F64_TOLERANCE);
+        let state = |tilt: f64| Kernel::state(obj_w()?, vec![0.1 + tilt, 0.3 - tilt, 0.6]);
+        let (composite, tilted) = (psi_t.compose(&c)?, state(within)?);
+        assert_ne!(
+            composite, tilted,
+            "expected psi_t ≫ c and (1/10, 3/10, 3/5) tilted by F64_TOLERANCE / 4 to differ as \
+             values"
+        );
+        for (name, phi, expected) in [
+            ("(1/10, 3/10, 3/5)", state(0.0)?, true),
+            ("tilted by F64_TOLERANCE / 4", tilted, true),
+            ("tilted by 4 · F64_TOLERANCE", state(beyond)?, false),
+        ] {
+            assert_flag(
+                &format!("is_state_preserving(psi_t, c, {name}) on {phi:?}"),
+                &is_state_preserving(&psi_t, &c, &phi),
                 expected,
             );
         }
