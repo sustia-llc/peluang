@@ -21,9 +21,10 @@ braided when `C` is braided, and symmetric when `C` is symmetric.
   `(λ_ (𝟙_ C)).inv ≫ (X.hom ⊗ₘ Y.hom)`, and the unit is `𝟙 (𝟙_ C)` (Fritz 2020, the proof of
   Prop. 13.9 (a)).
 * `Under.monoidalCategory` - for a monoidal category `C`, `Under (𝟙_ C)` is a monoidal category.
-* `Under.braidedCategory` - for a braided monoidal category `C`, `Under (𝟙_ C)` is braided.
+* `Under.braidedCategory` - for a braided monoidal category `C`, `Under (𝟙_ C)` is braided
+  (Fritz 2020, the proof of Prop. 13.9 (a)).
 * `Under.symmetricCategory` - for a symmetric monoidal category `C`, `Under (𝟙_ C)` is
-  symmetric.
+  symmetric (Fritz 2020, the proof of Prop. 13.9 (a)).
 
 ## References
 
@@ -104,7 +105,7 @@ instance Under.monoidalCategory : MonoidalCategory (Under (𝟙_ C)) where
 
 /-- For a braided monoidal category `C`, the category `Under (𝟙_ C)` of states of `C` is
 braided: the braiding of `X` and `Y` is `β_ X.right Y.right` on `.right`
-(Fritz 2020, Prop. 13.9 (a)). -/
+(Fritz 2020, the proof of Prop. 13.9 (a)). -/
 instance Under.braidedCategory [BraidedCategory C] : BraidedCategory (Under (𝟙_ C)) where
   braiding X Y := Under.isoMk (β_ X.right Y.right) (by
     change ((λ_ (𝟙_ C)).inv ≫ (X.hom ⊗ₘ Y.hom)) ≫ (β_ X.right Y.right).hom =
@@ -125,7 +126,7 @@ instance Under.braidedCategory [BraidedCategory C] : BraidedCategory (Under (�
     exact BraidedCategory.hexagon_reverse X.right Y.right Z.right
 
 /-- For a symmetric monoidal category `C`, the category `Under (𝟙_ C)` of states of `C` is
-symmetric (Fritz 2020, Prop. 13.9 (a)). -/
+symmetric (Fritz 2020, the proof of Prop. 13.9 (a)). -/
 instance Under.symmetricCategory [SymmetricCategory C] :
     SymmetricCategory (Under (𝟙_ C)) where
   symmetry X Y := by

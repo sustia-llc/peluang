@@ -14,8 +14,8 @@ use crate::prob::Prob;
 /// `Error::NotComposable` when the codomain of `psi` differs from the domain
 /// of `f`, then `Error::NotParallel` when the domain of `phi` differs from the
 /// domain of `psi` or the codomain of `phi` differs from the codomain of `f`,
-/// all three with no kernel built, then `Error::TooLarge` when a product
-/// overflows `usize` or reserving a `Vec` capacity fails. The
+/// all three with no kernel built, then `Error::TooLarge` when reserving a
+/// `Vec` capacity fails. The
 /// `Error::NotParallel` holds in `fst` the domain of `psi` and the codomain of
 /// `f`, the type of `psi ≫ f`, and in `snd` the domain and the codomain of
 /// `phi`.
@@ -46,8 +46,8 @@ pub fn is_state_preserving<P: Prob>(
 /// of `Kernel::new`. Returns `Error::NotAState` when the domain of `psi` is
 /// not `FinObj::unit()`, then `Error::NotComposable` when the codomain of
 /// `psi` differs from the domain of `f`, both with no kernel built, then
-/// `Error::TooLarge` when a product overflows `usize` or reserving a `Vec`
-/// capacity fails; no other allocation reports an error.
+/// `Error::TooLarge` when reserving a `Vec` capacity fails; no other
+/// allocation reports an error.
 pub fn coupling<P: Prob>(psi: &Kernel<P>, f: &Kernel<P>) -> Result<Kernel<P>> {
     if *psi.domain() != FinObj::unit() {
         return Err(Error::NotAState {

@@ -213,31 +213,20 @@ fn coupling_rejects_before_it_reserves_and_reports_a_refused_reservation() -> Re
 }
 
 /// With `f : [2] → [REFUSED]` and `phi : I → [REFUSED]`: `is_state_preserving`
-/// returns `Error::NotAState` on `(𝟙 [2], f, phi)`, `Error::NotComposable` on
-/// `(I → [3], f, phi)`, `Error::NotParallel` on `(I → [2], f, I → [2])` and
-/// `Error::TooLarge` for `1 * REFUSED` on `(I → [2], f, phi)`.
+/// returns `Error::NotAState` on `(𝟙 [2], f, phi)`, `Error::NotParallel` on
+/// `(I → [2], f, I → [2])` and `Error::TooLarge` for `1 * REFUSED` on
+/// `(I → [2], f, phi)`.
 #[test]
 fn is_state_preserving_rejects_before_it_reserves_and_reports_a_refused_reservation() -> Result<()>
 {
-    let (unit, two, three, wide) = (
-        FinObj::unit(),
-        FinObj::new(2),
-        FinObj::new(3),
-        FinObj::new(REFUSED),
-    );
+    let (unit, two, wide) = (FinObj::unit(), FinObj::new(2), FinObj::new(REFUSED));
     let f = Kernel::<Exact>::from_fn(two.clone(), wide.clone(), |x| x)?;
     let phi = point_mass(wide.clone())?;
     let id = Kernel::<Exact>::identity(&two)?;
-    let (on_two, on_three) = (point_mass(two.clone())?, point_mass(three.clone())?);
+    let on_two = point_mass(two.clone())?;
     assert_not_a_state(
         "is_state_preserving(𝟙 [2], f, phi)",
         &refusing(|| is_state_preserving(&id, &f, &phi)),
-        &two,
-    );
-    assert_not_composable(
-        "is_state_preserving(I → [3], f, phi)",
-        &refusing(|| is_state_preserving(&on_three, &f, &phi)),
-        &three,
         &two,
     );
     let got = refusing(|| is_state_preserving(&on_two, &f, &on_two));

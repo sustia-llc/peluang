@@ -416,9 +416,9 @@ fn witness_is_bayesian_inverse_comp() -> Result<()> {
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.IsBayesianInverse.congr
 #[test]
 fn witness_is_bayesian_inverse_congr() -> Result<()> {
-    let (hot, c, c1, g1, g2) = (hot()?, c()?, c3()?, g_one()?, g_two()?);
-    assert_differs("c against c'", &c, &c1);
-    assert_as_equal("hf: as_equal(hot, c, c')", &hot, &c, &c1, true);
+    let (hot, c, c3, g1, g2) = (hot()?, c()?, c3()?, g_one()?, g_two()?);
+    assert_differs("c against c3", &c, &c3);
+    assert_as_equal("hf: as_equal(hot, c, c3)", &hot, &c, &c3, true);
     assert_as_equal(
         "hg: as_equal(hot ≫ c, g₁, g₂)",
         &hot.compose(&c)?,
@@ -427,20 +427,20 @@ fn witness_is_bayesian_inverse_congr() -> Result<()> {
         true,
     );
     assert_bayesian_inverse("h: is_bayesian_inverse(hot, c, g₁)", &hot, &c, &g1, true);
-    assert_bayesian_inverse("is_bayesian_inverse(hot, c', g₂)", &hot, &c1, &g2, true);
+    assert_bayesian_inverse("is_bayesian_inverse(hot, c3, g₂)", &hot, &c3, &g2, true);
 
     let psi_t = psi_t()?;
     assert_as_equal(
-        "control: as_equal(psi_t, c, c'), cold reached",
+        "control: as_equal(psi_t, c, c3), cold reached",
         &psi_t,
         &c,
-        &c1,
+        &c3,
         false,
     );
     assert_bayesian_inverse(
-        "control: is_bayesian_inverse(psi_t, c', c†)",
+        "control: is_bayesian_inverse(psi_t, c3, c†)",
         &psi_t,
-        &c1,
+        &c3,
         &c_dagger()?,
         false,
     );

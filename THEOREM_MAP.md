@@ -28,8 +28,8 @@ that starts with `cfg`, `scripts/check_theorem_map.py` fails. Rows for Mathlib-o
 prefixed `mathlib:` and are optional.
 
 Anchor format: `Fritz 2020 Def./Prop./Thm./Lemma/Remark/Notation/Example N.M`
-(arXiv:1908.07021), with a part letter, a footnote number or "the sentence
-after it" where the Lean docstring has one, `Cho–Jacobs Example N.M`
+(arXiv:1908.07021), which can carry a part letter, a footnote number or "the
+sentence after it", `Cho–Jacobs Example N.M`
 (arXiv:1709.00322),
 `arXiv:2211.02507 Remark N.M` and/or the
 Café post's `D`/`T` id. A row can name an
@@ -110,7 +110,7 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.of_comp | tests/formalization_lean/information_flow_tests.rs::witness_almost_surely_eq_of_comp | Fritz 2020 Def. 11.31 |
 | CategoryTheory.CopyDiscardCategory.IsAlmostSurelyDeterministic.comp | tests/formalization_lean/information_flow_tests.rs::witness_is_almost_surely_deterministic_comp | Fritz 2020 Remark 13.14 |
 | CategoryTheory.CopyDiscardCategory.copy_comp_natural_of_relativelyPositive | tests/formalization_lean/information_flow_tests.rs::witness_copy_comp_natural_of_relatively_positive | Fritz 2020 Def. 11.22; arXiv:2211.02507 Remark 2.27 |
-| CategoryTheory.CopyDiscardCategory.IsAlmostSurelyDeterministic.of_comp | tests/formalization_lean/information_flow_tests.rs::witness_is_almost_surely_deterministic_of_comp | Fritz 2020 Remark 13.17 |
+| CategoryTheory.CopyDiscardCategory.IsAlmostSurelyDeterministic.of_comp | tests/formalization_lean/information_flow_tests.rs::witness_is_almost_surely_deterministic_of_comp | Fritz 2020 Remark 13.17 (b) |
 | FinStoch.exists_deterministic_comp_not_deterministic | tests/formalization_lean/information_flow_tests.rs::witness_exists_deterministic_comp_not_deterministic | Fritz 2020 Def. 11.22 |
 | FinStoch.exists_almostSurelyEq_comp_ne | tests/formalization_lean/information_flow_tests.rs::witness_exists_almost_surely_eq_comp_ne | Fritz 2020 Def. 11.31 |
 | mathlib:CategoryTheory.PositiveCategory.instDeterministicOfIsIso | tests/formalization_lean/information_flow_tests.rs::mutually_inverse_kernels_are_deterministic | Fritz 2020 Remark 11.28 |
