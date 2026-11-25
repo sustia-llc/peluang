@@ -58,13 +58,16 @@ pub enum Error {
         domain: FinObj,
     },
 
-    /// Two kernels compared as parallel morphisms whose domains or codomains
-    /// differ.
+    /// Two morphisms compared as parallel whose domains or codomains differ.
     #[error("not parallel: {:?} → {:?} and {:?} → {:?}", .fst.0, .fst.1, .snd.0, .snd.1)]
     NotParallel {
-        /// The domain and codomain of the first kernel.
+        /// The domain and codomain of the first morphism: of `f` in
+        /// `almost_sure::as_equal`, of `psi ≫ f` in
+        /// `prob_space::is_state_preserving`.
         fst: Box<(FinObj, FinObj)>,
-        /// The domain and codomain of the second kernel.
+        /// The domain and codomain of the second morphism: of `g` in
+        /// `almost_sure::as_equal`, of `phi` in
+        /// `prob_space::is_state_preserving`.
         snd: Box<(FinObj, FinObj)>,
     },
 
@@ -79,10 +82,12 @@ pub enum Error {
         snd: FinObj,
     },
 
-    /// `bayes::bayesian_inverse` received a `p` whose domain is not the unit object.
+    /// `bayes::bayesian_inverse` received a `p`, or `prob_space::coupling` or
+    /// `prob_space::is_state_preserving` a `psi`, whose domain is not the unit
+    /// object.
     #[error("domain {domain:?} is not the unit object")]
     NotAState {
-        /// The domain of `p`.
+        /// The domain of that kernel.
         domain: FinObj,
     },
 

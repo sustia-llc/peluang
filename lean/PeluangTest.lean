@@ -21,10 +21,16 @@ public import PeluangTest.Instances.FinStoch.Deterministic
 public import PeluangTest.Instances.FinStoch.InformationFlow
 public import PeluangTest.Instances.FinStoch.Markov
 public import PeluangTest.Instances.FinStoch.Monoidal
+public import PeluangTest.Instances.FinStoch.ProbStoch
 public import PeluangTest.Markov.Cartesian
 public import PeluangTest.Markov.Derived
 public import PeluangTest.Markov.Fox
+public import PeluangTest.Monoidal.Quotient
+public import PeluangTest.Monoidal.Under
 public import PeluangTest.Positive
+public import PeluangTest.ProbStoch.Basic
+public import PeluangTest.ProbStoch.Coupling
+public import PeluangTest.ProbStoch.Dagger
 import PeluangLint
 
 /-!

@@ -1,14 +1,20 @@
 //! The running example as exact literals built with `Kernel::new`: the objects
 //! `W`, `T`, `S`, `P`, `B`, the kernels `psi_t`, `c`, `s`, `h`, `k`, `hot`,
 //! `f`, `j`, `d`, `e`, `coin`, `p_ind`, `p_brk`, `s2`, `dd`, `g2`, `g0`, `c2`,
-//! `m`, `e_inv`, the constructors `r`, `labels`, `lit`, `points`, `point`, the
+//! `m`, `e_inv`, `c3`, `on_b`, `const_b`, `not_b`, `q`, `hot_c`, `c_dagger`,
+//! the constructors `r`, `labels`, `lit`, `points`, `point`, `w_to_t`, the
 //! composites `conditional_composite` and `copy_whisker`, the printer `show`,
-//! and the comparisons that report observed and expected values.
+//! and the comparisons that report observed and expected values:
+//! `assert_kernel`, `assert_differs`, `assert_as_equal`, `assert_independent`,
+//! `assert_bayesian_inverse`, `assert_state_preserving`,
+//! `assert_as_deterministic`, `assert_copy_comp_natural`,
+//! `assert_copy_comp_natural_as`, `deterministic`, `assert_deterministic` and
+//! `inverse`.
 
 #![allow(dead_code)]
 
 use peluang::almost_sure::as_equal;
-use peluang::bayes::is_bayesian_inverse;
+use peluang::bayes::{bayesian_inverse, is_bayesian_inverse};
 use peluang::deterministic::{is_as_deterministic, is_deterministic};
 use peluang::error::Result;
 use peluang::finset::FinObj;
@@ -17,6 +23,7 @@ use peluang::information_flow::{copy_comp_natural, copy_comp_natural_as};
 use peluang::kernel::Kernel;
 use peluang::markov::Compose;
 use peluang::prob::{Exact, Prob};
+use peluang::prob_space::is_state_preserving;
 
 pub fn r(n: i64, d: i64) -> Exact {
     Exact::new(n.into(), d.into())
@@ -251,6 +258,59 @@ pub fn e_inv() -> Result<Kernel<Exact>> {
     points(obj_t()?, obj_s()?, &[0, 1])
 }
 
+/// `c3 : T → W`: hot to `(1/2, 1/2, 0)`, cold to `(1/3, 1/3, 1/3)`.
+pub fn c3() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_w()?,
+        &[&[r(1, 2), r(1, 2), r(0, 1)], &[r(1, 3), r(1, 3), r(1, 3)]],
+    )
+}
+
+/// `on_b : I → B`, `(0, 1)`: the point at `true`.
+pub fn on_b() -> Result<Kernel<Exact>> {
+    point(obj_b()?, 1)
+}
+
+/// `const_b : B → B`: false and true to `(0, 1)`, the point at `true`.
+pub fn const_b() -> Result<Kernel<Exact>> {
+    lit(
+        obj_b()?,
+        obj_b()?,
+        &[&[r(0, 1), r(1, 1)], &[r(0, 1), r(1, 1)]],
+    )
+}
+
+/// `not_b : B → B`: false to `(0, 1)`, true to `(1, 0)`.
+pub fn not_b() -> Result<Kernel<Exact>> {
+    lit(
+        obj_b()?,
+        obj_b()?,
+        &[&[r(0, 1), r(1, 1)], &[r(1, 1), r(0, 1)]],
+    )
+}
+
+/// `q : I → W`, `(1/10, 3/10, 3/5)`: the literal of `psi_t ≫ c`.
+pub fn q() -> Result<Kernel<Exact>> {
+    Kernel::state(obj_w()?, vec![r(1, 10), r(3, 10), r(3, 5)])
+}
+
+/// `hot ≫ c : I → W`, `(1/2, 1/2, 0)`, as a literal.
+pub fn hot_c() -> Result<Kernel<Exact>> {
+    Kernel::state(obj_w()?, vec![r(1, 2), r(1, 2), r(0, 1)])
+}
+
+/// The kernel `W → T` with the columns `sunny`, `cloudy`, `rainy`.
+pub fn w_to_t(sunny: [Exact; 2], cloudy: [Exact; 2], rainy: [Exact; 2]) -> Result<Kernel<Exact>> {
+    lit(obj_w()?, obj_t()?, &[&sunny, &cloudy, &rainy])
+}
+
+/// `c† : W → T`, sunny `(1, 0)`, cloudy `(1/3, 2/3)`, rainy `(0, 1)`: the
+/// literal of `bayesian_inverse(psi_t, c)`.
+pub fn c_dagger() -> Result<Kernel<Exact>> {
+    w_to_t([r(1, 1), r(0, 1)], [r(1, 3), r(2, 3)], [r(0, 1), r(1, 1)])
+}
+
 /// The Def. 11.5 composite `Δ[A] ≫ (marginalFst f ▷ A) ≫ (Δ[x] ▷ A) ≫
 /// α[x, x, A] ≫ (x ◁ k)` with `A` the domain of `f : A → x ⊗ y`.
 pub fn conditional_composite(
@@ -441,6 +501,57 @@ pub fn assert_bayesian_inverse(
         show(p),
         show(f),
         show(g)
+    );
+}
+
+/// `bayesian_inverse(p, f)` after asserting that it equals `expected`; panics
+/// with `name` and the error when the engine returns an error.
+#[track_caller]
+pub fn inverse(
+    name: &str,
+    p: &Kernel<Exact>,
+    f: &Kernel<Exact>,
+    expected: &Kernel<Exact>,
+) -> Kernel<Exact> {
+    let observed = match bayesian_inverse(p, f) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "{name} with p = {}, f = {}: expected Ok({}), observed Err({e:?})",
+            show(p),
+            show(f),
+            show(expected)
+        ),
+    };
+    assert_kernel(name, &observed, expected);
+    observed
+}
+
+/// Asserts `is_state_preserving(psi, f, phi) == Ok(expected)`, naming the call
+/// `name`; panics with `name` and the error when the engine returns an error.
+#[track_caller]
+pub fn assert_state_preserving(
+    name: &str,
+    psi: &Kernel<Exact>,
+    f: &Kernel<Exact>,
+    phi: &Kernel<Exact>,
+    expected: bool,
+) {
+    let observed = match is_state_preserving(psi, f, phi) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "{name} with psi = {}, f = {}, phi = {}: expected Ok({expected}), observed Err({e:?})",
+            show(psi),
+            show(f),
+            show(phi)
+        ),
+    };
+    assert_eq!(
+        observed,
+        expected,
+        "{name} with psi = {}, f = {}, phi = {}: expected {expected}, observed {observed}",
+        show(psi),
+        show(f),
+        show(phi)
     );
 }
 

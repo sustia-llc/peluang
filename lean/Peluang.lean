@@ -24,10 +24,16 @@ public import Peluang.Instances.FinStoch.Independence
 public import Peluang.Instances.FinStoch.InformationFlow
 public import Peluang.Instances.FinStoch.Markov
 public import Peluang.Instances.FinStoch.Monoidal
+public import Peluang.Instances.FinStoch.ProbStoch
 public import Peluang.Markov.Cartesian
 public import Peluang.Markov.Derived
 public import Peluang.Markov.Fox
+public import Peluang.Monoidal.Quotient
+public import Peluang.Monoidal.Under
 public import Peluang.Positive
+public import Peluang.ProbStoch.Basic
+public import Peluang.ProbStoch.Coupling
+public import Peluang.ProbStoch.Dagger
 
 /-!
 # Peluang

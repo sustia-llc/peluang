@@ -12,14 +12,9 @@ use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
 
 use crate::fixtures::{
-    assert_as_equal, assert_kernel, c, conditional_composite, copy_whisker, e, f, labels, lit,
-    obj_s, obj_t, obj_w, psi_t, r, s, show,
+    assert_as_equal, assert_kernel, c, conditional_composite, copy_whisker, e, f, hot_c, labels,
+    lit, obj_s, obj_t, obj_w, psi_t, r, s, show,
 };
-
-/// `q : I → W`, `(1/2, 1/2, 0)`: the column of `c` at hot.
-fn q() -> Result<Kernel<Exact>> {
-    Kernel::state(obj_w()?, vec![r(1, 2), r(1, 2), r(0, 1)])
-}
 
 /// `s` with the column at input `at` replaced by `column`, the other columns
 /// read from `s()`, for every index `at`. Returns an error naming `at` and the
@@ -103,7 +98,7 @@ fn assert_column(side: &str, k: &Kernel<Exact>, x: usize, expected: &[Exact]) {
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.almostSurelyEq_equivalence
 #[test]
 fn witness_almost_surely_eq_equivalence() -> anyhow::Result<()> {
-    let (q, s, s1, s3) = (q()?, s()?, s_prime()?, s_double_prime()?);
+    let (q, s, s1, s3) = (hot_c()?, s()?, s_prime()?, s_double_prime()?);
     let s2 = s_with_rainy([r(1, 2), r(1, 2)])?;
     assert_as_equal("refl: as_equal(q, s, s)", &q, &s, &s, true);
     let forward = as_equal(&q, &s1, &s)?;
@@ -127,7 +122,7 @@ fn witness_almost_surely_eq_equivalence() -> anyhow::Result<()> {
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.comp
 #[test]
 fn witness_almost_surely_eq_comp() -> anyhow::Result<()> {
-    let (q, s, s1, e) = (q()?, s()?, s_prime()?, e()?);
+    let (q, s, s1, e) = (hot_c()?, s()?, s_prime()?, e()?);
     assert_as_equal("as_equal(q, s', s)", &q, &s1, &s, true);
     assert_as_equal(
         "as_equal(q, s' ≫ e, s ≫ e)",
@@ -149,7 +144,7 @@ fn witness_almost_surely_eq_comp() -> anyhow::Result<()> {
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.AlmostSurelyEq.copy_tensorHom
 #[test]
 fn witness_almost_surely_eq_copy_tensor_hom() -> anyhow::Result<()> {
-    let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
+    let (q, s, s1, s2) = (hot_c()?, s()?, s_prime()?, s_double_prime()?);
     let g1 = s_with_rainy([r(1, 2), r(1, 2)])?;
     assert_as_equal("hf: as_equal(q, s', s)", &q, &s1, &s, true);
     assert_as_equal("hg: as_equal(q, g', s)", &q, &g1, &s, true);
@@ -186,7 +181,7 @@ fn witness_almost_surely_eq_copy_tensor_hom() -> anyhow::Result<()> {
 /// THEOREM_MAP: FinStoch.almostSurelyEq_iff
 #[test]
 fn witness_almost_surely_eq_iff() -> anyhow::Result<()> {
-    let (q, s, s1, s2) = (q()?, s()?, s_prime()?, s_double_prime()?);
+    let (q, s, s1, s2) = (hot_c()?, s()?, s_prime()?, s_double_prime()?);
     let s_flip = s_with_sunny([r(2, 3), r(1, 3)])?;
     assert_column("q, sunny reached", &q, 0, &[r(1, 2), r(1, 2), r(0, 1)]);
     assert_column("s at sunny", &s, 0, &[r(1, 3), r(2, 3)]);
@@ -283,7 +278,7 @@ fn witness_copy_comp_whisker_right_mass() -> Result<()> {
         obj_s()?.tensor(&w)?,
         vec![r(1, 6), r(1, 2), r(0, 1), r(1, 3), r(0, 1), r(0, 1)],
     )?;
-    let observed = q()?
+    let observed = hot_c()?
         .compose(&Kernel::copy(&w)?)?
         .compose(&Kernel::whisker_right(&s()?, &w)?)?;
     assert_kernel("q ≫ Δ[W] ≫ (s ▷ W)", &observed, &expected);
@@ -481,7 +476,7 @@ fn witness_has_conditionals() -> Result<()> {
 
 #[test]
 fn as_equal_rejects_mismatched_shapes() -> Result<()> {
-    let (q, s, e) = (q()?, s()?, e()?);
+    let (q, s, e) = (hot_c()?, s()?, e()?);
     let got = as_equal(&q, &e, &e);
     assert!(
         matches!(&got, Err(Error::NotComposable { codomain, domain })

@@ -6,6 +6,54 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-11-25
+
+### Added
+
+- `lean/Peluang/ProbStoch/Basic.lean`: the relation `probStochRel` and the
+  category `ProbStoch C` of a causal Markov category `C` (Fritz 2020
+  Def. 13.8). `ProbStoch C` is the quotient of `Under (𝟙_ C)` by almost-sure
+  equality with respect to the state of the domain. The file adds `AlmostSurelyEq.tensorHom`
+  (the sentence after Lemma 13.5), the instances `probStochRel.congruence`
+  (Prop. 13.9 (a)) and `probStochRel.isStableUnderWhisker`,
+  `ProbStoch.functor_map_eq_iff` (Def. 13.8) and
+  `ProbStoch.functor_map_tensorHom` (Prop. 13.9 (a)).
+- `lean/Peluang/Monoidal/Under.lean`: the monoidal, braided and symmetric
+  instances on `Under (𝟙_ C)` for a monoidal, braided or symmetric `C`.
+- `lean/Peluang/Monoidal/Quotient.lean`: the class
+  `HomRel.IsStableUnderWhisker`, the monoidal, braided and symmetric
+  instances on `Quotient r` for a relation `r` of that class, and
+  `Quotient.functor_map_tensorHom`.
+- `lean/Peluang/ProbStoch/Dagger.lean`: `ProbStoch.dagger` on the hom-sets of
+  `ProbStoch C` for a causal Markov category `C` with conditionals (Fritz
+  2020 Remark 13.10), with `dagger_map`, `dagger_id`, `dagger_comp` and
+  `dagger_dagger`. The file adds
+  `IsBayesianInverse.almostSurelyEq_of_almostSurelyEq`. Its helpers are
+  `ProbStoch.bayesInv` and `ProbStoch.isBayesianInverse_bayesInv`.
+- `lean/Peluang/ProbStoch/Coupling.lean`: `ProbStoch.homEquivCoupling`, the
+  bijection from a hom-set of `ProbStoch C` to the morphisms
+  `𝟙_ C ⟶ X ⊗ Y` with the two given marginals (Fritz 2020 Prop. 13.9 (b)),
+  and `ProbStoch.homEquivCoupling_map`. Its helpers are
+  `marginalSnd_comp_copy_whiskerLeft`, `almostSurelyEq_iff_copy_whiskerLeft`,
+  `isConditional_rightUnitor_comp_iff`,
+  `MarkovCategory.marginalFst_comp_copy_whiskerLeft`, `ProbStoch.couplingHom`
+  and `ProbStoch.couplingHom_spec`.
+- `lean/Peluang/Instances/FinStoch/ProbStoch.lean`:
+  `FinStoch.exists_ne_probStoch_map_eq` and
+  `FinStoch.exists_probStoch_map_ne`.
+- `prob_space::is_state_preserving` and `prob_space::coupling`.
+- `tests/formalization_lean/prob_space_tests.rs`: 15 tests, 11 of them with a
+  `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 76 to 87 rows.
+- `tests/too_large.rs`: three tests of the two new functions under the
+  refusing allocator. `tests/canonical.rs`: one `f64-prob` test of
+  `is_state_preserving`.
+
+### Changed
+
+- The docstring of `Error::NotAState` names `prob_space::coupling` and
+  `prob_space::is_state_preserving`. The field docstrings of
+  `Error::NotParallel` name both of its callers.
+
 ## [0.5.3] - 2026-11-24
 
 ### Added
@@ -428,7 +476,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.4...HEAD
+[0.5.4]: https://github.com/sustia-llc/peluang/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/sustia-llc/peluang/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/sustia-llc/peluang/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/sustia-llc/peluang/compare/v0.5.0...v0.5.1
