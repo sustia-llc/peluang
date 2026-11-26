@@ -125,3 +125,8 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.ProbStoch.dagger_comp | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_dagger_comp | Fritz 2020 Remark 13.10, footnote 28 |
 | CategoryTheory.ProbStoch.dagger_dagger | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_dagger_dagger | Fritz 2020 Remark 13.10, footnote 28 |
 | CategoryTheory.ProbStoch.homEquivCoupling_map | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_hom_equiv_coupling_map | Fritz 2020 Prop. 13.9 (b) |
+| CategoryTheory.MonoidalCategory.tensorRev₃_eq_tensorLeftComm | tests/formalization_lean/reorder_tests.rs::witness_tensor_rev3_eq_tensor_left_comm | Fritz 2020 Prop. 12.17 (a) |
+| CategoryTheory.MonoidalCategory.tensorRev₃_hom_naturality | tests/formalization_lean/reorder_tests.rs::witness_tensor_rev3_hom_naturality | Fritz 2020 Prop. 12.17 (a) |
+| CategoryTheory.CopyDiscardCategory.isConditionalSnd_iff | tests/formalization_lean/reorder_tests.rs::witness_is_conditional_snd_iff | Fritz 2020 Def. 11.5 |
+| CategoryTheory.CopyDiscardCategory.exists_isConditionalSnd | tests/formalization_lean/reorder_tests.rs::witness_exists_is_conditional_snd | Fritz 2020 Def. 11.5 |
+| CategoryTheory.CopyDiscardCategory.marginalFst_comp_braiding_hom | tests/formalization_lean/reorder_tests.rs::witness_marginal_fst_comp_braiding_hom | Fritz 2020 Notation 2.8 |
