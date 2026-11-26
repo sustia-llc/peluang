@@ -24,10 +24,17 @@ git tag is the authoritative pin.
   indices of the codomain.
 - `independence::is_cond_independent_state`: for a state and three lists of
   factor indices, whether `p(x,w,y) · p(w)` agrees with `p(x,w) · p(w,y)` at
-  every output.
-- `Error::NotAFactorList`.
-- `tests/formalization_lean/semigraphoid_tests.rs`: 9 tests, 7 of them with a
-  `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 92 to 99 rows.
+  every output, under `Prob::approx_eq_scaled` with scale `p(w) · p(w)`.
+- `Prob::approx_eq_scaled`, a trait method with a default body: `approx_eq`
+  by default, and `|self - other| <= F64_TOLERANCE * scale` for `f64`.
+- `Error::NotAFactorList` and `Error::SharedFactorIndex`.
+- `tests/formalization_lean/semigraphoid_tests.rs`: 10 tests, 7 of them with
+  a `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 92 to 99 rows.
+- `tests/too_large.rs`: one test of `Kernel::marginal` and one of
+  `is_cond_independent_state` under the refusing allocator.
+- `tests/parallel.rs`: one test of `Kernel::marginal` at `PAR_THRESHOLD`.
+- `tests/canonical.rs`: one test of `is_cond_independent_state` on `f64`
+  weights, and one of `Prob::approx_eq_scaled`.
 
 ### Changed
 

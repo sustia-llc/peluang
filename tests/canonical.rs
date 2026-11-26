@@ -12,7 +12,9 @@
 //! under `f64-prob`: the `Prob` trait,
 //! `Kernel::approx_eq`, the input tests of `Kernel::new`, worked `compose`,
 //! `tensor`, marginals and `is_deterministic` under `Kernel::approx_eq`,
-//! `is_independent` under `Prob::approx_eq`, and `bayesian_inverse`,
+//! `is_independent` under `Prob::approx_eq`, `Prob::approx_eq_scaled` on `f64`
+//! and `Exact` weights, `is_cond_independent_state` at a `w` of mass `1e-6`
+//! under `Prob::approx_eq_scaled`, and `bayesian_inverse`,
 //! `is_bayesian_inverse`, `is_state_preserving` and `is_as_deterministic`.
 
 mod common;
@@ -926,17 +928,17 @@ fn c_tensor_s() -> peluang::error::Result<peluang::kernel::Kernel<peluang::prob:
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
     use crate::c_tensor_s;
-    use crate::fixtures::{c, d, f, h, hot, k, obj_p, obj_s, obj_t, obj_w, psi_t, s};
+    use crate::fixtures::{c, d, f, h, hot, k, obj_p, obj_s, obj_t, obj_w, psi_t, r, s};
     use num_traits::ToPrimitive;
     use peluang::almost_sure::as_equal;
     use peluang::bayes::{bayesian_inverse, is_bayesian_inverse};
     use peluang::deterministic::{is_as_deterministic, is_deterministic};
     use peluang::error::{Error, Result};
     use peluang::finset::FinObj;
-    use peluang::independence::is_independent;
+    use peluang::independence::{is_cond_independent_state, is_independent};
     use peluang::kernel::Kernel;
     use peluang::markov::{Compose, Tensor};
-    use peluang::prob::{Exact, F64_TOLERANCE};
+    use peluang::prob::{Exact, F64_TOLERANCE, Prob};
     use peluang::prob_space::is_state_preserving;
 
     fn column(weights: Vec<f64>) -> Result<Kernel<f64>> {
@@ -1073,6 +1075,104 @@ mod float_kernels {
             );
         }
         Ok(())
+    }
+
+    /// On states on `[2] ⊗ [2] ⊗ [2]` with weight index `x * 4 + w * 2 + y`,
+    /// `p(w0) = 1 - 1e-6` and `p(w1) = 1e-6`, and the lists `[0]`, `[1]`,
+    /// `[2]`: the comparison at `w1` is within `F64_TOLERANCE * p(w1)²`, which
+    /// is `1e-24`.
+    #[test]
+    fn is_cond_independent_state_scales_the_tolerance_by_the_mass_of_w() -> Result<()> {
+        let two = FinObj::new(2);
+        let cod = two.tensor(&two)?.tensor(&two)?;
+        let quarter = (1.0 - 1e-6) / 4.0;
+        let dependent = Kernel::state(
+            cod.clone(),
+            vec![quarter, quarter, 5e-7, 0.0, quarter, quarter, 0.0, 5e-7],
+        )?;
+        let independent = Kernel::state(
+            cod,
+            vec![
+                quarter, quarter, 1.25e-7, 1.25e-7, quarter, quarter, 3.75e-7, 3.75e-7,
+            ],
+        )?;
+        assert_flag(
+            &format!(
+                "is_cond_independent_state(x = y at w1, [0], [1], [2]) on {dependent:?}, where \
+                 p(x0, w1, y0) · p(w1) = 5e-13 and p(x0, w1) · p(w1, y0) = 2.5e-13 differ by more \
+                 than {F64_TOLERANCE} · p(w1)² = 1e-24"
+            ),
+            &is_cond_independent_state(&dependent, &[0], &[1], &[2]),
+            false,
+        );
+        assert_flag(
+            &format!(
+                "is_cond_independent_state(product at w0 and at w1, [0], [1], [2]) on \
+                 {independent:?}, within {F64_TOLERANCE} · p(w)² at each w"
+            ),
+            &is_cond_independent_state(&independent, &[0], &[1], &[2]),
+            true,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn approx_eq_scaled_multiplies_the_tolerance_by_the_scale() {
+        for (name, a, b, scale, expected) in [
+            (
+                "5e-13 against 2.5e-13 at scale 1e-12",
+                5e-13_f64,
+                2.5e-13,
+                1e-12,
+                false,
+            ),
+            (
+                "5e-13 + 5e-25 against 5e-13 at scale 1e-12",
+                5e-13 + 5e-25,
+                5e-13,
+                1e-12,
+                true,
+            ),
+            (
+                "5e-13 against 2.5e-13 at scale 1",
+                5e-13,
+                2.5e-13,
+                1.0,
+                true,
+            ),
+            ("0.25 against 0.25 at scale 0", 0.25, 0.25, 0.0, true),
+            ("1e-300 against 0 at scale 0", 1e-300, 0.0, 0.0, false),
+        ] {
+            let observed = a.approx_eq_scaled(&b, &scale);
+            assert_eq!(
+                observed, expected,
+                "f64 approx_eq_scaled, {name}, bound {F64_TOLERANCE} · {scale}: expected \
+                 {expected}, observed {observed}"
+            );
+        }
+        let (big, tiny) = (1_000_000_000_000_000_000, r(1, 1_000_000_000_000_000_000));
+        for (name, a, b, scale, expected) in [
+            (
+                "1/3 against 1/3 at scale 0",
+                r(1, 3),
+                r(1, 3),
+                r(0, 1),
+                true,
+            ),
+            (
+                "1/3 + 1/10^18 against 1/3 at scale 10^18",
+                r(1, 3) + tiny,
+                r(1, 3),
+                r(big, 1),
+                false,
+            ),
+        ] {
+            let observed = a.approx_eq_scaled(&b, &scale);
+            assert_eq!(
+                observed, expected,
+                "Exact approx_eq_scaled, {name}: expected {expected}, observed {observed}"
+            );
+        }
     }
 
     #[track_caller]

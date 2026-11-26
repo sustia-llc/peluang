@@ -7,9 +7,11 @@
 //! `Kernel::whisker_left` and `Kernel::whisker_right`, `Kernel::marginal`,
 //! `is_independent` and `is_cond_independent_state`. Also, untagged:
 //! `Kernel::marginal` against `Kernel::marginal_fst`, `Kernel::marginal_snd`
-//! and literals, with its `Error::NotAFactorList` and `Error::TooLarge`, and
-//! `is_cond_independent_state` on states with a factor in no list, with its
-//! `Error::NotAState` and `Error::NotAFactorList`. The engine is strict:
+//! and literals, with its `Error::NotAFactorList` and `Error::TooLarge` and
+//! its results on an empty domain, and `is_cond_independent_state` on states
+//! with a factor in no list and on states with a factor of `ws` between two
+//! factors of `xs`, with its `Error::NotAState`, `Error::NotAFactorList` and
+//! `Error::SharedFactorIndex`. The engine is strict:
 //! `Kernel::associator` stands for both `α` and `α⁻¹`, and
 //! `Kernel::right_unitor` for `ρ`.
 
@@ -332,6 +334,47 @@ fn psi_a() -> Result<Kernel<Exact>> {
     state_form(&phi, &f_a, &g6()?)
 }
 
+/// The object `W ⊗ (T ⊗ (S ⊗ B))`.
+fn wtsb() -> Result<FinObj> {
+    obj_w()?
+        .tensor(&obj_t()?)?
+        .tensor(&obj_s()?)?
+        .tensor(&obj_b()?)
+}
+
+/// `ψ_i : I → W ⊗ (T ⊗ (S ⊗ B))`: weight
+/// `psi_t(t) · f((w, s) | t) · k_tb(b | t)` at output `(w, t, s, b)`.
+fn psi_wtsb() -> Result<Kernel<Exact>> {
+    grouped(
+        wtsb()?,
+        &[
+            &[r(1, 60), r(1, 60), r(1, 30), r(1, 30)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 20), r(1, 20), r(0, 1), r(0, 1)],
+            &[r(1, 20), r(3, 20), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(3, 20), r(9, 20)],
+        ],
+    )
+}
+
+/// `ψ_i' : I → W ⊗ (T ⊗ (S ⊗ B))`: weight `psi_t(t) · f((w, s) | t)` at the
+/// outputs `(w, t, on, false)` and `(w, t, off, true)`, and 0 at every other
+/// output.
+fn psi_wtsb_dep() -> Result<Kernel<Exact>> {
+    grouped(
+        wtsb()?,
+        &[
+            &[r(1, 30), r(0, 1), r(0, 1), r(1, 15)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 10), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 5), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(3, 5)],
+        ],
+    )
+}
+
 /// Asserts that `got` is `Error::NotAFactorList` with `cod` and `list`,
 /// naming `call`.
 #[track_caller]
@@ -480,8 +523,7 @@ fn witness_displays_indep_decomposition() -> Result<()> {
 }
 
 /// The `==` half compares `ψ ≫ tensorRev₃` with the Def. 12.1 composite of
-/// `psi_t`, `h` and `c`. No Lean theorem ties `is_cond_independent_state` to
-/// `DisplaysCondIndepState` yet.
+/// `psi_t`, `h` and `c`.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.symm
 #[test]
 fn witness_displays_cond_indep_state_symm() -> Result<()> {
@@ -552,8 +594,7 @@ fn witness_displays_cond_indep_state_symm() -> Result<()> {
 
 /// The theorem drops the second factor of the first place: here `S` of
 /// `(W ⊗ S) ⊗ (T ⊗ S)`. The `==` half compares the marginal with the Def. 12.1
-/// composite of `psi_t`, `f ≫ (W ◁ ε[S] ≫ ρ)` and `h`. No Lean theorem ties
-/// `is_cond_independent_state` to `DisplaysCondIndepState` yet.
+/// composite of `psi_t`, `f ≫ (W ◁ ε[S] ≫ ρ)` and `h`.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.decomposition
 #[test]
 fn witness_displays_cond_indep_state_decomposition() -> Result<()> {
@@ -612,9 +653,8 @@ fn witness_displays_cond_indep_state_decomposition() -> Result<()> {
 
 /// At `X = W`, `W = T`, `Z = B`, `Y = S` of the running example. The `==` half
 /// compares `ψ ≫ (X ◁ α)` with the Def. 12.1 composite of `psi_t`, `c` and
-/// `Δ[T] ≫ (T ◁ (k ≫ Δ[B])) ≫ α⁻¹ ≫ (σ[T, B] ▷ B) ≫ α ≫ (B ◁ g)`. No Lean
-/// theorem ties `is_cond_independent_state` to `DisplaysCondIndepState` yet.
-/// THEOREM_MAP: CategoryTheory.MarkovCategory.DisplaysCondIndepState.contraction
+/// `Δ[T] ≫ (T ◁ (k ≫ Δ[B])) ≫ α⁻¹ ≫ (σ[T, B] ▷ B) ≫ α ≫ (B ◁ g)`.
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.contraction
 #[test]
 fn witness_displays_cond_indep_state_contraction() -> Result<()> {
     let (t, w, sp, b) = (obj_t()?, obj_w()?, obj_s()?, obj_b()?);
@@ -769,8 +809,7 @@ fn witness_displays_cond_indep_state_contraction() -> Result<()> {
 
 /// The `==` half compares `ψ ≫ tensorWeakUnionIso` with the Def. 12.1
 /// composite of `psi_t ≫ Δ[T] ≫ (T ◁ marginalSnd f0)`,
-/// `σ[T, S] ≫ conditional_snd(f0, W, S)` and `(T ◁ ε[S] ≫ ρ) ≫ h`. No Lean
-/// theorem ties `is_cond_independent_state` to `DisplaysCondIndepState` yet.
+/// `σ[T, S] ≫ conditional_snd(f0, W, S)` and `(T ◁ ε[S] ≫ ρ) ≫ h`.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.weak_union
 #[test]
 fn witness_displays_cond_indep_state_weak_union() -> Result<()> {
@@ -980,16 +1019,64 @@ fn marginal_keeps_the_listed_factors() -> Result<()> {
         empty.tensor(&huge)?.tensor(&huge)?,
         Vec::new(),
     )?;
-    for list in [&[1, 2][..], &[0][..]] {
-        let got = wide.marginal(list);
-        assert!(
-            matches!(&got, Err(Error::TooLarge { fst, snd, source: None })
-                if *fst == usize::MAX && *snd == usize::MAX),
-            "(0 → [0] ⊗ [usize::MAX] ⊗ [usize::MAX]).marginal({list:?}): expected TooLarge {{ \
-             fst: {max}, snd: {max}, source: None }}, observed {got:?}",
-            max = usize::MAX
-        );
-    }
+    let got = wide.marginal(&[1, 2]);
+    assert!(
+        matches!(&got, Err(Error::TooLarge { fst, snd, source: None })
+            if *fst == usize::MAX && *snd == usize::MAX),
+        "(0 → [0] ⊗ [usize::MAX] ⊗ [usize::MAX]).marginal([1, 2]): expected TooLarge {{ fst: \
+         {max}, snd: {max}, source: None }}, observed {got:?}",
+        max = usize::MAX
+    );
+    let narrow = Kernel::<Exact>::new(empty.clone(), empty.clone(), Vec::new())?;
+    let tall = Kernel::<Exact>::new(empty, huge, Vec::new())?;
+    let failed: Vec<String> = [
+        (
+            "(0 → [0] ⊗ [usize::MAX] ⊗ [usize::MAX]).marginal([0])",
+            wide.marginal(&[0]),
+            &narrow,
+        ),
+        (
+            "(0 → [0] ⊗ [usize::MAX] ⊗ [usize::MAX]).marginal([0, 1, 2])",
+            wide.marginal(&[0, 1, 2]),
+            &wide,
+        ),
+        (
+            "(0 → [usize::MAX]).marginal([0])",
+            tall.marginal(&[0]),
+            &tall,
+        ),
+    ]
+    .into_iter()
+    .filter(|(_, got, expected)| !got.as_ref().is_ok_and(|kernel| kernel == *expected))
+    .map(|(call, got, expected)| format!("{call}: expected Ok({expected:?}), observed {got:?}"))
+    .collect();
+    assert!(
+        failed.is_empty(),
+        "marginal on an empty domain:\n{}",
+        failed.join("\n")
+    );
+    Ok(())
+}
+
+/// On states with factors of 3, 2, 2 and 2 elements, with the factor 1
+/// between the factors 0 and 2 of one list.
+#[test]
+fn is_cond_independent_state_reads_a_list_that_another_interleaves() -> Result<()> {
+    let (t, w, sp, b) = (obj_t()?, obj_w()?, obj_s()?, obj_b()?);
+    let psi = psi_wtsb()?;
+    assert_kernel(
+        "Def. 12.1 composite of psi_t, f, k_tb, then W ◁ (σ[S, T] ▷ B)",
+        &state_form(&psi_t()?, &f()?, &k_tb()?)?.compose(&Kernel::whisker_left(
+            &w,
+            &Kernel::whisker_right(&Kernel::swap(&sp, &t)?, &b)?,
+        )?)?,
+        &psi,
+    );
+    assert_cond_independent_state("ψ_i", &psi, &[0, 2], &[1], &[3], true);
+    assert_cond_independent_state("ψ_i", &psi, &[3], &[1], &[0, 2], true);
+    let psi_dep = psi_wtsb_dep()?;
+    assert_cond_independent_state("control: ψ_i'", &psi_dep, &[0, 2], &[1], &[3], false);
+    assert_cond_independent_state("control: ψ_i'", &psi_dep, &[3], &[1], &[0, 2], false);
     Ok(())
 }
 
@@ -1005,7 +1092,16 @@ fn is_cond_independent_state_sums_out_a_factor_in_no_list() -> Result<()> {
     assert_cond_independent_state("control: ψ_d", &psi_d, &[0], &[2], &[3], false);
     assert_cond_independent_state("p_ind", &p_ind()?, &[0], &[], &[1], true);
     assert_cond_independent_state("control: p_brk", &p_brk()?, &[0], &[], &[1], false);
-    assert_cond_independent_state("ψ_bad", &psi_wts_bad()?, &[], &[1], &[2], true);
+    let psi_bad = psi_wts_bad()?;
+    assert_cond_independent_state("control: ψ_bad", &psi_bad, &[0], &[], &[2], false);
+    assert_cond_independent_state(
+        "ψ_bad, pins only the Ok of the empty xs path",
+        &psi_bad,
+        &[],
+        &[1],
+        &[2],
+        true,
+    );
     let psi_a = psi_a()?;
     assert_cond_independent_state("ψ_A", &psi_a, &[0], &[1, 2], &[3], true);
     assert_cond_independent_state("control: ψ_A", &psi_a, &[0], &[1], &[3], false);
@@ -1021,27 +1117,6 @@ fn is_cond_independent_state_sums_out_a_factor_in_no_list() -> Result<()> {
         ),
         ("ws out of range", &[0][..], &[4][..], &[3][..], &[4][..]),
         ("ys repeated", &[0][..], &[2][..], &[3, 3][..], &[3, 3][..]),
-        (
-            "xs and ws share 1",
-            &[0, 1][..],
-            &[1][..],
-            &[3][..],
-            &[1][..],
-        ),
-        (
-            "xs and ys share 0",
-            &[0][..],
-            &[2][..],
-            &[0, 3][..],
-            &[0, 3][..],
-        ),
-        (
-            "ws and ys share 3",
-            &[0][..],
-            &[2, 3][..],
-            &[3][..],
-            &[3][..],
-        ),
         (
             "xs decreasing before ws out of range",
             &[1, 0][..],
@@ -1062,6 +1137,83 @@ fn is_cond_independent_state_sums_out_a_factor_in_no_list() -> Result<()> {
             &is_cond_independent_state(&psi, xs, ws, ys),
             &cod,
             list,
+        );
+    }
+    for (name, xs, ws, ys, fst, snd) in [
+        (
+            "xs and ws share 1",
+            &[0, 1][..],
+            &[1][..],
+            &[3][..],
+            &[0, 1][..],
+            &[1][..],
+        ),
+        (
+            "xs and ys share 0",
+            &[0][..],
+            &[2][..],
+            &[0, 3][..],
+            &[0][..],
+            &[0, 3][..],
+        ),
+        (
+            "ws and ys share 3",
+            &[0][..],
+            &[2, 3][..],
+            &[3][..],
+            &[2, 3][..],
+            &[3][..],
+        ),
+        (
+            "xs and ws share 0 before xs and ys share 0",
+            &[0][..],
+            &[0, 1][..],
+            &[0, 2][..],
+            &[0][..],
+            &[0, 1][..],
+        ),
+        (
+            "xs and ys share 0 before ws and ys share 2",
+            &[0][..],
+            &[2][..],
+            &[0, 2][..],
+            &[0][..],
+            &[0, 2][..],
+        ),
+    ] {
+        let got = is_cond_independent_state(&psi, xs, ws, ys);
+        assert!(
+            matches!(&got, Err(Error::SharedFactorIndex { codomain, fst: a, snd: b })
+                if *codomain == cod && a == fst && b == snd),
+            "is_cond_independent_state(ψ5, {xs:?}, {ws:?}, {ys:?}), {name}: expected \
+             SharedFactorIndex {{ codomain: {cod:?}, fst: {fst:?}, snd: {snd:?} }}, observed \
+             {got:?}"
+        );
+    }
+    let unit = FinObj::unit();
+    for (error, expected) in [
+        (
+            Error::NotAFactorList {
+                codomain: unit.clone(),
+                list: vec![1, 0],
+            },
+            "[1, 0] is not a strictly increasing list of indices into the factors of FinObj { \
+             factors: [], card: 1 }",
+        ),
+        (
+            Error::SharedFactorIndex {
+                codomain: unit,
+                fst: vec![0, 1],
+                snd: vec![1],
+            },
+            "the lists [0, 1] and [1] of factor indices of FinObj { factors: [], card: 1 } share \
+             an index",
+        ),
+    ] {
+        let shown = error.to_string();
+        assert_eq!(
+            shown, expected,
+            "Display of {error:?}: expected the text on the right, observed on the left"
         );
     }
 

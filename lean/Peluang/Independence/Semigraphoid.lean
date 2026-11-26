@@ -27,7 +27,7 @@ for a state, in a copy-discard category.
 * `CopyDiscardCategory.DisplaysCondIndepState.decomposition` - if a state
   `ψ : 𝟙_ C ⟶ (X₁ ⊗ X₂) ⊗ (W ⊗ Y)` displays conditional independence, then its marginal on
   `X₁ ⊗ (W ⊗ Y)` displays conditional independence (Fritz 2020, Lemma 12.5 (b)).
-* `MarkovCategory.DisplaysCondIndepState.contraction` - in a Markov category, if a state
+* `CopyDiscardCategory.DisplaysCondIndepState.contraction` - in a Markov category, if a state
   `ψ : 𝟙_ C ⟶ X ⊗ ((W ⊗ Z) ⊗ Y)` and its marginal on `X ⊗ (W ⊗ Z)` display conditional
   independence, then `ψ ≫ X ◁ (α_ W Z Y).hom` displays conditional independence (Fritz 2020,
   Lemma 12.5 (c)).
@@ -94,8 +94,9 @@ theorem DisplaysIndep.decomposition {A X₁ X₂ Y : C} {f : A ⟶ (X₁ ⊗ X�
   rw [Category.assoc, ← tensorHom_id, tensorHom_comp_tensorHom, Category.comp_id]
 
 -- WITNESS: none (step of DisplaysCondIndepState.symm; witnessed through it)
-/-- For an object `X` of a copy-discard category `C`, copying `X` three times and applying
-`(tensorRev₃ X X X).hom` equals copying `X` three times. -/
+/-- For an object `X` of a copy-discard category `C`, the composite
+`Δ[X] ≫ X ◁ Δ[X] : X ⟶ X ⊗ (X ⊗ X)`, which copies `X` and then copies the right copy, followed
+by `(tensorRev₃ X X X).hom` equals `Δ[X] ≫ X ◁ Δ[X]`. -/
 theorem copy_comp_whiskerLeft_copy_comp_tensorRev₃_hom (X : C) :
     Δ[X] ≫ X ◁ Δ[X] ≫ (tensorRev₃ X X X).hom = Δ[X] ≫ X ◁ Δ[X] := by
   rw [tensorRev₃_hom, BraidedCategory.braiding_naturality_right_assoc,
@@ -298,6 +299,14 @@ theorem whiskerLeft_copy_comp_tensorHom_comp_fst {V X Y : C} (f : V ⟶ X) (g : 
     _ = _ := by
       rw [inner, whiskerLeft_id, Category.id_comp]
 
+end MarkovCategory
+
+namespace CopyDiscardCategory
+
+open MonoidalCategory ComonObj
+
+variable {C : Type u} [Category.{v} C] [MonoidalCategory.{v} C] [MarkovCategory C]
+
 /-- For a state `ψ : 𝟙_ C ⟶ X ⊗ ((W ⊗ Z) ⊗ Y)` in a Markov category `C`, if `ψ` displays the
 conditional independence of `X` and `Y` given `W ⊗ Z`, and its marginal
 `ψ ≫ X ◁ ((W ⊗ Z) ◁ ε[Y] ≫ (ρ_ (W ⊗ Z)).hom) : 𝟙_ C ⟶ X ⊗ (W ⊗ Z)` displays the conditional
@@ -311,7 +320,7 @@ theorem DisplaysCondIndepState.contraction {X W Z Y : C}
   obtain ⟨φ, f, g, rfl⟩ := hψ
   obtain ⟨η, h, k, hm⟩ := hm
   simp only [Category.assoc] at hm
-  rw [whiskerLeft_copy_comp_tensorHom_comp_fst] at hm
+  rw [MarkovCategory.whiskerLeft_copy_comp_tensorHom_comp_fst] at hm
   refine ⟨η, h, Δ[W] ≫ W ◁ (k ≫ Δ[Z]) ≫ (α_ W Z Z).inv ≫ (β_ W Z).hom ▷ Z ≫
     (α_ Z W Z).hom ≫ Z ◁ g, ?_⟩
   calc
@@ -334,6 +343,6 @@ theorem DisplaysCondIndepState.contraction {X W Z Y : C}
       rw [copy_comp_whiskerLeft_comp_copy_tensor, tensorHom_def']
       simp only [Category.assoc, whiskerLeft_comp]
 
-end MarkovCategory
+end CopyDiscardCategory
 
 end CategoryTheory

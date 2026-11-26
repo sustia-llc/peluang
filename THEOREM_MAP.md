@@ -135,5 +135,5 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.CopyDiscardCategory.DisplaysIndep.decomposition | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_indep_decomposition | Fritz 2020 Lemma 12.13 (b) |
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.symm | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_symm | Fritz 2020 Lemma 12.5 (a) |
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.decomposition | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_decomposition | Fritz 2020 Lemma 12.5 (b) |
-| CategoryTheory.MarkovCategory.DisplaysCondIndepState.contraction | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_contraction | Fritz 2020 Lemma 12.5 (c) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.contraction | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_contraction | Fritz 2020 Lemma 12.5 (c) |
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.weak_union | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_weak_union | Fritz 2020 Lemma 12.5 (d) |

@@ -133,7 +133,7 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   Markov category.
 
 At `v0.5.6`, `THEOREM_MAP.md` has 99 rows that pair a Lean id with a Rust test.
-The crate has 261 tests with all features on.
+The crate has 267 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -199,8 +199,8 @@ All off by default.
   pool of the calling thread: the `exec::Executor` pool inside
   `Executor::run`, the global pool on a thread outside any rayon pool. On
   such a thread, the caller blocks until the workers finish and then runs the
-  last combining `add`. `compose`, `marginal_fst` and `marginal_snd` compute
-  each weight through `prob::sum`.
+  last combining `add`. `compose`, `marginal_fst`, `marginal_snd` and
+  `marginal` compute each weight through `prob::sum`.
 - `async` — implies `parallel`; `exec::Executor` owns a rayon pool and
   `Executor::run` awaits a closure on it (`tokio-rayon`). The crate creates
   no async runtime.

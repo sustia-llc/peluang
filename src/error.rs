@@ -94,19 +94,30 @@ pub enum Error {
 
     /// `markov::Kernel::marginal` or
     /// `independence::is_cond_independent_state` received a list that is not a
-    /// strictly increasing list of indices into the factors of the codomain,
-    /// or `independence::is_cond_independent_state` received two lists that
-    /// share an index.
+    /// strictly increasing list of indices into the factors of the codomain:
+    /// it is not strictly increasing, or it holds an index that is not below
+    /// the number of factors.
     #[error(
-        "{list:?} is not a strictly increasing list of factor indices of {codomain:?}, or it \
-         shares an index with another list"
+        "{list:?} is not a strictly increasing list of indices into the factors of \
+         {codomain:?}"
     )]
     NotAFactorList {
         /// The codomain of the kernel.
         codomain: FinObj,
-        /// The list received. For two lists that share an index: the one that
-        /// comes later in the argument order.
+        /// The list received.
         list: Vec<usize>,
+    },
+
+    /// `independence::is_cond_independent_state` received two lists that
+    /// share an index.
+    #[error("the lists {fst:?} and {snd:?} of factor indices of {codomain:?} share an index")]
+    SharedFactorIndex {
+        /// The codomain of the kernel.
+        codomain: FinObj,
+        /// The list of the pair that comes first in the argument order.
+        fst: Vec<usize>,
+        /// The list of the pair that comes later in the argument order.
+        snd: Vec<usize>,
     },
 
     /// `conditional::conditional` or `conditional::conditional_snd` met a

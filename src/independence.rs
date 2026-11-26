@@ -43,19 +43,19 @@ pub fn is_independent<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<
 /// indices of the three lists, and `p(w)`, `p(x, w)`, `p(w, y)` the
 /// `Kernel::marginal` of `p` on the factors of `ws`, of `xs` and `ws`, and of
 /// `ws` and `ys`, whether `p(x, w, y) · p(w)` agrees with
-/// `p(x, w) · p(w, y)` under `Prob::approx_eq` at every element `x` of the
-/// factors `xs`, `w` of the factors `ws` and `y` of the factors `ys`. A factor
-/// in no list is summed out, and the function divides no weight. Returns
-/// `Error::NotAState` unless the domain of `psi` is `FinObj::unit()`, then
-/// `Error::NotAFactorList` with the codomain of `psi` and the first of `xs`,
-/// `ws`, `ys` that is not strictly increasing or holds an index that is not
-/// below the number of factors of that codomain, then `Error::NotAFactorList`
-/// with that codomain and the second list of the first of the pairs
-/// `(xs, ws)`, `(xs, ys)`, `(ws, ys)` that share an index, or
-/// `Error::TooLarge` when a product of cardinalities of factors of that
-/// codomain overflows `usize` or reserving a `Vec` capacity fails; no other
-/// allocation reports an error. `prob::sum` states the effect of a parallel
-/// run on `f64` weights.
+/// `p(x, w) · p(w, y)` under `Prob::approx_eq_scaled` with scale
+/// `p(w) · p(w)` at every element `x` of the factors `xs`, `w` of the factors
+/// `ws` and `y` of the factors `ys`. A factor in no list is summed out, and
+/// the function divides no weight. Returns `Error::NotAState` unless the
+/// domain of `psi` is `FinObj::unit()`, then `Error::NotAFactorList` with the
+/// codomain of `psi` and the first of `xs`, `ws`, `ys` that is not strictly
+/// increasing or holds an index that is not below the number of factors of
+/// that codomain, then `Error::SharedFactorIndex` with that codomain and, as
+/// `fst` and `snd`, the first of the pairs `(xs, ws)`, `(xs, ys)`, `(ws, ys)`
+/// that share an index, or `Error::TooLarge` when a product of cardinalities
+/// of factors of that codomain overflows `usize` or reserving a `Vec`
+/// capacity fails; no other allocation reports an error. `prob::sum` states
+/// the effect of a parallel run on `f64` weights.
 pub fn is_cond_independent_state<P: Prob>(
     psi: &Kernel<P>,
     xs: &[usize],
@@ -73,9 +73,10 @@ pub fn is_cond_independent_state<P: Prob>(
     }
     for (fst, snd) in [(xs, ws), (xs, ys), (ws, ys)] {
         if fst.iter().any(|index| snd.binary_search(index).is_ok()) {
-            return Err(Error::NotAFactorList {
+            return Err(Error::SharedFactorIndex {
                 codomain: cod.clone(),
-                list: snd.to_vec(),
+                fst: fst.to_vec(),
+                snd: snd.to_vec(),
             });
         }
     }
@@ -97,10 +98,11 @@ pub fn is_cond_independent_state<P: Prob>(
         for (iw, w) in w_in_p.iter().enumerate() {
             let xw_weight = p_xw.weight(0, x_in_xw[ix] + w_in_xw[iw]);
             let w_weight = p_w.weight(0, iw);
+            let scale = w_weight.mul(w_weight);
             for (iy, y) in y_in_p.iter().enumerate() {
                 let lhs = p.weight(0, x + w + y).mul(w_weight);
                 let rhs = xw_weight.mul(p_wy.weight(0, w_in_wy[iw] + y_in_wy[iy]));
-                if !lhs.approx_eq(&rhs) {
+                if !lhs.approx_eq_scaled(&rhs, &scale) {
                     return Ok(false);
                 }
             }

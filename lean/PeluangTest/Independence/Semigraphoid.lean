@@ -16,11 +16,10 @@ Each of `DisplaysIndep.symm`, `fst_comp_discard`, `DisplaysIndep.decomposition`,
 `copy_tensor_comp_whiskerLeft_fst`, `braiding_comp_copy_whiskerRight`,
 `braiding_comp_copy_tensor_comp_whiskerLeft_fst`, `copy_comp_whiskerLeft_comp_copy_tensor_eq`,
 `DisplaysCondIndepState.weak_union`, `MarkovCategory.whiskerLeft_copy_comp_tensorHom_comp_fst`
-and `MarkovCategory.DisplaysCondIndepState.contraction` applied at variables.
+and `CopyDiscardCategory.DisplaysCondIndepState.contraction` applied at variables.
 `DisplaysIndep.symm`, `DisplaysIndep.decomposition`, `DisplaysCondIndepState.symm`,
-`DisplaysCondIndepState.decomposition` and `DisplaysCondIndepState.weak_union` through dot
-notation on the hypothesis. Dot notation on the hypothesis does not resolve
-`MarkovCategory.DisplaysCondIndepState.contraction`.
+`DisplaysCondIndepState.decomposition`, `DisplaysCondIndepState.weak_union` and
+`DisplaysCondIndepState.contraction` through dot notation on the hypothesis.
 -/
 
 public section
@@ -130,13 +129,12 @@ example {V X Y : C} (f : V ⟶ X) (g : V ⟶ Y) :
 example {X W Z Y : C} {ψ : 𝟙_ C ⟶ X ⊗ ((W ⊗ Z) ⊗ Y)} (hψ : DisplaysCondIndepState ψ)
     (hm : DisplaysCondIndepState (ψ ≫ X ◁ ((W ⊗ Z) ◁ ε[Y] ≫ (ρ_ (W ⊗ Z)).hom))) :
     DisplaysCondIndepState (ψ ≫ X ◁ (α_ W Z Y).hom) :=
-  MarkovCategory.DisplaysCondIndepState.contraction hψ hm
+  CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.contraction hψ hm
 
 example {X W Z Y : C} {ψ : 𝟙_ C ⟶ X ⊗ ((W ⊗ Z) ⊗ Y)} (hψ : DisplaysCondIndepState ψ)
     (hm : DisplaysCondIndepState (ψ ≫ X ◁ ((W ⊗ Z) ◁ ε[Y] ≫ (ρ_ (W ⊗ Z)).hom))) :
-    DisplaysCondIndepState (ψ ≫ X ◁ (α_ W Z Y).hom) := by
-  fail_if_success exact hψ.contraction hm
-  exact MarkovCategory.DisplaysCondIndepState.contraction hψ hm
+    DisplaysCondIndepState (ψ ≫ X ◁ (α_ W Z Y).hom) :=
+  hψ.contraction hm
 
 end Markov
 

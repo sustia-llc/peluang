@@ -220,8 +220,11 @@ impl<P: Prob> Kernel<P> {
     /// index that is not below `cod.factors().len()`, or `Error::TooLarge`
     /// when a product of cardinalities of factors of `cod` overflows `usize`
     /// or reserving a `Vec` capacity fails; no other allocation reports an
-    /// error. `prob::sum` states the effect of a parallel run on `f64`
-    /// weights.
+    /// error. When `dom.card() == 0`, the result is the kernel with no weight
+    /// from `dom` to the object of the kept factors, and the products that
+    /// return `Error::TooLarge` are those of the cardinalities of the kept
+    /// factors, taken in order from the first. `prob::sum` states the effect
+    /// of a parallel run on `f64` weights.
     pub fn marginal(&self, keep: &[usize]) -> Result<Self> {
         factor_list(self.cod(), keep)?;
         let factors = self.cod().factors();
@@ -236,9 +239,12 @@ impl<P: Prob> Kernel<P> {
                 dropped.push(index);
             }
         }
+        let inputs = self.dom().card();
+        if inputs == 0 {
+            return Ok(Self::from_parts(self.dom().clone(), cod, Vec::new()));
+        }
         let kept_offsets = factor_offsets(&cards, keep)?;
         let dropped_offsets = factor_offsets(&cards, &dropped)?;
-        let inputs = self.dom().card();
         let mut data = reserve(inputs, kept_offsets.len())?;
         let mut terms = terms_buffer(inputs, dropped_offsets.len())?;
         for a in 0..inputs {
