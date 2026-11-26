@@ -6,6 +6,32 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-11-26
+
+### Added
+
+- `lean/Peluang/Monoidal/Reorder.lean`: eight isomorphisms between tensor
+  products. `tensorCompAssoc` is for a monoidal category. `tensorLeftComm`,
+  `tensorμIso`, `tensorRev₃`, `tensorWeakUnionIso`, `tensorTripleInterchange`,
+  `tensorCondReorder` and `tensorCompReorder` are for a braided monoidal
+  category. Each has a `_hom` theorem. The file adds
+  `tensorRev₃_eq_tensorLeftComm` and `tensorRev₃_hom_naturality`.
+- `lean/Peluang/Conditional/Snd.lean`: `IsConditionalSnd`, the conditional of
+  `f : A ⟶ X ⊗ Y` on `Y` in a copy-discard category (Fritz 2020 Def. 11.5),
+  with `isConditionalSnd_iff`, `exists_isConditionalSnd` and
+  `marginalFst_comp_braiding_hom` (Notation 2.8). Its helper is
+  `conditional_form_comp_braiding_hom`.
+- `conditional::conditional_snd`.
+- `tests/formalization_lean/reorder_tests.rs`: 8 tests, 5 of them with a
+  `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 87 to 92 rows.
+- `tests/too_large.rs`: one test of `conditional_snd` under the refusing
+  allocator.
+
+### Changed
+
+- The docstring of `Error::NoUniformWeight` names
+  `conditional::conditional_snd`.
+
 ## [0.5.4] - 2026-11-25
 
 ### Added
@@ -476,7 +502,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/sustia-llc/peluang/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/sustia-llc/peluang/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/sustia-llc/peluang/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/sustia-llc/peluang/compare/v0.5.1...v0.5.2

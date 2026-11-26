@@ -91,9 +91,9 @@ pub enum Error {
         domain: FinObj,
     },
 
-    /// `conditional::conditional` met a zero-mass column and
-    /// `Prob::div_checked` returned `None` on `P::one()` over `P::one()`
-    /// added `card` times.
+    /// `conditional::conditional` or `conditional::conditional_snd` met a
+    /// zero-mass column and `Prob::div_checked` returned `None` on `P::one()`
+    /// over `P::one()` added `card` times.
     #[error("no uniform weight over {card} outputs")]
     NoUniformWeight {
         /// The cardinality of the conditional's codomain.

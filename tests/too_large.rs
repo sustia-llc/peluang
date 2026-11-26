@@ -13,7 +13,11 @@
 //! a reservation of that buffer, and `Error::TooLarge` for that buffer on the
 //! same kernels with no rejection. Under it, `coupling` returns the
 //! `Error::TooLarge` of the factor list of `X ⊗ Y` on an `f : X → Y` whose
-//! `X.card() * Y.card()` weights it does not refuse.
+//! `X.card() * Y.card()` weights it does not refuse. Under it,
+//! `conditional::conditional_snd` returns `Error::TooLarge` for the buffer of
+//! the result on an `f : I → [2] ⊗ Y`, and the `Error::TooLarge` of the factor
+//! list of `Y ⊗ A` on an `f : A → [2] ⊗ Y` whose result buffer it does not
+//! refuse.
 //! `refusing` restores the limit when `op` panics.
 
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -24,6 +28,7 @@ use std::fmt::Debug;
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 use std::ptr;
 
+use peluang::conditional::conditional_snd;
 use peluang::error::{Error, Result};
 use peluang::finset::{Factor, FinObj};
 use peluang::kernel::Kernel;
@@ -271,6 +276,36 @@ fn coupling_reports_a_refused_factor_list_reservation() -> Result<()> {
     assert_refused(
         "coupling(I → X, f), factor list of X ⊗ [2]",
         &refusing(|| coupling(&psi, &f)),
+        factors + 1,
+        1,
+    );
+    Ok(())
+}
+
+/// With `f : I → [2] ⊗ [REFUSED]`, whose conditional on `[REFUSED]` holds
+/// `REFUSED * 2` weights: `conditional_snd` returns `Error::TooLarge` for
+/// `REFUSED * 2`. With `Y` of `factors` factors of one element,
+/// `factors * size_of::<Factor>()` at or above the refused byte size, and
+/// `f : [1] → [2] ⊗ Y`, whose conditional on `Y` holds `1 * 2` weights:
+/// `conditional_snd` returns the `Error::TooLarge` of the factor list of
+/// `Y ⊗ [1]`, for `(factors + 1) * 1`.
+#[test]
+fn conditional_snd_reports_a_refused_reservation() -> Result<()> {
+    let (one, two, wide) = (FinObj::new(1), FinObj::new(2), FinObj::new(REFUSED));
+    let f = point_mass(two.tensor(&wide)?)?;
+    assert_refused(
+        "conditional_snd(I → [2] ⊗ [REFUSED]), result buffer",
+        &refusing(|| conditional_snd(&f, &two, &wide)),
+        REFUSED,
+        2,
+    );
+
+    let factors = (REFUSED * size_of::<Exact>()).div_ceil(size_of::<Factor>());
+    let list = (1..factors).try_fold(one.clone(), |list, _| list.tensor(&one))?;
+    let f = Kernel::<Exact>::from_fn(one, two.tensor(&list)?, |_| 0)?;
+    assert_refused(
+        "conditional_snd([1] → [2] ⊗ Y), factor list of Y ⊗ [1]",
+        &refusing(|| conditional_snd(&f, &two, &list)),
         factors + 1,
         1,
     );
