@@ -53,12 +53,14 @@ pub fn conditional<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<Ker
 /// column at `(j, a)` has weight `f((i, j) | a) / s` at output `i`, where
 /// `s = Σ_i' f((i', j) | a)` through `prob::sum`, and the uniform weight
 /// `1 / x.card()` at every output when `s == P::zero()`. The result is built
-/// without the column tests of `Kernel::new`. Returns `Error::NotATensor`
+/// without the column tests of `Kernel::new`, so it is not tested for
+/// normalization. Returns `Error::NotATensor`
 /// unless the codomain of `f` equals `x ⊗ y`, `Error::TooLarge` when reserving
 /// a `Vec` capacity fails, and `Error::NoUniformWeight` when a column has
 /// `s == P::zero()` and `Prob::div_checked` returns `None` on `P::one()` over
 /// `P::one()` added `x.card()` times. `prob::sum` states the effect of a
-/// parallel run on `f64` weights.
+/// parallel run on `f64` weights. In the `f64` lane, underflow can turn a
+/// positive weight into zero, so a column with mass can count as zero-mass.
 pub fn conditional_snd<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<Kernel<P>> {
     f.split(x, y)?;
     let dom = y.tensor(f.domain())?;

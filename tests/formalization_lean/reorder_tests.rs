@@ -1,7 +1,9 @@
-//! Witnesses of the theorems of `Peluang.Monoidal.Reorder` and
-//! `Peluang.Conditional.Snd`: the reorder kernels built from `Kernel::swap`,
-//! `Kernel::associator`, `Kernel::whisker_left` and `Kernel::whisker_right`,
-//! and `conditional_snd`. Also, untagged: `conditional_snd` against
+//! Witnesses of `tensorRev₃_eq_tensorLeftComm`, `tensorRev₃_hom_naturality`,
+//! `isConditionalSnd_iff`, `exists_isConditionalSnd` and
+//! `marginalFst_comp_braiding_hom`: the reorder kernels built from
+//! `Kernel::swap`, `Kernel::associator`, `Kernel::whisker_left` and
+//! `Kernel::whisker_right`, and `conditional_snd`. Also, untagged:
+//! `conditional_snd` against two literals with zero-mass columns and against
 //! `conditional` after `Kernel::swap`, and the `Error::NotATensor` and
 //! `Error::NoUniformWeight` of `conditional_snd`.
 
@@ -13,8 +15,8 @@ use peluang::markov::{Compose, Tensor};
 use peluang::prob::{Exact, Prob};
 
 use crate::fixtures::{
-    assert_differs, assert_kernel, c, f, h, k, labels, lit, m, obj_s, obj_t, obj_w, points, r, s,
-    show,
+    assert_differs, assert_kernel, c, conditional_composite, f, h, k, labels, lit, m, obj_s, obj_t,
+    obj_w, points, r, s, show,
 };
 
 /// `(tensorLeftComm x y z).hom`: `α⁻¹[x, y, z] ≫ (σ[x, y] ▷ z) ≫ α[y, x, z]`.
@@ -120,6 +122,43 @@ fn snd(call: &str, f: &Kernel<Exact>, x: &FinObj, y: &FinObj) -> Kernel<Exact> {
         Ok(g) => g,
         Err(e) => panic!("{call} on {}: expected Ok, observed Err({e:?})", show(f)),
     }
+}
+
+/// Asserts that `IsConditionalSnd f g`, unfolded to
+/// `IsConditional (f ≫ σ[x, y]) g`, has the truth value `expected`: the
+/// Def. 11.5 composite of `g` on `f ≫ σ[x, y] : A → y ⊗ x` equals
+/// `f ≫ σ[x, y]`. `name` names `g`.
+#[track_caller]
+fn assert_is_conditional_snd(
+    name: &str,
+    f: &Kernel<Exact>,
+    x: &FinObj,
+    y: &FinObj,
+    g: &Kernel<Exact>,
+    expected: bool,
+) {
+    let got = Kernel::swap(x, y).and_then(|sigma| f.compose(&sigma));
+    let Ok(fs) = got else {
+        panic!("IsConditionalSnd f g at g = {name}: f ≫ σ: expected Ok, observed {got:?}");
+    };
+    let got = conditional_composite(&fs, y, x, g);
+    let Ok(composite) = got else {
+        panic!(
+            "IsConditionalSnd f g at g = {name}: Def. 11.5 composite of g on f ≫ σ: expected Ok \
+             of a kernel == {} is {expected}, observed {got:?}",
+            show(&fs)
+        );
+    };
+    let observed = composite == fs;
+    assert_eq!(
+        observed,
+        expected,
+        "IsConditionalSnd f g at g = {name}, the Def. 11.5 composite of g on f ≫ σ == f ≫ σ: \
+         expected {expected}, the truth value of the right side of isConditionalSnd_iff at g, \
+         observed {observed}; composite {}, f ≫ σ {}",
+        show(&composite),
+        show(&fs)
+    );
 }
 
 /// THEOREM_MAP: CategoryTheory.MonoidalCategory.tensorRev₃_eq_tensorLeftComm
@@ -250,6 +289,7 @@ fn witness_is_conditional_snd_iff() -> Result<()> {
         &g,
         &snd_conditional([r(4, 5), r(1, 5)], [r(2, 3), r(1, 3)])?,
     );
+    assert_is_conditional_snd("conditional_snd(f, S, S)", &f, &sp, &sp, &g, true);
     assert_kernel(
         "Δ[W] ≫ (W ◁ (marginalSnd f ≫ Δ[S])) ≫ α⁻¹ ≫ (σ[W, S] ▷ S) ≫ (conditional_snd(f, S, S) \
          ▷ S)",
@@ -261,6 +301,14 @@ fn witness_is_conditional_snd_iff() -> Result<()> {
     let Ok(on_fst) = got else {
         panic!("conditional(f, S, S): expected Ok, observed {got:?}");
     };
+    assert_is_conditional_snd(
+        "control: conditional(f, S, S), the conditional on the first factor",
+        &f,
+        &sp,
+        &sp,
+        &on_fst,
+        false,
+    );
     assert_differs(
         "control: Δ[W] ≫ (W ◁ (marginalSnd f ≫ Δ[S])) ≫ α⁻¹ ≫ (σ[W, S] ▷ S) ≫ (conditional(f, \
          S, S) ▷ S), the conditional on the first factor",
@@ -278,6 +326,7 @@ fn witness_exists_is_conditional_snd() -> Result<()> {
     let literal = snd_conditional([r(3, 4), r(1, 4)], [r(1, 2), r(1, 2)])?;
     let g = snd("conditional_snd(f0, S, S)", &f, &sp, &sp);
     assert_kernel("conditional_snd(f0, S, S)", &g, &literal);
+    assert_is_conditional_snd("conditional_snd(f0, S, S)", &f, &sp, &sp, &g, true);
     assert_kernel(
         "Δ[W] ≫ (W ◁ (marginalSnd f0 ≫ Δ[S])) ≫ α⁻¹ ≫ (σ[W, S] ▷ S) ≫ (conditional_snd(f0, S, \
          S) ▷ S)",
@@ -287,12 +336,28 @@ fn witness_exists_is_conditional_snd() -> Result<()> {
 
     let free = snd_conditional([r(3, 4), r(1, 4)], [r(1, 1), r(0, 1)])?;
     assert_differs("(off, sunny) at (1, 0) against (1/2, 1/2)", &free, &literal);
+    assert_is_conditional_snd(
+        "the kernel with (off, sunny) at (1, 0), a zero-mass input",
+        &f,
+        &sp,
+        &sp,
+        &free,
+        true,
+    );
     assert_kernel(
         "the composite of the kernel with (off, sunny) at (1, 0), a zero-mass input",
         &conditional_snd_composite(&f, &sp, &sp, &free)?,
         &f,
     );
     let changed = snd_conditional([r(1, 4), r(3, 4)], [r(1, 2), r(1, 2)])?;
+    assert_is_conditional_snd(
+        "control: the kernel with (on, sunny) at (1/4, 3/4), an input with mass",
+        &f,
+        &sp,
+        &sp,
+        &changed,
+        false,
+    );
     assert_differs(
         "control: the composite of the kernel with (on, sunny) at (1/4, 3/4), an input with mass",
         &conditional_snd_composite(&f, &sp, &sp, &changed)?,
@@ -367,8 +432,31 @@ fn conditional_snd_equals_conditional_after_swap() -> Result<()> {
             ],
         )?,
     );
+    let arid = Kernel::state(
+        t.tensor(&w)?,
+        vec![r(1, 4), r(0, 1), r(0, 1), r(3, 4), r(0, 1), r(0, 1)],
+    )?;
+    assert_kernel(
+        "conditional_snd(I → T ⊗ W with no mass at cloudy and at rainy)",
+        &snd(
+            "conditional_snd(I → T ⊗ W with no mass at cloudy and at rainy)",
+            &arid,
+            &t,
+            &w,
+        ),
+        &lit(
+            w.clone(),
+            t.clone(),
+            &[
+                &[r(1, 4), r(3, 4)],
+                &[r(1, 2), r(1, 2)],
+                &[r(1, 2), r(1, 2)],
+            ],
+        )?,
+    );
     let empty_s = Kernel::<Exact>::new(empty.clone(), w.tensor(&sp)?, Vec::new())?;
     let empty_empty = Kernel::<Exact>::new(empty.clone(), empty.tensor(&sp)?, Vec::new())?;
+    let empty_snd = Kernel::<Exact>::new(empty.clone(), w.tensor(&empty)?, Vec::new())?;
     for (name, k, x, y) in [
         ("I → T ⊗ W with no mass at rainy", dry, &t, &w),
         ("f : T → W ⊗ S", f()?, &w, &sp),
@@ -382,8 +470,14 @@ fn conditional_snd_equals_conditional_after_swap() -> Result<()> {
         ("I → T ⊗ W", state, &t, &w),
         ("0 → W ⊗ S", empty_s, &w, &sp),
         ("0 → 0 ⊗ S", empty_empty, &empty, &sp),
+        ("0 → W ⊗ 0", empty_snd, &w, &empty),
     ] {
-        let expected = conditional(&k.compose(&Kernel::swap(x, y)?)?, y, x)?;
+        let got = Kernel::swap(x, y)
+            .and_then(|sigma| k.compose(&sigma))
+            .and_then(|swapped| conditional(&swapped, y, x));
+        let Ok(expected) = got else {
+            panic!("{name}: conditional after σ: expected Ok, observed {got:?}");
+        };
         let g = snd(&format!("conditional_snd({name})"), &k, x, y);
         assert_kernel(
             &format!("conditional_snd({name}) against conditional after σ"),
@@ -393,10 +487,14 @@ fn conditional_snd_equals_conditional_after_swap() -> Result<()> {
     }
 
     let joint = joint_ss()?;
+    let got = conditional(&joint, &sp, &sp);
+    let Ok(on_fst) = got else {
+        panic!("control: conditional(W → S ⊗ S): expected Ok, observed {got:?}");
+    };
     assert_differs(
         "control: conditional_snd(W → S ⊗ S) against conditional(W → S ⊗ S)",
         &snd("conditional_snd(W → S ⊗ S)", &joint, &sp, &sp),
-        &conditional(&joint, &sp, &sp)?,
+        &on_fst,
     );
     Ok(())
 }

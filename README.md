@@ -115,13 +115,15 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   `ProbStoch FinStoch`, and two morphisms of states have distinct images.
 - Eight named isomorphisms reorder the factors of a tensor product: one in a
   monoidal category and seven in a braided monoidal category. Each has a
-  theorem that gives its `hom` as a composite of associators and braidings.
+  theorem that gives its `hom` as a composite of whiskered associators and
+  braidings; the one of the monoidal category has no braiding.
   `tensorRev₃ X W Y : X ⊗ (W ⊗ Y) ≅ Y ⊗ (W ⊗ X)` is natural in `X`, `W` and
-  `Y`. These definitions have no `THEOREM_MAP.md` row.
+  `Y`.
 - In a copy-discard category, `IsConditionalSnd f g` says that
   `g : Y ⊗ A ⟶ X` is a conditional of `f : A ⟶ X ⊗ Y` on `Y` (Def. 11.5). It
-  holds iff `f` equals a composite of copies, the second marginal of `f` and
-  `g`. A category with conditionals has such a `g` for every `f`.
+  holds iff `f` equals
+  `Δ[A] ≫ (A ◁ (marginalSnd f ≫ Δ[Y])) ≫ (α_ A Y Y).inv ≫ ((β_ A Y).hom ▷ Y) ≫ (g ▷ Y)`.
+  A category with conditionals has such a `g` for every `f`.
 
 At `v0.5.5`, `THEOREM_MAP.md` has 92 rows that pair a Lean id with a Rust test.
 The crate has 252 tests with all features on.

@@ -39,9 +39,11 @@ from associators, braidings and whiskerings.
 
 * `MonoidalCategory.tensorRev₃_eq_tensorLeftComm` - for a braided monoidal category `C`,
   `tensorRev₃ X W Y` is `tensorLeftComm X W Y`, then the braiding of `X` and `Y` whiskered
-  by `W`, then `tensorLeftComm W Y X`.
+  by `W`, then `tensorLeftComm W Y X` (the reordering of Fritz 2020, Lemma 12.5 (a) and
+  Prop. 12.17 (a)).
 * `MonoidalCategory.tensorRev₃_hom_naturality` - for a braided monoidal category `C`,
-  `(tensorRev₃ X W Y).hom` is natural in `X`, `W` and `Y`.
+  `(tensorRev₃ X W Y).hom` is natural in `X`, `W` and `Y` (the reordering of Fritz 2020,
+  Lemma 12.5 (a) and Prop. 12.17 (a)).
 
 ## References
 
@@ -69,7 +71,8 @@ def tensorCompAssoc (A X₁ W Y₁ A' : C) :
 
 -- WITNESS: none (restates the definition of tensorCompAssoc)
 /-- For objects `A`, `X₁`, `W`, `Y₁`, `A'` of a monoidal category `C`, the morphism
-`(tensorCompAssoc A X₁ W Y₁ A').hom` as a composite of whiskered associators. -/
+`(tensorCompAssoc A X₁ W Y₁ A').hom` as a composite of two whiskered associators and the
+inverse of an associator. -/
 theorem tensorCompAssoc_hom (A X₁ W Y₁ A' : C) :
     (tensorCompAssoc A X₁ W Y₁ A').hom =
       A ◁ (α_ X₁ (W ⊗ Y₁) A').hom ≫ A ◁ X₁ ◁ (α_ W Y₁ A').hom ≫
@@ -185,8 +188,8 @@ def tensorCompReorder (X₁ V X₂ W Y₂ Y₁ : C) :
 
 -- WITNESS: none (restates the definition of tensorCompReorder)
 /-- For objects `X₁`, `V`, `X₂`, `W`, `Y₂`, `Y₁` of a braided monoidal category `C`, the
-morphism `(tensorCompReorder X₁ V X₂ W Y₂ Y₁).hom` as a composite of whiskered associators
-and a whiskered braiding. -/
+morphism `(tensorCompReorder X₁ V X₂ W Y₂ Y₁).hom` as a composite of whiskered associators,
+a whiskered braiding and the inverse of an associator. -/
 theorem tensorCompReorder_hom (X₁ V X₂ W Y₂ Y₁ : C) :
     (tensorCompReorder X₁ V X₂ W Y₂ Y₁).hom =
       X₁ ◁ ((α_ V X₂ (W ⊗ Y₂)).inv ≫ (β_ V X₂).hom ▷ (W ⊗ Y₂) ≫
@@ -198,7 +201,8 @@ theorem tensorCompReorder_hom (X₁ V X₂ W Y₂ Y₁ : C) :
 
 /-- For objects `X`, `W`, `Y` of a braided monoidal category `C`, the isomorphism
 `tensorRev₃ X W Y` equals `tensorLeftComm X W Y`, then the braiding of `X` and `Y` whiskered
-on the left by `W`, then `tensorLeftComm W Y X`. -/
+on the left by `W`, then `tensorLeftComm W Y X` (the reordering of Fritz 2020, Lemma 12.5 (a)
+and Prop. 12.17 (a)). -/
 theorem tensorRev₃_eq_tensorLeftComm (X W Y : C) :
     tensorRev₃ X W Y =
       tensorLeftComm X W Y ≪≫ whiskerLeftIso W (β_ X Y) ≪≫ tensorLeftComm W Y X := by
@@ -208,7 +212,8 @@ theorem tensorRev₃_eq_tensorLeftComm (X W Y : C) :
 
 /-- For morphisms `f : X ⟶ X'`, `g : W ⟶ W'`, `h : Y ⟶ Y'` of a braided monoidal category
 `C`, the morphism `(tensorRev₃ X W Y).hom` is natural: `f ⊗ₘ (g ⊗ₘ h)` followed by
-`(tensorRev₃ X' W' Y').hom` equals `(tensorRev₃ X W Y).hom` followed by `h ⊗ₘ (g ⊗ₘ f)`. -/
+`(tensorRev₃ X' W' Y').hom` equals `(tensorRev₃ X W Y).hom` followed by `h ⊗ₘ (g ⊗ₘ f)`
+(the reordering of Fritz 2020, Lemma 12.5 (a) and Prop. 12.17 (a)). -/
 theorem tensorRev₃_hom_naturality {X W Y X' W' Y' : C} (f : X ⟶ X') (g : W ⟶ W')
     (h : Y ⟶ Y') :
     (f ⊗ₘ (g ⊗ₘ h)) ≫ (tensorRev₃ X' W' Y').hom =
