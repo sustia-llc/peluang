@@ -82,13 +82,31 @@ pub enum Error {
         snd: FinObj,
     },
 
-    /// `bayes::bayesian_inverse` received a `p`, or `prob_space::coupling` or
-    /// `prob_space::is_state_preserving` a `psi`, whose domain is not the unit
-    /// object.
+    /// `bayes::bayesian_inverse` received a `p`, or `prob_space::coupling`,
+    /// `prob_space::is_state_preserving` or
+    /// `independence::is_cond_independent_state` a `psi`, whose domain is not
+    /// the unit object.
     #[error("domain {domain:?} is not the unit object")]
     NotAState {
         /// The domain of that kernel.
         domain: FinObj,
+    },
+
+    /// `markov::Kernel::marginal` or
+    /// `independence::is_cond_independent_state` received a list that is not a
+    /// strictly increasing list of indices into the factors of the codomain,
+    /// or `independence::is_cond_independent_state` received two lists that
+    /// share an index.
+    #[error(
+        "{list:?} is not a strictly increasing list of factor indices of {codomain:?}, or it \
+         shares an index with another list"
+    )]
+    NotAFactorList {
+        /// The codomain of the kernel.
+        codomain: FinObj,
+        /// The list received. For two lists that share an index: the one that
+        /// comes later in the argument order.
+        list: Vec<usize>,
     },
 
     /// `conditional::conditional` or `conditional::conditional_snd` met a

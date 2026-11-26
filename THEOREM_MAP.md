@@ -130,3 +130,10 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.CopyDiscardCategory.isConditionalSnd_iff | tests/formalization_lean/reorder_tests.rs::witness_is_conditional_snd_iff | Fritz 2020 Def. 11.5 |
 | CategoryTheory.CopyDiscardCategory.exists_isConditionalSnd | tests/formalization_lean/reorder_tests.rs::witness_exists_is_conditional_snd | Fritz 2020 Def. 11.5 |
 | CategoryTheory.CopyDiscardCategory.marginalFst_comp_braiding_hom | tests/formalization_lean/reorder_tests.rs::witness_marginal_fst_comp_braiding_hom | Fritz 2020 Notation 2.8 |
+| CategoryTheory.CopyDiscardCategory.marginalSnd_comp_braiding_hom | tests/formalization_lean/semigraphoid_tests.rs::witness_marginal_snd_comp_braiding_hom | Fritz 2020 Notation 2.8 |
+| CategoryTheory.CopyDiscardCategory.DisplaysIndep.symm | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_indep_symm | Fritz 2020 Lemma 12.13 (a) |
+| CategoryTheory.CopyDiscardCategory.DisplaysIndep.decomposition | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_indep_decomposition | Fritz 2020 Lemma 12.13 (b) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.symm | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_symm | Fritz 2020 Lemma 12.5 (a) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.decomposition | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_decomposition | Fritz 2020 Lemma 12.5 (b) |
+| CategoryTheory.MarkovCategory.DisplaysCondIndepState.contraction | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_contraction | Fritz 2020 Lemma 12.5 (c) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.weak_union | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_weak_union | Fritz 2020 Lemma 12.5 (d) |
