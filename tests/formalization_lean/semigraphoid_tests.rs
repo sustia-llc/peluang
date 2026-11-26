@@ -1131,6 +1131,20 @@ fn is_cond_independent_state_sums_out_a_factor_in_no_list() -> Result<()> {
             &[0][..],
             &[4][..],
         ),
+        (
+            "ws out of range before ys repeated",
+            &[0][..],
+            &[4][..],
+            &[3, 3][..],
+            &[4][..],
+        ),
+        (
+            "xs decreasing before ys repeated",
+            &[1, 0][..],
+            &[2][..],
+            &[3, 3][..],
+            &[1, 0][..],
+        ),
     ] {
         assert_not_a_factor_list(
             &format!("is_cond_independent_state(ψ5, {xs:?}, {ws:?}, {ys:?}), {name}"),

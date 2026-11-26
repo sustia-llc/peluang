@@ -1108,8 +1108,10 @@ mod float_kernels {
 
     /// On states on `[2] ⊗ [2] ⊗ [2]` with weight index `x * 4 + w * 2 + y`,
     /// `p(w0) = 1 - 1e-6` and `p(w1) = 1e-6`, and the lists `[0]`, `[1]`,
-    /// `[2]`: the comparison at `w1` is within `F64_TOLERANCE * p(w1)²`, which
-    /// is `1e-24`.
+    /// `[2]`: `false` where the two products at `(x0, w1, y0)` differ by
+    /// `2.5e-13`, `true` where they are equal at each `w`, and `false` where
+    /// they differ at `(x0, w1, y0)` by `1e-21`, which is between
+    /// `F64_TOLERANCE * p(w1)²`, `1e-24`, and `F64_TOLERANCE * p(w1)`, `1e-18`.
     #[test]
     fn is_cond_independent_state_scales_the_tolerance_by_the_mass_of_w() -> Result<()> {
         let two = FinObj::new(2);
@@ -1120,7 +1122,7 @@ mod float_kernels {
             vec![quarter, quarter, 5e-7, 0.0, quarter, quarter, 0.0, 5e-7],
         )?;
         let independent = Kernel::state(
-            cod,
+            cod.clone(),
             vec![
                 quarter, quarter, 1.25e-7, 1.25e-7, quarter, quarter, 3.75e-7, 3.75e-7,
             ],
@@ -1141,6 +1143,39 @@ mod float_kernels {
             ),
             &is_cond_independent_state(&independent, &[0], &[1], &[2]),
             true,
+        );
+
+        // At (x0, w1, y0), with p(x0, w1, y0) = p(x1, w1, y1) = 2.50000001e-7
+        // and p(x0, w1, y1) = p(x1, w1, y0) = 2.49999999e-7:
+        //   p(w1)                    = 2 · 2.50000001e-7 + 2 · 2.49999999e-7 = 1e-6
+        //   p(x0, w1, y0) · p(w1)    = 2.50000001e-7 · 1e-6 = 2.50000001e-13
+        //   p(x0, w1) · p(w1, y0)    = 5e-7 · 5e-7          = 2.5e-13
+        //   difference               = 1e-21
+        //   F64_TOLERANCE · p(w1)²   = 1e-12 · 1e-12        = 1e-24
+        //   F64_TOLERANCE · p(w1)    = 1e-12 · 1e-6         = 1e-18
+        let (high, low) = (2.500_000_01e-7_f64, 2.499_999_99e-7_f64);
+        let mass = high + low + low + high;
+        let difference = (high * mass - (high + low) * (high + low)).abs();
+        let (square_bound, linear_bound) = (F64_TOLERANCE * mass * mass, F64_TOLERANCE * mass);
+        assert!(
+            100.0 * square_bound < difference && 100.0 * difference < linear_bound,
+            "|p(x0, w1, y0) · p(w1) − p(x0, w1) · p(w1, y0)| with p(w1) = {mass:e}: expected \
+             about 1e-21, above 100 · {square_bound:e} and below {linear_bound:e} / 100, observed \
+             {difference:e}"
+        );
+        let slight = Kernel::state(
+            cod,
+            vec![quarter, quarter, high, low, quarter, quarter, low, high],
+        )?;
+        assert_flag(
+            &format!(
+                "is_cond_independent_state(slightly dependent at w1, [0], [1], [2]) on \
+                 {slight:?}, where p(x0, w1, y0) · p(w1) = 2.50000001e-13 and p(x0, w1) · \
+                 p(w1, y0) = 2.5e-13 differ by {difference:e}, more than {F64_TOLERANCE} · p(w1)² \
+                 = {square_bound:e} and less than {F64_TOLERANCE} · p(w1) = {linear_bound:e}"
+            ),
+            &is_cond_independent_state(&slight, &[0], &[1], &[2]),
+            false,
         );
         Ok(())
     }
