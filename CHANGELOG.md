@@ -6,6 +6,32 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-11-26
+
+### Added
+
+- `lean/Peluang/Monoidal/Reorder.lean`: eight isomorphisms between tensor
+  products. `tensorCompAssoc` is for a monoidal category. `tensorLeftComm`,
+  `tensorμIso`, `tensorRev₃`, `tensorWeakUnionIso`, `tensorTripleInterchange`,
+  `tensorCondReorder` and `tensorCompReorder` are for a braided monoidal
+  category. Each has a `_hom` theorem. The file adds
+  `tensorRev₃_eq_tensorLeftComm` and `tensorRev₃_hom_naturality`.
+- `lean/Peluang/Conditional/Snd.lean`: `IsConditionalSnd`, the conditional of
+  `f : A ⟶ X ⊗ Y` on `Y` in a copy-discard category (Fritz 2020 Def. 11.5),
+  with `isConditionalSnd_iff`, `exists_isConditionalSnd` and
+  `marginalFst_comp_braiding_hom` (Notation 2.8). Its helper is
+  `conditional_form_comp_braiding_hom`.
+- `conditional::conditional_snd`.
+- `tests/formalization_lean/reorder_tests.rs`: 8 tests, 5 of them with a
+  `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 87 to 92 rows.
+- `tests/too_large.rs`: one test of `conditional_snd` under the refusing
+  allocator.
+
+### Changed
+
+- The docstring of `Error::NoUniformWeight` names
+  `conditional::conditional_snd`.
+
 ## [0.5.4] - 2026-11-25
 
 ### Added

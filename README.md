@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.5.4` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.5` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -113,9 +113,18 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   Remark 12.10 is not stated.
 - In FinStoch, two distinct morphisms of states have one image in
   `ProbStoch FinStoch`, and two morphisms of states have distinct images.
+- Eight named isomorphisms reorder the factors of a tensor product: one in a
+  monoidal category and seven in a braided monoidal category. Each has a
+  theorem that gives its `hom` as a composite of associators and braidings.
+  `tensorRev₃ X W Y : X ⊗ (W ⊗ Y) ≅ Y ⊗ (W ⊗ X)` is natural in `X`, `W` and
+  `Y`. These definitions have no `THEOREM_MAP.md` row.
+- In a copy-discard category, `IsConditionalSnd f g` says that
+  `g : Y ⊗ A ⟶ X` is a conditional of `f : A ⟶ X ⊗ Y` on `Y` (Def. 11.5). It
+  holds iff `f` equals a composite of copies, the second marginal of `f` and
+  `g`. A category with conditionals has such a `g` for every `f`.
 
-At `v0.5.4`, `THEOREM_MAP.md` has 87 rows that pair a Lean id with a Rust test.
-The crate has 243 tests with all features on.
+At `v0.5.5`, `THEOREM_MAP.md` has 92 rows that pair a Lean id with a Rust test.
+The crate has 252 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -131,7 +140,7 @@ The crate has 243 tests with all features on.
   - `markov.rs`: `Compose`, `Tensor`, the structure maps and the marginals.
   - `deterministic.rs`: `is_deterministic` and `is_as_deterministic`.
   - `almost_sure.rs`: `as_equal`.
-  - `conditional.rs`: `conditional`.
+  - `conditional.rs`: `conditional` and `conditional_snd`.
   - `bayes.rs`: `bayesian_inverse` and `is_bayesian_inverse`.
   - `independence.rs`: `is_independent` and `cond_indep_form`.
   - `information_flow.rs`: `copy_then`, `copy_comp_natural` and
