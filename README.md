@@ -115,8 +115,8 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   `ProbStoch FinStoch`, and two morphisms of states have distinct images.
 - Eight named isomorphisms reorder the factors of a tensor product: one in a
   monoidal category and seven in a braided monoidal category. Each has a
-  theorem that gives its `hom` as a composite of whiskered associators and
-  braidings; the one of the monoidal category has no braiding.
+  theorem that gives its `hom` as a composite of associators, braidings and
+  their whiskerings; the one of the monoidal category has no braiding.
   `tensorRev₃ X W Y : X ⊗ (W ⊗ Y) ≅ Y ⊗ (W ⊗ X)` is natural in `X`, `W` and
   `Y`.
 - In a copy-discard category, `IsConditionalSnd f g` says that

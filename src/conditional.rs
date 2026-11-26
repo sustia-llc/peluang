@@ -59,8 +59,7 @@ pub fn conditional<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<Ker
 /// a `Vec` capacity fails, and `Error::NoUniformWeight` when a column has
 /// `s == P::zero()` and `Prob::div_checked` returns `None` on `P::one()` over
 /// `P::one()` added `x.card()` times. `prob::sum` states the effect of a
-/// parallel run on `f64` weights. In the `f64` lane, underflow can turn a
-/// positive weight into zero, so a column with mass can count as zero-mass.
+/// parallel run on `f64` weights.
 pub fn conditional_snd<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<Kernel<P>> {
     f.split(x, y)?;
     let dom = y.tensor(f.domain())?;

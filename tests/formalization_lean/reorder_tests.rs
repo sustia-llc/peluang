@@ -144,8 +144,8 @@ fn assert_is_conditional_snd(
     let got = conditional_composite(&fs, y, x, g);
     let Ok(composite) = got else {
         panic!(
-            "IsConditionalSnd f g at g = {name}: Def. 11.5 composite of g on f ≫ σ: expected Ok \
-             of a kernel == {} is {expected}, observed {got:?}",
+            "IsConditionalSnd f g at g = {name}: Def. 11.5 composite of g on f ≫ σ: expected \
+             Ok(composite) with (composite == {}) == {expected}, observed {got:?}",
             show(&fs)
         );
     };
@@ -158,6 +158,18 @@ fn assert_is_conditional_snd(
          observed {observed}; composite {}, f ≫ σ {}",
         show(&composite),
         show(&fs)
+    );
+}
+
+/// Asserts that `g` has the domain `dom` and the codomain `cod`. `name` names
+/// `g`.
+#[track_caller]
+fn assert_objects(name: &str, g: &Kernel<Exact>, dom: &FinObj, cod: &FinObj) {
+    assert!(
+        g.domain() == dom && g.codomain() == cod,
+        "{name}: expected {dom:?} → {cod:?}, observed {:?} → {:?}",
+        g.domain(),
+        g.codomain()
     );
 }
 
@@ -281,7 +293,8 @@ fn witness_tensor_rev3_hom_naturality() -> Result<()> {
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.isConditionalSnd_iff
 #[test]
 fn witness_is_conditional_snd_iff() -> Result<()> {
-    let sp = obj_s()?;
+    let (t, w, sp) = (obj_t()?, obj_w()?, obj_s()?);
+    let f_ws = f()?;
     let f = joint_ss()?;
     let g = snd("conditional_snd(f, S, S)", &f, &sp, &sp);
     assert_kernel(
@@ -314,6 +327,54 @@ fn witness_is_conditional_snd_iff() -> Result<()> {
          S, S) ▷ S), the conditional on the first factor",
         &conditional_snd_composite(&f, &sp, &sp, &on_fst)?,
         &f,
+    );
+
+    let on_hot = |column: [Exact; 3]| {
+        lit(
+            sp.tensor(&t)?,
+            w.clone(),
+            &[
+                &column,
+                &[r(0, 1), r(1, 1), r(0, 1)],
+                &[r(1, 1), r(0, 1), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(1, 1)],
+            ],
+        )
+    };
+    let g = snd("conditional_snd(f : T → W ⊗ S, W, S)", &f_ws, &w, &sp);
+    assert_kernel(
+        "conditional_snd(f : T → W ⊗ S, W, S)",
+        &g,
+        &on_hot([r(1, 4), r(3, 4), r(0, 1)])?,
+    );
+    assert_is_conditional_snd(
+        "conditional_snd(f : T → W ⊗ S, W, S)",
+        &f_ws,
+        &w,
+        &sp,
+        &g,
+        true,
+    );
+    assert_kernel(
+        "Δ[T] ≫ (T ◁ (marginalSnd f ≫ Δ[S])) ≫ α⁻¹ ≫ (σ[T, S] ▷ S) ≫ (conditional_snd(f : T → W \
+         ⊗ S, W, S) ▷ S)",
+        &conditional_snd_composite(&f_ws, &w, &sp, &g)?,
+        &f_ws,
+    );
+    let changed = on_hot([r(3, 4), r(1, 4), r(0, 1)])?;
+    assert_is_conditional_snd(
+        "control: the kernel S ⊗ T → W with (on, hot) at (3/4, 1/4, 0), an input with mass",
+        &f_ws,
+        &w,
+        &sp,
+        &changed,
+        false,
+    );
+    assert_differs(
+        "control: the composite of the kernel S ⊗ T → W with (on, hot) at (3/4, 1/4, 0), an \
+         input with mass",
+        &conditional_snd_composite(&f_ws, &w, &sp, &changed)?,
+        &f_ws,
     );
     Ok(())
 }
@@ -457,6 +518,24 @@ fn conditional_snd_equals_conditional_after_swap() -> Result<()> {
     let empty_s = Kernel::<Exact>::new(empty.clone(), w.tensor(&sp)?, Vec::new())?;
     let empty_empty = Kernel::<Exact>::new(empty.clone(), empty.tensor(&sp)?, Vec::new())?;
     let empty_snd = Kernel::<Exact>::new(empty.clone(), w.tensor(&empty)?, Vec::new())?;
+    assert_objects(
+        "conditional_snd(0 → W ⊗ S)",
+        &snd("conditional_snd(0 → W ⊗ S)", &empty_s, &w, &sp),
+        &sp.tensor(&empty)?,
+        &w,
+    );
+    assert_objects(
+        "conditional_snd(0 → 0 ⊗ S)",
+        &snd("conditional_snd(0 → 0 ⊗ S)", &empty_empty, &empty, &sp),
+        &sp.tensor(&empty)?,
+        &empty,
+    );
+    assert_objects(
+        "conditional_snd(0 → W ⊗ 0)",
+        &snd("conditional_snd(0 → W ⊗ 0)", &empty_snd, &w, &empty),
+        &empty.tensor(&empty)?,
+        &w,
+    );
     for (name, k, x, y) in [
         ("I → T ⊗ W with no mass at rainy", dry, &t, &w),
         ("f : T → W ⊗ S", f()?, &w, &sp),
