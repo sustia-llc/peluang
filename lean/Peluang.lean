@@ -11,6 +11,7 @@ public import Peluang.AlmostSure.Deterministic
 public import Peluang.BayesianInverse
 public import Peluang.Causal
 public import Peluang.Conditional
+public import Peluang.Conditional.Snd
 public import Peluang.Deterministic.Lemmas
 public import Peluang.Deterministic.Wide
 public import Peluang.Independence
@@ -29,6 +30,7 @@ public import Peluang.Markov.Cartesian
 public import Peluang.Markov.Derived
 public import Peluang.Markov.Fox
 public import Peluang.Monoidal.Quotient
+public import Peluang.Monoidal.Reorder
 public import Peluang.Monoidal.Under
 public import Peluang.Positive
 public import Peluang.ProbStoch.Basic

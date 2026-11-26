@@ -9,6 +9,7 @@ public import PeluangTest.AlmostSure.Deterministic
 public import PeluangTest.BayesianInverse
 public import PeluangTest.Causal
 public import PeluangTest.Conditional
+public import PeluangTest.Conditional.Snd
 public import PeluangTest.Deterministic.Lemmas
 public import PeluangTest.Deterministic.Wide
 public import PeluangTest.Independence
@@ -26,6 +27,7 @@ public import PeluangTest.Markov.Cartesian
 public import PeluangTest.Markov.Derived
 public import PeluangTest.Markov.Fox
 public import PeluangTest.Monoidal.Quotient
+public import PeluangTest.Monoidal.Reorder
 public import PeluangTest.Monoidal.Under
 public import PeluangTest.Positive
 public import PeluangTest.ProbStoch.Basic
