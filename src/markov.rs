@@ -3,7 +3,7 @@
 //! discard, and marginals.
 
 use crate::error::{Error, Result};
-use crate::finset::{FinObj, reserve};
+use crate::finset::{Factor, FinObj, product, reserve};
 use crate::kernel::Kernel;
 use crate::prob::{Prob, sum};
 
@@ -208,6 +208,62 @@ impl<P: Prob> Kernel<P> {
         Ok(Self::from_parts(self.dom().clone(), y.clone(), data))
     }
 
+    /// The marginal of `self : dom → cod` on the factors of `cod` at the
+    /// indices `keep`, a strictly increasing list of indices into
+    /// `cod.factors()`: the kernel from `dom` to the object of those factors,
+    /// in that order with their labels, whose weight at each output is the sum
+    /// of the weights of `self` over the elements of the other factors, in
+    /// increasing order of the index in `cod`, through `prob::sum`. The empty
+    /// list gives a kernel into `FinObj::unit()`, and the list of every index
+    /// gives a kernel equal to `self`. Returns `Error::NotAFactorList` with
+    /// `cod` and `keep` when `keep` is not strictly increasing or holds an
+    /// index that is not below `cod.factors().len()`, or `Error::TooLarge`
+    /// when a product of cardinalities of factors of `cod` overflows `usize`
+    /// or reserving a `Vec` capacity fails; no other allocation reports an
+    /// error. When `dom.card() == 0`, the result is the kernel with no weight
+    /// from `dom` to the object of the kept factors, and the products that
+    /// return `Error::TooLarge` are those of the cardinalities of the kept
+    /// factors, taken in order from the first. `prob::sum` states the effect
+    /// of a parallel run on `f64` weights.
+    pub fn marginal(&self, keep: &[usize]) -> Result<Self> {
+        factor_list(self.cod(), keep)?;
+        let factors = self.cod().factors();
+        let mut cod = FinObj::unit();
+        let mut cards = reserve(factors.len(), 1)?;
+        let mut dropped = reserve(factors.len(), 1)?;
+        for (index, factor) in factors.iter().enumerate() {
+            cards.push(factor.card());
+            if keep.binary_search(&index).is_ok() {
+                cod = cod.tensor(&single(factor))?;
+            } else {
+                dropped.push(index);
+            }
+        }
+        let inputs = self.dom().card();
+        if inputs == 0 {
+            return Ok(Self::from_parts(self.dom().clone(), cod, Vec::new()));
+        }
+        let kept_offsets = factor_offsets(&cards, keep)?;
+        let dropped_offsets = factor_offsets(&cards, &dropped)?;
+        let mut data = reserve(inputs, kept_offsets.len())?;
+        let mut terms = terms_buffer(inputs, dropped_offsets.len())?;
+        for a in 0..inputs {
+            let column = self
+                .column(a)
+                .expect("invariant: a < dom.card() has a column");
+            for &kept in &kept_offsets {
+                terms.clear();
+                terms.extend(
+                    dropped_offsets
+                        .iter()
+                        .map(|&other| column[kept + other].clone()),
+                );
+                data.push(sum(&terms));
+            }
+        }
+        Ok(Self::from_parts(self.dom().clone(), cod, data))
+    }
+
     /// `Ok` exactly when the factors of the codomain are those of `x` followed
     /// by those of `y`.
     pub(crate) fn split(&self, x: &FinObj, y: &FinObj) -> Result<()> {
@@ -225,6 +281,59 @@ impl<P: Prob> Kernel<P> {
                 snd: y.clone(),
             })
         }
+    }
+}
+
+/// `Ok` exactly when `list` is strictly increasing and each of its indices is
+/// below `cod.factors().len()`; otherwise `Error::NotAFactorList` with `cod`
+/// and `list`.
+pub(crate) fn factor_list(cod: &FinObj, list: &[usize]) -> Result<()> {
+    let increasing = list.windows(2).all(|pair| pair[0] < pair[1]);
+    let in_range = list.iter().all(|&index| index < cod.factors().len());
+    if increasing && in_range {
+        Ok(())
+    } else {
+        Err(Error::NotAFactorList {
+            codomain: cod.clone(),
+            list: list.to_vec(),
+        })
+    }
+}
+
+/// For `cards` the factor cardinalities of an object and `keep` a strictly
+/// increasing list of indices into `cards`: the vector with one entry for each
+/// element of the object of the kept factors, in index order with the first
+/// factor major, holding the index in the whole object of the element with the
+/// same digits at the kept factors and digit 0 at every other factor. Returns
+/// `Error::TooLarge` when a product of entries of `cards` overflows `usize` or
+/// reserving a `Vec` capacity fails.
+pub(crate) fn factor_offsets(cards: &[usize], keep: &[usize]) -> Result<Vec<usize>> {
+    let mut strides = reserve(cards.len(), 1)?;
+    let mut stride = 1_usize;
+    for &card in cards.iter().rev() {
+        strides.push(stride);
+        stride = product(card, stride)?;
+    }
+    strides.reverse();
+    let mut offsets = reserve(1, 1)?;
+    offsets.push(0_usize);
+    for &index in keep {
+        let (card, stride) = (cards[index], strides[index]);
+        let mut next = reserve(offsets.len(), card)?;
+        for &base in &offsets {
+            next.extend((0..card).map(|digit| base + digit * stride));
+        }
+        offsets = next;
+    }
+    Ok(offsets)
+}
+
+/// The object with the one factor `factor`.
+fn single(factor: &Factor) -> FinObj {
+    match factor.labels() {
+        Some(labels) => FinObj::labeled(labels.to_vec())
+            .expect("invariant: the labels of a factor of a FinObj are distinct"),
+        None => FinObj::new(factor.card()),
     }
 }
 

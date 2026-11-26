@@ -82,13 +82,42 @@ pub enum Error {
         snd: FinObj,
     },
 
-    /// `bayes::bayesian_inverse` received a `p`, or `prob_space::coupling` or
-    /// `prob_space::is_state_preserving` a `psi`, whose domain is not the unit
-    /// object.
+    /// `bayes::bayesian_inverse` received a `p`, or `prob_space::coupling`,
+    /// `prob_space::is_state_preserving` or
+    /// `independence::is_cond_independent_state` a `psi`, whose domain is not
+    /// the unit object.
     #[error("domain {domain:?} is not the unit object")]
     NotAState {
         /// The domain of that kernel.
         domain: FinObj,
+    },
+
+    /// `markov::Kernel::marginal` or
+    /// `independence::is_cond_independent_state` received a list that is not a
+    /// strictly increasing list of indices into the factors of the codomain:
+    /// it is not strictly increasing, or it holds an index that is not below
+    /// the number of factors.
+    #[error(
+        "{list:?} is not a strictly increasing list of indices into the factors of \
+         {codomain:?}"
+    )]
+    NotAFactorList {
+        /// The codomain of the kernel.
+        codomain: FinObj,
+        /// The list received.
+        list: Vec<usize>,
+    },
+
+    /// `independence::is_cond_independent_state` received two lists that
+    /// share an index.
+    #[error("the lists {fst:?} and {snd:?} of factor indices of {codomain:?} share an index")]
+    SharedFactorIndex {
+        /// The codomain of the kernel.
+        codomain: FinObj,
+        /// The list of the pair that comes first in the argument order.
+        fst: Vec<usize>,
+        /// The list of the pair that comes later in the argument order.
+        snd: Vec<usize>,
     },
 
     /// `conditional::conditional` or `conditional::conditional_snd` met a

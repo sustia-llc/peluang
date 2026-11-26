@@ -6,6 +6,41 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-11-26
+
+### Added
+
+- `lean/Peluang/Independence/Semigraphoid.lean`: `DisplaysIndep.symm` and
+  `DisplaysIndep.decomposition` (Fritz 2020 Lemma 12.13), and
+  `DisplaysCondIndepState.symm`, `DisplaysCondIndepState.decomposition`,
+  `DisplaysCondIndepState.contraction` and
+  `DisplaysCondIndepState.weak_union` (Lemma 12.5). Contraction is for a
+  Markov category. Weak union is for a copy-discard category with
+  conditionals. The others are for a copy-discard category. The file has
+  eight helper theorems.
+- `lean/Peluang/Conditional/Snd.lean`: `marginalSnd_comp_braiding_hom`
+  (Notation 2.8).
+- `Kernel::marginal`: the marginal on a strictly increasing list of factor
+  indices of the codomain.
+- `independence::is_cond_independent_state`: for a state and three lists of
+  factor indices, whether `p(x,w,y) · p(w)` agrees with `p(x,w) · p(w,y)` at
+  every output, under `Prob::approx_eq_scaled` with scale `p(w) · p(w)`.
+- `Prob::approx_eq_scaled`, a trait method with a default body: `approx_eq`
+  by default, and `|self - other| <= F64_TOLERANCE * scale` for `f64`.
+- `Error::NotAFactorList` and `Error::SharedFactorIndex`.
+- `tests/formalization_lean/semigraphoid_tests.rs`: 10 tests, 7 of them with
+  a `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 92 to 99 rows.
+- `tests/too_large.rs`: one test of `Kernel::marginal` and one of
+  `is_cond_independent_state` under the refusing allocator.
+- `tests/parallel.rs`: one test of `Kernel::marginal` at `PAR_THRESHOLD`.
+- `tests/canonical.rs`: two tests of `is_cond_independent_state` on `f64`
+  weights, and two of `Prob::approx_eq_scaled`.
+
+### Changed
+
+- The docstring of `Error::NotAState` names
+  `independence::is_cond_independent_state`.
+
 ## [0.5.5] - 2026-11-26
 
 ### Added
@@ -502,7 +537,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.5...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.6...HEAD
+[0.5.6]: https://github.com/sustia-llc/peluang/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/sustia-llc/peluang/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/sustia-llc/peluang/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/sustia-llc/peluang/compare/v0.5.2...v0.5.3

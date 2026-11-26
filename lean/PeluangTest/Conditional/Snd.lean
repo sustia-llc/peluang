@@ -11,10 +11,11 @@ import PeluangLint
 # Tests for `Peluang.Conditional.Snd`
 
 `IsConditionalSnd f g` unfolds to `IsConditional (f ≫ (β_ X Y).hom) g`. Each of
-`marginalFst_comp_braiding_hom`, `conditional_form_comp_braiding_hom`, `isConditionalSnd_iff`
-and `exists_isConditionalSnd` applied at variables. The equation of `isConditionalSnd_iff`
-from a hypothesis `IsConditionalSnd f g` through `.mp`, and `IsConditionalSnd f g` from the
-equation through `.mpr`.
+`marginalFst_comp_braiding_hom`, `marginalSnd_comp_braiding_hom`,
+`conditional_form_comp_braiding_hom`, `isConditionalSnd_iff` and `exists_isConditionalSnd`
+applied at variables. The equation of `isConditionalSnd_iff` from a hypothesis
+`IsConditionalSnd f g` through `.mp`, and `IsConditionalSnd f g` from the equation through
+`.mpr`.
 -/
 
 public section
@@ -33,6 +34,9 @@ example {A X Y : C} (f : A ⟶ X ⊗ Y) (g : Y ⊗ A ⟶ X) :
 
 example {A X Y : C} (f : A ⟶ X ⊗ Y) : marginalFst (f ≫ (β_ X Y).hom) = marginalSnd f :=
   marginalFst_comp_braiding_hom f
+
+example {A X Y : C} (f : A ⟶ X ⊗ Y) : marginalSnd (f ≫ (β_ X Y).hom) = marginalFst f :=
+  marginalSnd_comp_braiding_hom f
 
 example {A X Y : C} (m : A ⟶ Y) (g : Y ⊗ A ⟶ X) :
     (Δ[A] ≫ (m ▷ A) ≫ (Δ[Y] ▷ A) ≫ (α_ Y Y A).hom ≫ (Y ◁ g)) ≫ (β_ Y X).hom =

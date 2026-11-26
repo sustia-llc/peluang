@@ -6,9 +6,10 @@
 //! `prob::sum_with(_, true)` at `PAR_THRESHOLD` terms and
 //! `prob::sum_with(_, true)` at 2 terms run exactly one add off a worker, the
 //! last add, on the calling thread; `prob::sum_with(_, true)` at 1 term runs
-//! every add on the calling thread. `Compose::compose`, `Kernel::marginal_fst`
-//! and `Kernel::marginal_snd` run no add on a rayon worker when the summed
-//! object has `PAR_THRESHOLD - 1` elements and at least one at `PAR_THRESHOLD`.
+//! every add on the calling thread. `Compose::compose`, `Kernel::marginal_fst`,
+//! `Kernel::marginal_snd` and `Kernel::marginal` run no add on a rayon worker
+//! when the summed object has `PAR_THRESHOLD - 1` elements and at least one at
+//! `PAR_THRESHOLD`.
 
 #![cfg(feature = "parallel")]
 
@@ -131,6 +132,21 @@ mod dispatch {
             let (x, y) = (FinObj::new(m), FinObj::new(2));
             let joint = point_mass(log, x.tensor(&y)?)?;
             ran_on_worker(log, || joint.marginal_snd(&x, &y))
+        })?;
+        assert_eq!(
+            observed,
+            (false, true),
+            "expected no worker add below PAR_THRESHOLD and one at it, observed on the left"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn marginal_dispatches_at_threshold() -> Result<()> {
+        let observed = dispatch(|log, m| {
+            let (x, y) = (FinObj::new(m), FinObj::new(2));
+            let joint = point_mass(log, x.tensor(&y)?)?;
+            ran_on_worker(log, || joint.marginal(&[1]))
         })?;
         assert_eq!(
             observed,

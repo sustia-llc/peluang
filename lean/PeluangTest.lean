@@ -13,6 +13,7 @@ public import PeluangTest.Conditional.Snd
 public import PeluangTest.Deterministic.Lemmas
 public import PeluangTest.Deterministic.Wide
 public import PeluangTest.Independence
+public import PeluangTest.Independence.Semigraphoid
 public import PeluangTest.Instances.FinStoch.AlmostSure
 public import PeluangTest.Instances.FinStoch.AlmostSureDeterministic
 public import PeluangTest.Instances.FinStoch.Basic

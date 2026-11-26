@@ -12,3 +12,4 @@ mod information_flow_tests;
 mod marginal_tests;
 mod prob_space_tests;
 mod reorder_tests;
+mod semigraphoid_tests;

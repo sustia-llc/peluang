@@ -6,7 +6,7 @@
 //! composites `conditional_composite` and `copy_whisker`, the printer `show`,
 //! and the comparisons that report observed and expected values:
 //! `assert_kernel`, `assert_differs`, `assert_as_equal`, `assert_independent`,
-//! `assert_bayesian_inverse`, `assert_state_preserving`,
+//! `assert_cond_independent_state`, `assert_bayesian_inverse`, `assert_state_preserving`,
 //! `assert_as_deterministic`, `assert_copy_comp_natural`,
 //! `assert_copy_comp_natural_as`, `deterministic`, `assert_deterministic` and
 //! `inverse`.
@@ -18,7 +18,7 @@ use peluang::bayes::{bayesian_inverse, is_bayesian_inverse};
 use peluang::deterministic::{is_as_deterministic, is_deterministic};
 use peluang::error::Result;
 use peluang::finset::FinObj;
-use peluang::independence::is_independent;
+use peluang::independence::{is_cond_independent_state, is_independent};
 use peluang::information_flow::{copy_comp_natural, copy_comp_natural_as};
 use peluang::kernel::Kernel;
 use peluang::markov::Compose;
@@ -472,6 +472,35 @@ pub fn assert_independent(name: &str, k: &Kernel<Exact>, x: &FinObj, y: &FinObj,
         expected,
         "is_independent({name}) on {}: expected {expected}, observed {observed}",
         show(k)
+    );
+}
+
+/// Asserts `is_cond_independent_state(psi, xs, ws, ys) == Ok(expected)`,
+/// naming `name`; panics with `name` and the error when the engine returns an
+/// error.
+#[track_caller]
+pub fn assert_cond_independent_state(
+    name: &str,
+    psi: &Kernel<Exact>,
+    xs: &[usize],
+    ws: &[usize],
+    ys: &[usize],
+    expected: bool,
+) {
+    let observed = match is_cond_independent_state(psi, xs, ws, ys) {
+        Ok(observed) => observed,
+        Err(e) => panic!(
+            "is_cond_independent_state({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected \
+             Ok({expected}), observed Err({e:?})",
+            show(psi)
+        ),
+    };
+    assert_eq!(
+        observed,
+        expected,
+        "is_cond_independent_state({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected {expected}, \
+         observed {observed}",
+        show(psi)
     );
 }
 

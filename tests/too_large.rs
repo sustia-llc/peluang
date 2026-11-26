@@ -17,7 +17,12 @@
 //! `conditional::conditional_snd` returns `Error::TooLarge` for the buffer of
 //! the result on an `f : I → [2] ⊗ Y`, and the `Error::TooLarge` of the factor
 //! list of `Y ⊗ A` on an `f : A → [2] ⊗ Y` whose result buffer it does not
-//! refuse.
+//! refuse. Under it, `Kernel::marginal` returns `Error::TooLarge` for its list
+//! of factor cardinalities, for the factor list of the object of the kept
+//! factors, for the table of `factor_offsets` of the kept factors and of the
+//! other factors, and for the buffers of the result and of the terms, and
+//! `independence::is_cond_independent_state` returns it for the list of the
+//! indices of its three lists and for the result buffer of its first marginal.
 //! `refusing` restores the limit when `op` panics.
 
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -31,6 +36,7 @@ use std::ptr;
 use peluang::conditional::conditional_snd;
 use peluang::error::{Error, Result};
 use peluang::finset::{Factor, FinObj};
+use peluang::independence::is_cond_independent_state;
 use peluang::kernel::Kernel;
 use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
@@ -370,5 +376,98 @@ fn marginals_report_a_refused_reservation() -> Result<()> {
     ] {
         assert_refused(route, &got, rows, cols);
     }
+    Ok(())
+}
+
+/// The object of `count` factors of one element, for `count` at least 1.
+fn ones(count: usize) -> Result<FinObj> {
+    let one = FinObj::new(1);
+    (1..count).try_fold(one.clone(), |list, _| list.tensor(&one))
+}
+
+/// With `indices` the number of `usize` whose bytes reach the refused byte
+/// size and `factors` the number of `Factor`s whose bytes reach it:
+/// `Kernel::marginal` returns `Error::TooLarge` for `indices * 1` on a state
+/// with `indices` factors, for `factors * 1` on a state with `factors` factors
+/// and every index kept, for `1 * indices` on `I → [indices] ⊗ [1]` at the
+/// lists `[0]` and `[1]`, and for `1 * REFUSED` and `REFUSED * 1` on
+/// `I → [REFUSED] ⊗ [1]` at the lists `[0]` and `[1]`.
+#[test]
+fn marginal_reports_a_refused_reservation() -> Result<()> {
+    let (one, wide) = (FinObj::new(1), FinObj::new(REFUSED));
+    let indices = (REFUSED * size_of::<Exact>()).div_ceil(size_of::<usize>());
+    let factors = (REFUSED * size_of::<Exact>()).div_ceil(size_of::<Factor>());
+    let every: Vec<usize> = (0..factors).collect();
+    let many_indices = point_mass(ones(indices)?)?;
+    let many_factors = point_mass(ones(factors)?)?;
+    let long_first = point_mass(FinObj::new(indices).tensor(&one)?)?;
+    let wide_first = point_mass(wide.tensor(&one)?)?;
+    for (route, got, rows, cols) in [
+        (
+            "marginal, list of factor cardinalities",
+            refusing(|| many_indices.marginal(&[])),
+            indices,
+            1,
+        ),
+        (
+            "marginal, factor list of the object of the kept factors",
+            refusing(|| many_factors.marginal(&every)),
+            factors,
+            1,
+        ),
+        (
+            "marginal, table of the kept factors",
+            refusing(|| long_first.marginal(&[0])),
+            1,
+            indices,
+        ),
+        (
+            "marginal, table of the other factors",
+            refusing(|| long_first.marginal(&[1])),
+            1,
+            indices,
+        ),
+        (
+            "marginal, result buffer",
+            refusing(|| wide_first.marginal(&[0])),
+            1,
+            REFUSED,
+        ),
+        (
+            "marginal, terms buffer",
+            refusing(|| wide_first.marginal(&[1])),
+            REFUSED,
+            1,
+        ),
+    ] {
+        assert_refused(route, &got, rows, cols);
+    }
+    Ok(())
+}
+
+/// With `indices` the number of `usize` whose bytes reach the refused byte
+/// size: `is_cond_independent_state` returns `Error::TooLarge` for
+/// `indices * 1` on a state with `indices` factors and every index in `xs`,
+/// and for `1 * REFUSED` on `I → [REFUSED] ⊗ [1] ⊗ [1]` at the lists `[0]`,
+/// `[1]`, `[2]`.
+#[test]
+fn is_cond_independent_state_reports_a_refused_reservation() -> Result<()> {
+    let (one, wide) = (FinObj::new(1), FinObj::new(REFUSED));
+    let indices = (REFUSED * size_of::<Exact>()).div_ceil(size_of::<usize>());
+    let every: Vec<usize> = (0..indices).collect();
+    let many_indices = point_mass(ones(indices)?)?;
+    assert_refused(
+        "is_cond_independent_state, list of the indices of the three lists",
+        &refusing(|| is_cond_independent_state(&many_indices, &every, &[], &[])),
+        indices,
+        1,
+    );
+    let wide_first = point_mass(wide.tensor(&one)?.tensor(&one)?)?;
+    assert_refused(
+        "is_cond_independent_state, result buffer of the marginal on the three lists",
+        &refusing(|| is_cond_independent_state(&wide_first, &[0], &[1], &[2])),
+        1,
+        REFUSED,
+    );
     Ok(())
 }

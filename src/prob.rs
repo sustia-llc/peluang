@@ -4,7 +4,9 @@
 
 use crate::error::{Error, Result};
 
-/// Absolute tolerance used by `Prob::approx_eq` on `f64` weights.
+/// Tolerance on `f64` weights: the absolute bound of `Prob::approx_eq`, and
+/// the factor that multiplies the scale in the bound of
+/// `Prob::approx_eq_scaled`.
 #[cfg(feature = "f64-prob")]
 pub const F64_TOLERANCE: f64 = 1e-12;
 
@@ -32,6 +34,15 @@ pub trait Prob: Clone + PartialEq + core::fmt::Debug + Send + Sync {
     /// Equality up to the type's declared tolerance: exact for rationals,
     /// within `F64_TOLERANCE` for `f64`.
     fn approx_eq(&self, other: &Self) -> bool;
+
+    /// Equality up to the type's declared tolerance multiplied by `scale`, for
+    /// a `scale` that is at least `Self::zero()`: `approx_eq` at every `scale`
+    /// in the default body, so exact for rationals, and
+    /// `|self - other| <= F64_TOLERANCE * scale` for `f64`.
+    fn approx_eq_scaled(&self, other: &Self, scale: &Self) -> bool {
+        let _ = scale;
+        self.approx_eq(other)
+    }
 
     /// Whether the weights in `terms` sum to `Self::one()` under `approx_eq`;
     /// an empty iterator sums to `Self::zero()`.
@@ -112,6 +123,10 @@ impl Prob for f64 {
 
     fn approx_eq(&self, other: &Self) -> bool {
         (self - other).abs() <= F64_TOLERANCE
+    }
+
+    fn approx_eq_scaled(&self, other: &Self, scale: &Self) -> bool {
+        (self - other).abs() <= F64_TOLERANCE * scale
     }
 }
 
