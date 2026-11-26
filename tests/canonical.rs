@@ -1,6 +1,7 @@
 //! Canonical integration tests. On `Exact` weights in every feature lane: the
-//! `Prob` trait (law verification, checked division and normalization), the
-//! rejections of each `Kernel` constructor and operation, `Kernel::approx_eq`,
+//! `Prob` trait (law verification, checked division, normalization and the
+//! default body of `Prob::approx_eq_scaled`), the rejections of each `Kernel`
+//! constructor and operation, `Kernel::approx_eq`,
 //! composition and tensor at literals, `is_deterministic`, `is_independent` at
 //! a two-input kernel and at a 3×2 state, the rejection of a
 //! wrong split by `is_independent` and of misaligned domains by
@@ -13,8 +14,9 @@
 //! `Kernel::approx_eq`, the input tests of `Kernel::new`, worked `compose`,
 //! `tensor`, marginals and `is_deterministic` under `Kernel::approx_eq`,
 //! `is_independent` under `Prob::approx_eq`, `Prob::approx_eq_scaled` on `f64`
-//! and `Exact` weights, `is_cond_independent_state` at a `w` of mass `1e-6`
-//! under `Prob::approx_eq_scaled`, and `bayesian_inverse`,
+//! weights, `is_cond_independent_state` at a `w` of mass `1e-6` and at a `w`
+//! of mass `5e-171 + 5e-171` under `Prob::approx_eq_scaled`, and
+//! `bayesian_inverse`,
 //! `is_bayesian_inverse`, `is_state_preserving` and `is_as_deterministic`.
 
 mod common;
@@ -186,6 +188,33 @@ mod exact {
         assert!(pos, "expected 3/5 nonneg, got {pos}");
         assert!(zero, "expected 0 nonneg, got {zero}");
         assert!(!neg, "expected -1/5 not nonneg, got {neg}");
+    }
+
+    #[test]
+    fn approx_eq_scaled_default_body_is_approx_eq_at_each_scale() {
+        let (big, tiny) = (1_000_000_000_000_000_000, r(1, 1_000_000_000_000_000_000));
+        for (name, a, b, scale, expected) in [
+            (
+                "1/3 against 1/3 at scale 0",
+                r(1, 3),
+                r(1, 3),
+                r(0, 1),
+                true,
+            ),
+            (
+                "1/3 + 1/10^18 against 1/3 at scale 10^18",
+                r(1, 3) + tiny,
+                r(1, 3),
+                r(big, 1),
+                false,
+            ),
+        ] {
+            let observed = a.approx_eq_scaled(&b, &scale);
+            assert_eq!(
+                observed, expected,
+                "Exact approx_eq_scaled, {name}: expected {expected}, observed {observed}"
+            );
+        }
     }
 }
 
@@ -928,7 +957,7 @@ fn c_tensor_s() -> peluang::error::Result<peluang::kernel::Kernel<peluang::prob:
 #[cfg(feature = "f64-prob")]
 mod float_kernels {
     use crate::c_tensor_s;
-    use crate::fixtures::{c, d, f, h, hot, k, obj_p, obj_s, obj_t, obj_w, psi_t, r, s};
+    use crate::fixtures::{c, d, f, h, hot, k, obj_p, obj_s, obj_t, obj_w, psi_t, s};
     use num_traits::ToPrimitive;
     use peluang::almost_sure::as_equal;
     use peluang::bayes::{bayesian_inverse, is_bayesian_inverse};
@@ -1116,6 +1145,43 @@ mod float_kernels {
         Ok(())
     }
 
+    /// On the state on `[2] ⊗ [2] ⊗ [2]` with weight index `x * 4 + w * 2 + y`,
+    /// weight `0.25` at each `(x, w0, y)`, weight `5e-171` at `(x0, w1, y0)`
+    /// and at `(x1, w1, y1)` and weight `0` at `(x0, w1, y1)` and at
+    /// `(x1, w1, y0)`, and the lists `[0]`, `[1]`, `[2]`: `p(w1)` is
+    /// `5e-171 + 5e-171`, the scale `p(w1) · p(w1)`, about `1e-340`, is `0` in
+    /// `f64`, as are `p(x0, w1, y0) · p(w1)`, about `5e-341`, and
+    /// `p(x0, w1) · p(w1, y0)`, about `2.5e-341`, so the comparison at `w1` is
+    /// `0 == 0`.
+    #[test]
+    fn is_cond_independent_state_compares_with_bound_zero_where_the_scale_underflows() -> Result<()>
+    {
+        let two = FinObj::new(2);
+        let cod = two.tensor(&two)?.tensor(&two)?;
+        let half = 5e-171_f64;
+        let mass = half + half;
+        for (name, observed) in [
+            ("scale p(w1) · p(w1)", mass * mass),
+            ("p(x0, w1, y0) · p(w1)", half * mass),
+            ("p(x0, w1) · p(w1, y0)", half * half),
+        ] {
+            assert!(
+                observed == 0.0,
+                "{name} with p(w1) = {mass:e}: expected 0 in f64, observed {observed:e}"
+            );
+        }
+        let dependent = Kernel::state(cod, vec![0.25, 0.25, half, 0.0, 0.25, 0.25, 0.0, half])?;
+        assert_flag(
+            &format!(
+                "is_cond_independent_state(x = y at w1, [0], [1], [2]) on {dependent:?}, where \
+                 the bound {F64_TOLERANCE} · p(w1)² and both products at w1 are 0 in f64"
+            ),
+            &is_cond_independent_state(&dependent, &[0], &[1], &[2]),
+            true,
+        );
+        Ok(())
+    }
+
     #[test]
     fn approx_eq_scaled_multiplies_the_tolerance_by_the_scale() {
         for (name, a, b, scale, expected) in [
@@ -1148,29 +1214,6 @@ mod float_kernels {
                 observed, expected,
                 "f64 approx_eq_scaled, {name}, bound {F64_TOLERANCE} · {scale}: expected \
                  {expected}, observed {observed}"
-            );
-        }
-        let (big, tiny) = (1_000_000_000_000_000_000, r(1, 1_000_000_000_000_000_000));
-        for (name, a, b, scale, expected) in [
-            (
-                "1/3 against 1/3 at scale 0",
-                r(1, 3),
-                r(1, 3),
-                r(0, 1),
-                true,
-            ),
-            (
-                "1/3 + 1/10^18 against 1/3 at scale 10^18",
-                r(1, 3) + tiny,
-                r(1, 3),
-                r(big, 1),
-                false,
-            ),
-        ] {
-            let observed = a.approx_eq_scaled(&b, &scale);
-            assert_eq!(
-                observed, expected,
-                "Exact approx_eq_scaled, {name}: expected {expected}, observed {observed}"
             );
         }
     }

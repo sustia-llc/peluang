@@ -45,8 +45,13 @@ pub fn is_independent<P: Prob>(f: &Kernel<P>, x: &FinObj, y: &FinObj) -> Result<
 /// `ws` and `ys`, whether `p(x, w, y) · p(w)` agrees with
 /// `p(x, w) · p(w, y)` under `Prob::approx_eq_scaled` with scale
 /// `p(w) · p(w)` at every element `x` of the factors `xs`, `w` of the factors
-/// `ws` and `y` of the factors `ys`. A factor in no list is summed out, and
-/// the function divides no weight. Returns `Error::NotAState` unless the
+/// `ws` and `y` of the factors `ys`. The scale takes effect only for a weight
+/// type that overrides `Prob::approx_eq_scaled`; with the default body the
+/// comparison is `Prob::approx_eq`. On `f64` weights, at a `w` where
+/// `F64_TOLERANCE · (p(w) · p(w))` is 0 in `f64` arithmetic, the comparison is
+/// `p(x, w, y) · p(w) == p(x, w) · p(w, y)`; both products can be 0 there.
+/// A factor in no list is summed out, and the function divides no weight.
+/// Returns `Error::NotAState` unless the
 /// domain of `psi` is `FinObj::unit()`, then `Error::NotAFactorList` with the
 /// codomain of `psi` and the first of `xs`, `ws`, `ys` that is not strictly
 /// increasing or holds an index that is not below the number of factors of

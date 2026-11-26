@@ -33,8 +33,8 @@ git tag is the authoritative pin.
 - `tests/too_large.rs`: one test of `Kernel::marginal` and one of
   `is_cond_independent_state` under the refusing allocator.
 - `tests/parallel.rs`: one test of `Kernel::marginal` at `PAR_THRESHOLD`.
-- `tests/canonical.rs`: one test of `is_cond_independent_state` on `f64`
-  weights, and one of `Prob::approx_eq_scaled`.
+- `tests/canonical.rs`: two tests of `is_cond_independent_state` on `f64`
+  weights, and two of `Prob::approx_eq_scaled`.
 
 ### Changed
 

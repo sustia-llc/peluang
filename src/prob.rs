@@ -35,9 +35,10 @@ pub trait Prob: Clone + PartialEq + core::fmt::Debug + Send + Sync {
     /// within `F64_TOLERANCE` for `f64`.
     fn approx_eq(&self, other: &Self) -> bool;
 
-    /// Equality up to the type's declared tolerance multiplied by `scale`:
-    /// `approx_eq` at every `scale` in the default body, so exact for
-    /// rationals, and `|self - other| <= F64_TOLERANCE * scale` for `f64`.
+    /// Equality up to the type's declared tolerance multiplied by `scale`, for
+    /// a `scale` that is at least `Self::zero()`: `approx_eq` at every `scale`
+    /// in the default body, so exact for rationals, and
+    /// `|self - other| <= F64_TOLERANCE * scale` for `f64`.
     fn approx_eq_scaled(&self, other: &Self, scale: &Self) -> bool {
         let _ = scale;
         self.approx_eq(other)
