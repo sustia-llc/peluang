@@ -21,6 +21,8 @@ category.
 
 * `CopyDiscardCategory.marginalFst_comp_braiding_hom` - the first marginal of
   `f ≫ (β_ X Y).hom` is the second marginal of `f` (Fritz 2020, Notation 2.8).
+* `CopyDiscardCategory.marginalSnd_comp_braiding_hom` - the second marginal of
+  `f ≫ (β_ X Y).hom` is the first marginal of `f` (Fritz 2020, Notation 2.8).
 * `CopyDiscardCategory.isConditionalSnd_iff` - `IsConditionalSnd f g` as an equation for `f`
   with no braiding on the outputs (Fritz 2020, Def. 11.5).
 * `CopyDiscardCategory.exists_isConditionalSnd` - in a copy-discard category with
@@ -57,6 +59,15 @@ theorem marginalFst_comp_braiding_hom {A X Y : C} (f : A ⟶ X ⊗ Y) :
     marginalFst (f ≫ (β_ X Y).hom) = marginalSnd f := by
   simp only [marginalFst, marginalSnd, Category.assoc]
   rw [← BraidedCategory.braiding_naturality_left_assoc, braiding_tensorUnit_left]
+  simp only [Category.assoc, Iso.inv_hom_id, Category.comp_id]
+
+/-- For `f : A ⟶ X ⊗ Y` in a copy-discard category `C`, the second marginal of
+`f ≫ (β_ X Y).hom : A ⟶ Y ⊗ X` equals the first marginal of `f` (Fritz 2020,
+Notation 2.8). -/
+theorem marginalSnd_comp_braiding_hom {A X Y : C} (f : A ⟶ X ⊗ Y) :
+    marginalSnd (f ≫ (β_ X Y).hom) = marginalFst f := by
+  simp only [marginalFst, marginalSnd, Category.assoc]
+  rw [← BraidedCategory.braiding_naturality_right_assoc, braiding_tensorUnit_right]
   simp only [Category.assoc, Iso.inv_hom_id, Category.comp_id]
 
 -- WITNESS: none (step of isConditionalSnd_iff; witnessed through it)

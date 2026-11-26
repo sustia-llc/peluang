@@ -15,6 +15,7 @@ public import Peluang.Conditional.Snd
 public import Peluang.Deterministic.Lemmas
 public import Peluang.Deterministic.Wide
 public import Peluang.Independence
+public import Peluang.Independence.Semigraphoid
 public import Peluang.Instances.FinStoch.AlmostSure
 public import Peluang.Instances.FinStoch.AlmostSureDeterministic
 public import Peluang.Instances.FinStoch.Basic
