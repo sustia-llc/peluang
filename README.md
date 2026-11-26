@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.5.5` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.6` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -124,9 +124,16 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   holds iff `f` equals
   `Δ[A] ≫ (A ◁ (marginalSnd f ≫ Δ[Y])) ≫ (α_ A Y Y).inv ≫ ((β_ A Y).hom ▷ Y) ≫ (g ▷ Y)`.
   A category with conditionals has such a `g` for every `f`.
+- In a copy-discard category, `DisplaysIndep` has symmetry and decomposition
+  (Lemma 12.13): it is stable under the braiding of the two outputs, and
+  under the marginal that drops `X₂` from `f : A ⟶ (X₁ ⊗ X₂) ⊗ Y`.
+- `DisplaysCondIndepState` has the four semigraphoid properties (Lemma 12.5).
+  Symmetry and decomposition hold in a copy-discard category. Weak union
+  holds in a copy-discard category with conditionals. Contraction holds in a
+  Markov category.
 
-At `v0.5.5`, `THEOREM_MAP.md` has 92 rows that pair a Lean id with a Rust test.
-The crate has 252 tests with all features on.
+At `v0.5.6`, `THEOREM_MAP.md` has 99 rows that pair a Lean id with a Rust test.
+The crate has 261 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
@@ -144,7 +151,8 @@ The crate has 252 tests with all features on.
   - `almost_sure.rs`: `as_equal`.
   - `conditional.rs`: `conditional` and `conditional_snd`.
   - `bayes.rs`: `bayesian_inverse` and `is_bayesian_inverse`.
-  - `independence.rs`: `is_independent` and `cond_indep_form`.
+  - `independence.rs`: `is_independent`, `cond_indep_form` and
+    `is_cond_independent_state`.
   - `information_flow.rs`: `copy_then`, `copy_comp_natural` and
     `copy_comp_natural_as`.
   - `prob_space.rs`: `is_state_preserving` and `coupling`.
