@@ -197,7 +197,8 @@ The crate has 285 tests with all features on.
 - `scripts/check_lean_source.py`: `sorry`/`admit` terms and `axiom`
   declarations in `lean/` sources, outside comments and literals.
 - `scripts/check_lake_log.py`: `warning:` lines and the count of audit lines
-  in a `lake build` log, with the library name from `lean/lakefile.lean`.
+  in a `lake build` log, with the name of the test library from
+  `lean/lakefile.lean`.
 - `lean/PeluangLint.lean`: build-time linter for `lean/PeluangTest`. In a
   `PeluangTest` module that imports it, an example with an axiom outside
   the allowlist is a build error. A command that adds a constant is also

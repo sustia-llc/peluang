@@ -1,25 +1,33 @@
 #!/usr/bin/env python3
 """Check a `lake build` log for warning lines and for the audit line of the test library.
 
-Reads `REPO_ROOT/lean/lakefile.lean` and takes the package name `<L>` from its
-one line that starts with `package`, written `package «<L>»` or `package <L>`;
-`<l>` is `<L>` with its first letter in lower case. REPO_ROOT defaults to the
-parent of the folder of this script. Reads the file at LOG as UTF-8,
-undecodable bytes replaced, splits it into lines at `\\n` and removes one
-trailing `\\r` from each line. A warning line is a line that contains
-`warning:`. An audit line is a line that starts with
-`info: <L>Test/Audit.lean:<n>:<n>: <l>Test audit: <n> files, <n> imported`.
-Exit 0 when the log has no warning line and exactly one audit line, printing
+Reads `REPO_ROOT/lean/lakefile.lean` and takes the test library name `<T>`
+from it. REPO_ROOT defaults to the parent of the folder of this script. A
+library line is a line outside comments that starts with `lean_lib`, white
+space, and a name written `«<name>»` or as a run of characters with no white
+space. `<T>` is the name of the one library line whose name ends in `Test`,
+and it is a letter followed by letters, digits or `_`; `<t>` is `<T>` with its
+first letter in lower case. A comment is a `--` line comment or a `/- … -/`
+block comment, which nests; a string literal holds no comment.
+
+Reads the file at LOG as UTF-8, undecodable bytes replaced, and splits it into
+lines at `\\n`. It removes each ANSI control sequence `ESC [ … <letter>` from
+a line and splits the line into pieces at `\\r`. A warning piece contains
+`warning:`. An audit piece starts with
+`info: <T>/Audit.lean:<n>:<n>: <t> audit: <n> files, <n> imported`.
+
+Exit 0 when the log has no warning piece and exactly one audit piece, printing
 `check_lake_log: ok (1 audit line, 0 warning lines)`; exit 1 otherwise,
-printing `LOG:line: <the line>` per warning line, then
+printing `LOG:line: <the piece>` per warning piece, then
 `LOG: <n> audit line(s), expected exactly 1` when the count is not 1, then
 `check_lake_log: failed (<n> warning line(s), <n> audit line(s))`; or, when
 the log cannot be read, `LOG: missing` / `LOG: not readable: <error>`, then
 `check_lake_log: failed (log not read)`; or, when the lakefile cannot be read,
-has a number of `package` lines other than 1, or has a package name that is
-not a letter followed by letters, digits or `_`, one line that names the
-lakefile, then `check_lake_log: failed (package name not read)`; exit 2,
-printing the usage line on stderr, when the argument count is not 1 or 2. A
+has a number of library lines with a name that ends in `Test` other than 1, or
+has such a name that is not a letter followed by letters, digits or `_`, one
+line that names the lakefile, then
+`check_lake_log: failed (test library name not read)`; exit 2, printing the
+usage line on stderr, when the argument count is not 1 or 2. While it runs, a
 character that stdout cannot encode is printed as a backslash escape.
 
 Usage: check_lake_log.py LOG [REPO_ROOT]
@@ -33,8 +41,10 @@ from pathlib import Path
 
 USAGE = "Usage: check_lake_log.py LOG [REPO_ROOT]"
 WARNING = "warning:"
-PACKAGE_RE = re.compile(r"package\s+(?:«(?P<quoted>[^»]*)»|(?P<bare>\S+))")
+SUFFIX = "Test"
+LIB_RE = re.compile(r"lean_lib\s+(?:«(?P<quoted>[^»]*)»|(?P<bare>\S+))")
 NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 
 def read(path: str) -> tuple[str | None, str | None]:
@@ -49,61 +59,106 @@ def read(path: str) -> tuple[str | None, str | None]:
         return None, f"{path}: not readable: {exc.strerror or exc}"
 
 
-def package_name(lakefile: str) -> tuple[str | None, str | None]:
-    """The package name of the Lake configuration file at `lakefile` and `None`; or `None` and the failure
-    line. The name is the text between `«` and `»`, or else the text up to the next white space, after
-    `package` and white space at the start of a line. It is a failure when the file cannot be read, when the
-    number of such lines is not 1, and when the name is not a letter followed by letters, digits or `_`."""
+def strip_comments(src: str) -> str:
+    """`src` with each character of a `--` line comment and of a `/- … -/` block comment replaced by a space,
+    newlines kept. Block comments nest. A `"…"` string literal, with `\\` as its escape character, is kept
+    and holds no comment. A block comment with no end runs to the end of `src`."""
+    out: list[str] = []
+    i, depth, in_string = 0, 0, False
+    while i < len(src):
+        two = src[i : i + 2]
+        if depth:
+            if two == "/-":
+                depth += 1
+            elif two == "-/":
+                depth -= 1
+            if two in ("/-", "-/"):
+                out.append("  ")
+                i += 2
+            else:
+                out.append("\n" if src[i] == "\n" else " ")
+                i += 1
+        elif in_string:
+            if src[i] == "\\":
+                out.append(two)
+                i += 2
+            else:
+                in_string = src[i] != '"'
+                out.append(src[i])
+                i += 1
+        elif two == "/-":
+            depth = 1
+            out.append("  ")
+            i += 2
+        elif two == "--":
+            end = src.find("\n", i)
+            end = len(src) if end == -1 else end
+            out.append(" " * (end - i))
+            i = end
+        else:
+            in_string = src[i] == '"'
+            out.append(src[i])
+            i += 1
+    return "".join(out)
+
+
+def test_library(lakefile: str) -> tuple[str | None, str | None]:
+    """The test library name of the Lake configuration file at `lakefile` and `None`; or `None` and the
+    failure line. A library line is a line of `strip_comments` of the file that starts with `lean_lib`, white
+    space, and a name: the text between `«` and `»`, or else the text up to the next white space. The test
+    library name is the name of the one library line whose name ends in `Test`. It is a failure when the file
+    cannot be read, when the number of such lines is not 1, and when the name is not a letter followed by
+    letters, digits or `_`."""
     text, failure = read(lakefile)
     if text is None:
         return None, failure
-    found = [(n, m) for n, line in enumerate(text.split("\n"), start=1) if (m := PACKAGE_RE.match(line))]
+    found: list[tuple[int, str]] = []
+    for lineno, line in enumerate(strip_comments(text).split("\n"), start=1):
+        match = LIB_RE.match(line)
+        if match:
+            name = match.group("quoted") if match.group("quoted") is not None else match.group("bare")
+            if name.endswith(SUFFIX):
+                found.append((lineno, name))
     if len(found) != 1:
-        return None, f"{lakefile}: {len(found)} package line(s), expected exactly 1"
-    lineno, match = found[0]
-    name = match.group("quoted") if match.group("quoted") is not None else match.group("bare")
+        return (
+            None,
+            f"{lakefile}: {len(found)} lean_lib line(s) with a name that ends in `{SUFFIX}`, expected exactly 1",
+        )
+    lineno, name = found[0]
     if not NAME_RE.fullmatch(name):
-        return None, f"{lakefile}:{lineno}: package name `{name}` is not a letter followed by letters, digits or `_`"
+        return None, f"{lakefile}:{lineno}: library name `{name}` is not a letter followed by letters, digits or `_`"
     return name, None
 
 
 def audit_re(name: str) -> re.Pattern[str]:
-    """The pattern of the start of the audit line of the package `name`:
-    `info: <name>Test/Audit.lean:<n>:<n>: <name with a lower-case first letter>Test audit: <n> files, <n> imported`."""
+    """The pattern of the start of the audit line of the test library `name`:
+    `info: <name>/Audit.lean:<n>:<n>: <name with a lower-case first letter> audit: <n> files, <n> imported`."""
     lower = name[0].lower() + name[1:]
     return re.compile(
-        rf"info: {re.escape(name)}Test/Audit\.lean:[0-9]+:[0-9]+: {re.escape(lower)}Test audit: [0-9]+ files, [0-9]+ imported"
+        rf"info: {re.escape(name)}/Audit\.lean:[0-9]+:[0-9]+: {re.escape(lower)} audit: [0-9]+ files, [0-9]+ imported"
     )
 
 
 def scan(text: str, audit: re.Pattern[str]) -> tuple[list[tuple[int, str]], int]:
-    """The (line number, line) pairs of the lines of `text` that contain `warning:`, in line order, and the
-    number of lines that `audit` matches at their start. Lines are the pieces of `text` between `\\n`, each
-    with one trailing `\\r` removed."""
+    """The (line number, piece) pairs of the pieces of `text` that contain `warning:`, in order, and the
+    number of pieces that `audit` matches at their start. Lines are the parts of `text` between `\\n`. The
+    pieces of a line are its parts between `\\r`, after each match of `ANSI_RE` is removed from the line."""
     warnings: list[tuple[int, str]] = []
     audits = 0
     for lineno, line in enumerate(text.split("\n"), start=1):
-        line = line.removesuffix("\r")
-        if WARNING in line:
-            warnings.append((lineno, line))
-        if audit.match(line):
-            audits += 1
+        for piece in ANSI_RE.sub("", line).split("\r"):
+            if WARNING in piece:
+                warnings.append((lineno, piece))
+            if audit.match(piece):
+                audits += 1
     return warnings, audits
 
 
-def main(argv: list[str]) -> int:
-    if len(argv) not in (2, 3):
-        print(USAGE, file=sys.stderr)
-        return 2
-    reconfigure = getattr(sys.stdout, "reconfigure", None)
-    if reconfigure is not None:
-        reconfigure(errors="backslashreplace")
-    log = argv[1]
-    root = Path(argv[2]) if len(argv) == 3 else Path(__file__).resolve().parent.parent
-    name, failure = package_name(str(root / "lean" / "lakefile.lean"))
+def report(log: str, root: Path) -> int:
+    name, failure = test_library(str(root / "lean" / "lakefile.lean"))
     if name is None:
         print(failure)
-        print("check_lake_log: failed (package name not read)")
+        print("check_lake_log: failed (test library name not read)")
         return 1
     text, failure = read(log)
     if text is None:
@@ -111,8 +166,8 @@ def main(argv: list[str]) -> int:
         print("check_lake_log: failed (log not read)")
         return 1
     warnings, audits = scan(text, audit_re(name))
-    for lineno, line in warnings:
-        print(f"{log}:{lineno}: {line}")
+    for lineno, piece in warnings:
+        print(f"{log}:{lineno}: {piece}")
     if audits != 1:
         print(f"{log}: {audits} audit line(s), expected exactly 1")
     if warnings or audits != 1:
@@ -120,6 +175,24 @@ def main(argv: list[str]) -> int:
         return 1
     print("check_lake_log: ok (1 audit line, 0 warning lines)")
     return 0
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) not in (2, 3):
+        print(USAGE, file=sys.stderr)
+        return 2
+    root = Path(argv[2]) if len(argv) == 3 else Path(__file__).resolve().parent.parent
+    stdout = sys.stdout
+    reconfigure = getattr(stdout, "reconfigure", None)
+    if reconfigure is None:
+        return report(argv[1], root)
+    errors = stdout.errors
+    reconfigure(errors="backslashreplace")
+    try:
+        return report(argv[1], root)
+    finally:
+        stdout.flush()
+        reconfigure(errors=errors)
 
 
 if __name__ == "__main__":

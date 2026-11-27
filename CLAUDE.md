@@ -39,8 +39,8 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      a line with `warning:`, and when the log does not hold exactly one
      audit line. An audit line starts with `info: PeluangTest/Audit.lean:`,
      a position, and `peluangTest audit: <n> files, <n> imported`. The
-     script takes the name `Peluang` from the `package` line of
-     `lean/lakefile.lean`.
+     script takes the name `PeluangTest` from the `lean_lib` line of
+     `lean/lakefile.lean` whose name ends in `Test`.
      The build runs Mathlib's style linters (`weak.linter.mathlibStandardSet`
      in `lean/lakefile.lean`, header linter off) and, through
      `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are

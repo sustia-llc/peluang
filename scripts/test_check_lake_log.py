@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import io
+import os
 import sys
 import tempfile
 import unittest
@@ -16,18 +18,24 @@ import check_lake_log as cll  # noqa: E402
 REPO = Path(__file__).resolve().parent.parent
 
 OK = "check_lake_log: ok (1 audit line, 0 warning lines)\n"
-NO_NAME = "check_lake_log: failed (package name not read)\n"
+NO_NAME = "check_lake_log: failed (test library name not read)\n"
 NO_LOG = "check_lake_log: failed (log not read)\n"
 
 LAKEFILE = """\
 import Lake
 open Lake DSL
 
-package «Demo» where
+package «demo» where
   leanOptions := #[⟨`autoImplicit, false⟩]
 
 @[default_target]
 lean_lib «Demo»
+
+lean_lib «DemoLint»
+
+@[default_target]
+lean_lib «DemoTest» where
+  globs := #[.andSubmodules `DemoTest]
 """
 
 AUDIT = "info: DemoTest/Audit.lean:19:0: demoTest audit: 38 files, 37 imported DemoTest modules\n"
@@ -83,22 +91,32 @@ def no_audit(audits: int = 0) -> str:
     return f"LOG: {audits} audit line(s), expected exactly 1\n"
 
 
+def no_library(count: int = 0) -> str:
+    return f"LAKEFILE: {count} lean_lib line(s) with a name that ends in `Test`, expected exactly 1\n" + NO_NAME
+
+
 def run(
-    content: str | bytes | None, lakefile: str | None = LAKEFILE, stdout: io.TextIOBase | None = None
+    content: str | bytes | None,
+    lakefile: str | None = LAKEFILE,
+    stdout: io.TextIOBase | None = None,
+    directory: bool = False,
 ) -> tuple[int, str]:
     """The exit code and stdout of `main` on a log file that holds `content`, in a repo root whose
     `lean/lakefile.lean` holds `lakefile`. With `content` `None` the log file does not exist, and with
-    `lakefile` `None` the lakefile does not exist. The path of the lakefile is replaced by `LAKEFILE` in
-    stdout, then the path of the log by `LOG`. With `stdout` given, `main` prints to it and the text is empty."""
+    `lakefile` `None` the lakefile does not exist. With `directory`, the log path is a directory. The log and
+    the repo root are in two separate folders. The path of the lakefile is replaced by `LAKEFILE` in stdout,
+    and the path of the log by `LOG`. With `stdout` given, `main` prints to it and the text is empty."""
     out = stdout if stdout is not None else io.StringIO()
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp) / "repo"
-        (root / "lean").mkdir(parents=True)
+    with tempfile.TemporaryDirectory() as root_tmp, tempfile.TemporaryDirectory() as log_tmp:
+        root = Path(root_tmp)
+        (root / "lean").mkdir()
         lake = root / "lean" / "lakefile.lean"
         if lakefile is not None:
             lake.write_text(lakefile, encoding="utf-8")
-        log = Path(tmp) / "lake-build.log"
-        if content is not None:
+        log = Path(log_tmp) / "lake-build.log"
+        if directory:
+            log.mkdir()
+        elif content is not None:
             log.write_bytes(content.encode("utf-8") if isinstance(content, str) else content)
         with contextlib.redirect_stdout(out):
             code = cll.main(["check_lake_log.py", str(log), str(root)])
@@ -172,21 +190,28 @@ class Main(unittest.TestCase):
         self.assert_run("Built Demo\r\n" + crlf_audit, (0, OK))
         self.assert_run("warning: x\r\n" + crlf_audit, (1, "LOG:1: warning: x\n" + failed(1, 1)))
 
+    def test_audit_line_after_a_control_sequence_or_a_carriage_return_is_counted(self) -> None:
+        for content in (
+            "\x1b[2K\r" + AUDIT,
+            "\x1b[2K" + AUDIT,
+            "\x1b[36;1m" + AUDIT.rstrip("\n") + "\x1b[0m\n",
+            "[4353/4355] Running DemoTest.Audit\r" + AUDIT,
+        ):
+            with self.subTest(content=content):
+                self.assert_run(content, (0, OK))
+
+    def test_warning_piece_is_reported_without_its_control_sequences(self) -> None:
+        content = "[1/2] Running\r\x1b[33mwarning: x\x1b[0m\n" + AUDIT
+        self.assert_run(content, (1, "LOG:1: warning: x\n" + failed(1, 1)))
+
     def test_missing_log_fails(self) -> None:
         got = run(None)
         expected = (1, "LOG: missing\n" + NO_LOG)
         self.assertEqual(got, expected, f"expected {expected!r}, observed {got!r}")
 
     def test_directory_as_the_log_is_not_readable(self) -> None:
-        out = io.StringIO()
-        with tempfile.TemporaryDirectory() as tmp:
-            (Path(tmp) / "lean").mkdir()
-            (Path(tmp) / "lean" / "lakefile.lean").write_text(LAKEFILE, encoding="utf-8")
-            with contextlib.redirect_stdout(out):
-                code = cll.main(["check_lake_log.py", tmp, tmp])
-        lines = out.getvalue().replace(tmp, "LOG").splitlines()
-        got = (code, len(lines), lines[0][: len("LOG: not readable: ")], lines[-1] + "\n")
-        expected = (1, 2, "LOG: not readable: ", NO_LOG)
+        got = run(None, directory=True)
+        expected = (1, f"LOG: not readable: {os.strerror(errno.EISDIR)}\n" + NO_LOG)
         self.assertEqual(got, expected, f"expected {expected!r}, observed {got!r}")
 
     def test_character_that_stdout_cannot_encode_is_printed_as_an_escape(self) -> None:
@@ -199,6 +224,13 @@ class Main(unittest.TestCase):
         expected = (1, 2, "warning: unused \\u2200 binder", failed(1, 1))
         self.assertEqual(got, expected, f"expected {expected!r}, observed {got!r}")
 
+    def test_error_handler_of_stdout_is_restored(self) -> None:
+        for content in ("warning: unused ∀ binder\n" + AUDIT, AUDIT, None):
+            with self.subTest(content=content):
+                out = io.TextIOWrapper(io.BytesIO(), encoding="ascii", errors="strict")
+                run(content, stdout=out)
+                self.assertEqual(out.errors, "strict", f"expected 'strict', observed {out.errors!r}")
+
     def test_wrong_argument_count_exits_2_with_the_usage_line(self) -> None:
         for argv in (["check_lake_log.py"], ["check_lake_log.py", "a.log", "root", "more"]):
             with self.subTest(argv=argv):
@@ -210,42 +242,70 @@ class Main(unittest.TestCase):
                 self.assertEqual(got, expected, f"expected {expected!r}, observed {got!r}")
 
 
-class PackageName(unittest.TestCase):
+class TestLibrary(unittest.TestCase):
     def assert_run(self, content: str, lakefile: str | None, expected: tuple[int, str]) -> None:
         got = run(content, lakefile)
         self.assertEqual(got, expected, f"expected {expected!r}, observed {got!r}")
 
-    def test_bare_package_name_is_read(self) -> None:
-        self.assert_run(AUDIT, "import Lake\npackage Demo where\n", (0, OK))
-        self.assert_run(AUDIT, "package Demo\n", (0, OK))
+    def test_bare_library_name_is_read(self) -> None:
+        self.assert_run(AUDIT, "import Lake\nlean_lib DemoTest where\n", (0, OK))
+        self.assert_run(AUDIT, "lean_lib DemoTest\n", (0, OK))
+
+    def test_package_name_is_not_read(self) -> None:
+        for package in ("package «demo» where\n", "package «Other» where\n", "package «OtherTest» where\n", ""):
+            with self.subTest(package=package):
+                self.assert_run(AUDIT, package + "lean_lib «DemoTest» where\n", (0, OK))
 
     def test_only_the_first_letter_goes_to_lower_case(self) -> None:
         audit = "info: DemoLibTest/Audit.lean:19:0: demoLibTest audit: 6 files, 5 imported DemoLibTest modules\n"
-        lakefile = "package «DemoLib» where\n"
+        lakefile = "lean_lib «DemoLibTest» where\n"
         self.assert_run(audit, lakefile, (0, OK))
         wrong = "info: DemoLibTest/Audit.lean:19:0: demolibTest audit: 6 files, 5 imported DemoLibTest modules\n"
         self.assert_run(wrong, lakefile, (1, no_audit() + failed(0, 0)))
         self.assert_run(AUDIT, lakefile, (1, no_audit() + failed(0, 0)))
 
-    def test_package_name_with_a_regex_character_is_refused(self) -> None:
-        expected = "LAKEFILE:1: package name `De.o` is not a letter followed by letters, digits or `_`\n" + NO_NAME
-        self.assert_run(AUDIT, "package «De.o» where\n", (1, expected))
-
-    def test_package_name_that_is_not_an_identifier_is_refused(self) -> None:
-        for name, line in (('"demo"', 'package "demo" where'), ("", "package «» where"), ("9x", "package 9x")):
+    def test_library_name_that_is_not_an_identifier_is_refused(self) -> None:
+        for name, line in (
+            ("De.oTest", "lean_lib «De.oTest» where"),
+            ('"demoTest', 'lean_lib "demoTest where'),
+            ("9xTest", "lean_lib 9xTest"),
+            ("_Test", "lean_lib «_Test»"),
+        ):
             with self.subTest(line=line):
-                expected = f"LAKEFILE:3: package name `{name}` is not a letter followed by letters, digits or `_`\n"
+                expected = f"LAKEFILE:3: library name `{name}` is not a letter followed by letters, digits or `_`\n"
                 self.assert_run(AUDIT, "import Lake\n\n" + line + "\n", (1, expected + NO_NAME))
 
-    def test_lakefile_without_a_package_line_fails(self) -> None:
-        expected = "LAKEFILE: 0 package line(s), expected exactly 1\n" + NO_NAME
-        for lakefile in ("", "import Lake\n", "-- package «Demo»\n", "  package «Demo»\n", "packages «Demo»\n"):
+    def test_lakefile_without_a_test_library_line_fails(self) -> None:
+        for lakefile in (
+            "",
+            "import Lake\nlean_lib «Demo»\nlean_lib «DemoLint»\n",
+            "-- lean_lib «DemoTest»\n",
+            "  lean_lib «DemoTest»\n",
+            "lean_libs «DemoTest»\n",
+            "lean_lib\n  «DemoTest» where\n",
+            "lean_lib «DemoTests»\n",
+            "/- lean_lib «DemoTest» -/\n",
+            "/-\nlean_lib «DemoTest» where\n-/\n",
+            "/- /- nested -/\nlean_lib «DemoTest» where\n-/\n",
+            "/-- A docstring.\nlean_lib «DemoTest» where\n-/\nlean_lib «Demo»\n",
+            "/- no end\nlean_lib «DemoTest» where\n",
+        ):
             with self.subTest(lakefile=lakefile):
-                self.assert_run(AUDIT, lakefile, (1, expected))
+                self.assert_run(AUDIT, lakefile, (1, no_library()))
 
-    def test_lakefile_with_two_package_lines_fails(self) -> None:
-        expected = "LAKEFILE: 2 package line(s), expected exactly 1\n" + NO_NAME
-        self.assert_run(AUDIT, "package «Demo» where\npackage «Other» where\n", (1, expected))
+    def test_library_line_beside_comments_and_strings_is_read(self) -> None:
+        for lakefile in (
+            "/-\nlean_lib «OldTest» where\n-/\nlean_lib «DemoTest» where\n",
+            "/- /- nested -/ -/\nlean_lib «DemoTest» where\n",
+            "-- lean_lib «OldTest»\nlean_lib «DemoTest» -- the tests\n",
+            'require x from git "https://example.org/-/x"\nlean_lib «DemoTest»\n',
+            'def s := "a \\" /- b"\nlean_lib «DemoTest»\n',
+        ):
+            with self.subTest(lakefile=lakefile):
+                self.assert_run(AUDIT, lakefile, (0, OK))
+
+    def test_lakefile_with_two_test_library_lines_fails(self) -> None:
+        self.assert_run(AUDIT, "lean_lib «DemoTest» where\nlean_lib «OtherTest» where\n", (1, no_library(2)))
 
     def test_missing_lakefile_fails_before_the_log_is_read(self) -> None:
         self.assert_run(AUDIT, None, (1, "LAKEFILE: missing\n" + NO_NAME))
@@ -256,10 +316,10 @@ class PackageName(unittest.TestCase):
 
 class ThisRepo(unittest.TestCase):
     def test_the_audit_line_of_this_repo_passes_with_the_default_root(self) -> None:
-        name, failure = cll.package_name(str(REPO / "lean" / "lakefile.lean"))
-        self.assertIsNotNone(name, f"expected a package name, observed the failure {failure!r}")
+        name, failure = cll.test_library(str(REPO / "lean" / "lakefile.lean"))
+        self.assertIsNotNone(name, f"expected a test library name, observed the failure {failure!r}")
         lower = name[0].lower() + name[1:]
-        audit = f"info: {name}Test/Audit.lean:19:0: {lower}Test audit: 38 files, 37 imported {name}Test modules\n"
+        audit = f"info: {name}/Audit.lean:19:0: {lower} audit: 38 files, 37 imported {name} modules\n"
         out = io.StringIO()
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp) / "lake-build.log"
@@ -270,14 +330,14 @@ class ThisRepo(unittest.TestCase):
         self.assertEqual(got, (0, OK), f"expected {(0, OK)!r}, observed {got!r}")
 
     def test_the_library_of_this_repo_writes_the_audit_line_that_the_pattern_reads(self) -> None:
-        name, failure = cll.package_name(str(REPO / "lean" / "lakefile.lean"))
-        self.assertIsNotNone(name, f"expected a package name, observed the failure {failure!r}")
+        name, failure = cll.test_library(str(REPO / "lean" / "lakefile.lean"))
+        self.assertIsNotNone(name, f"expected a test library name, observed the failure {failure!r}")
         lower = name[0].lower() + name[1:]
-        audit_file = REPO / "lean" / f"{name}Test" / "Audit.lean"
+        audit_file = REPO / "lean" / name / "Audit.lean"
         self.assertTrue(audit_file.is_file(), f"expected the file {audit_file}, observed no such file")
-        linter = (REPO / "lean" / f"{name}Lint.lean").read_text(encoding="utf-8")
-        message = f'm!"{lower}Test audit: {{files.size}} files, {{audited}} imported '
-        self.assertIn(message, linter, f"expected {message!r} in {name}Lint.lean, observed no such text")
+        message = f'logInfoAt stx m!"{lower} audit: {{files.size}} files, {{audited}} imported '
+        holders = [p.name for p in sorted((REPO / "lean").glob("*.lean")) if message in p.read_text(encoding="utf-8")]
+        self.assertEqual(len(holders), 1, f"expected one file of lean/ with {message!r}, observed {holders!r}")
 
 
 class BuildLogs(unittest.TestCase):
