@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.5.6` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.7` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -131,9 +131,14 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   Symmetry and decomposition hold in a copy-discard category. Weak union
   holds in a copy-discard category with conditionals. Contraction holds in a
   Markov category.
+- `DisplaysCondIndep` has the four semigraphoid properties (Prop. 12.17), for
+  a morphism `f` with an input `A`. Symmetry and decomposition hold in a
+  copy-discard category. Decomposition drops `X₂` from
+  `f : A ⟶ (X₁ ⊗ X₂) ⊗ (W ⊗ Y)`. Weak union holds in a copy-discard category
+  with conditionals. Contraction holds in a Markov category.
 
-At `v0.5.6`, `THEOREM_MAP.md` has 99 rows that pair a Lean id with a Rust test.
-The crate has 269 tests with all features on.
+At `v0.5.7`, `THEOREM_MAP.md` has 103 rows that pair a Lean id with a Rust test.
+The crate has 273 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
