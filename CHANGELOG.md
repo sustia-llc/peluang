@@ -6,6 +6,25 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-11-27
+
+### Added
+
+- `lean/Peluang/Independence/Composition.lean`: `DisplaysCondIndep.tensor`,
+  `DisplaysCondIndep.comp`, `DisplaysCondIndep.comp_tensorHom`,
+  `IsConditional.condIndepForm` and `DisplaysCondIndep.exists_isConditional`
+  (Fritz 2020 Prop. 12.18). The first three are for a copy-discard category.
+  `IsConditional.condIndepForm` is for a Markov category.
+  `DisplaysCondIndep.exists_isConditional` is for a Markov category with
+  conditionals. The file has 21 helper theorems.
+- `lean/Peluang/Markov/CopyPair.lean`: `copyPair x y`, the morphism
+  `Δ[Z] ≫ (x ⊗ₘ y)` for `x : Z ⟶ P` and `y : Z ⟶ Q` in a copy-discard
+  category, with 14 theorems.
+- `lean/Peluang/Monoidal/Reorder.lean`: `tensorTripleInterchange_hom_natural`,
+  for a braided monoidal category.
+- `tests/formalization_lean/composition_tests.rs`: 8 tests, 6 of them with a
+  `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 103 to 109 rows.
+
 ## [0.5.7] - 2026-11-27
 
 ### Added

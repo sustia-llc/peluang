@@ -11,7 +11,7 @@ arXiv:1908.07021. Citations use definition and theorem numbers.
 
 ## Results
 
-Release `v0.5.7` proves these statements under `lean/Peluang/`. The proofs have
+Release `v0.5.8` proves these statements under `lean/Peluang/`. The proofs have
 no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
 `Quot.sound`.
 
@@ -118,7 +118,8 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   theorem that gives its `hom` as a composite of associators, braidings and
   their whiskerings; the one of the monoidal category has no braiding.
   `tensorRev₃ X W Y : X ⊗ (W ⊗ Y) ≅ Y ⊗ (W ⊗ X)` is natural in `X`, `W` and
-  `Y`.
+  `Y`. `tensorTripleInterchange X₁ W₁ Y₁ X₂ W₂ Y₂` is natural in its six
+  objects.
 - In a copy-discard category, `IsConditionalSnd f g` says that
   `g : Y ⊗ A ⟶ X` is a conditional of `f : A ⟶ X ⊗ Y` on `Y` (Def. 11.5). It
   holds iff `f` equals
@@ -136,9 +137,21 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   copy-discard category. Decomposition drops `X₂` from
   `f : A ⟶ (X₁ ⊗ X₂) ⊗ (W ⊗ Y)`. Weak union holds in a copy-discard category
   with conditionals. Contraction holds in a Markov category.
+- `DisplaysCondIndep` has the composition properties of Prop. 12.18. In a
+  copy-discard category, it holds for the tensor product of two morphisms
+  that display it, after `tensorTripleInterchange` (a). It holds for
+  `f ≫ X₁ ◁ ((Δ[V] ≫ V ◁ g) ▷ Y₁)` after `tensorCompReorder`, for
+  `f : A ⟶ X₁ ⊗ (V ⊗ Y₁)` and `g : V ⟶ X₂ ⊗ (W ⊗ Y₂)` that display it (b). It
+  holds for the composite of `f : A ⟶ X₁ ⊗ (W ⊗ Y₁)` with `u : A ⊗ X₁ ⟶ X₂`
+  and `v : Y₁ ⊗ A ⟶ Y₂` (c). In a Markov category with conditionals, for
+  `f : A ⟶ X ⊗ ((V ⊗ W) ⊗ Y)` that displays it,
+  `f ≫ (tensorCondReorder X V W Y).hom` has a conditional on `V` that displays
+  it (d). In a Markov category, each conditional of `g : A ⟶ V ⊗ W` on `V`
+  gives such a conditional of
+  `condIndepForm g h k ≫ (tensorCondReorder X V W Y).hom` as a `condIndepForm`.
 
-At `v0.5.7`, `THEOREM_MAP.md` has 103 rows that pair a Lean id with a Rust test.
-The crate has 274 tests with all features on.
+At `v0.5.8`, `THEOREM_MAP.md` has 109 rows that pair a Lean id with a Rust test.
+The crate has 282 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
