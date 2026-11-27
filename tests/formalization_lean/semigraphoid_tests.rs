@@ -384,7 +384,7 @@ fn psi_wtsb_dep() -> Result<Kernel<Exact>> {
 /// in input order, where `f(· | a)` is the state on the codomain of `f` with
 /// the weights `f.column(a)`, through `Kernel::state`. Returns the first error
 /// in input order, with its input.
-fn cond_independent_at_each_input(
+pub(crate) fn cond_independent_at_each_input(
     f: &Kernel<Exact>,
     xs: &[usize],
     ws: &[usize],
@@ -404,7 +404,7 @@ fn cond_independent_at_each_input(
 /// naming `name`; panics with `name`, the input and the error when the engine
 /// returns an error.
 #[track_caller]
-fn assert_cond_independent_at_each_input(
+pub(crate) fn assert_cond_independent_at_each_input(
     name: &str,
     f: &Kernel<Exact>,
     xs: &[usize],
@@ -433,7 +433,11 @@ fn assert_cond_independent_at_each_input(
 /// at input `a`, through `Kernel::new`, for `a` below the number of inputs of
 /// `base`; panics with `a` and the domain of `base` otherwise.
 #[track_caller]
-fn replace_column(base: &Kernel<Exact>, a: usize, column: &[Exact]) -> Result<Kernel<Exact>> {
+pub(crate) fn replace_column(
+    base: &Kernel<Exact>,
+    a: usize,
+    column: &[Exact],
+) -> Result<Kernel<Exact>> {
     assert!(
         a < base.domain().card(),
         "replace_column: expected an input below {}, observed a = {a}, on the domain {:?}",

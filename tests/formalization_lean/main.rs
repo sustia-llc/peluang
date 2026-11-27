@@ -2,6 +2,7 @@
 //! with a row of `THEOREM_MAP.md`.
 
 mod bayes_tests;
+mod composition_tests;
 mod conditional_rewrite_tests;
 mod conditional_tests;
 mod deterministic_tests;
