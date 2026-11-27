@@ -13,6 +13,7 @@ public import PeluangTest.Conditional.Snd
 public import PeluangTest.Deterministic.Lemmas
 public import PeluangTest.Deterministic.Wide
 public import PeluangTest.Independence
+public import PeluangTest.Independence.Composition
 public import PeluangTest.Independence.Semigraphoid
 public import PeluangTest.Instances.FinStoch.AlmostSure
 public import PeluangTest.Instances.FinStoch.AlmostSureDeterministic
@@ -25,6 +26,7 @@ public import PeluangTest.Instances.FinStoch.Markov
 public import PeluangTest.Instances.FinStoch.Monoidal
 public import PeluangTest.Instances.FinStoch.ProbStoch
 public import PeluangTest.Markov.Cartesian
+public import PeluangTest.Markov.CopyPair
 public import PeluangTest.Markov.Derived
 public import PeluangTest.Markov.Fox
 public import PeluangTest.Monoidal.Quotient

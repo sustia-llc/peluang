@@ -15,6 +15,7 @@ public import Peluang.Conditional.Snd
 public import Peluang.Deterministic.Lemmas
 public import Peluang.Deterministic.Wide
 public import Peluang.Independence
+public import Peluang.Independence.Composition
 public import Peluang.Independence.Semigraphoid
 public import Peluang.Instances.FinStoch.AlmostSure
 public import Peluang.Instances.FinStoch.AlmostSureDeterministic
@@ -28,6 +29,7 @@ public import Peluang.Instances.FinStoch.Markov
 public import Peluang.Instances.FinStoch.Monoidal
 public import Peluang.Instances.FinStoch.ProbStoch
 public import Peluang.Markov.Cartesian
+public import Peluang.Markov.CopyPair
 public import Peluang.Markov.Derived
 public import Peluang.Markov.Fox
 public import Peluang.Monoidal.Quotient

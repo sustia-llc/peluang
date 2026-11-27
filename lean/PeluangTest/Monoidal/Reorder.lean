@@ -12,8 +12,8 @@ import PeluangLint
 
 For each of the eight isomorphisms of `Peluang.Monoidal.Reorder`, its `hom` as the composite
 of its `_hom` theorem and the equation `hom ≫ inv = 𝟙 _`; `tensorCompAssoc` under
-`[MonoidalCategory C]` with no braiding; and `tensorRev₃_eq_tensorLeftComm` and
-`tensorRev₃_hom_naturality` at variables.
+`[MonoidalCategory C]` with no braiding; and `tensorRev₃_eq_tensorLeftComm`,
+`tensorRev₃_hom_naturality` and `tensorTripleInterchange_hom_natural` at variables.
 -/
 
 public section
@@ -121,6 +121,14 @@ example {X W Y X' W' Y' : C} (f : X ⟶ X') (g : W ⟶ W') (h : Y ⟶ Y') :
     (f ⊗ₘ (g ⊗ₘ h)) ≫ (tensorRev₃ X' W' Y').hom =
       (tensorRev₃ X W Y).hom ≫ (h ⊗ₘ (g ⊗ₘ f)) :=
   tensorRev₃_hom_naturality f g h
+
+example {X₁ W₁ Y₁ X₂ W₂ Y₂ X₁' W₁' Y₁' X₂' W₂' Y₂' : C} (a₁ : X₁ ⟶ X₁') (b₁ : W₁ ⟶ W₁')
+    (c₁ : Y₁ ⟶ Y₁') (a₂ : X₂ ⟶ X₂') (b₂ : W₂ ⟶ W₂') (c₂ : Y₂ ⟶ Y₂') :
+    ((a₁ ⊗ₘ (b₁ ⊗ₘ c₁)) ⊗ₘ (a₂ ⊗ₘ (b₂ ⊗ₘ c₂))) ≫
+        (tensorTripleInterchange X₁' W₁' Y₁' X₂' W₂' Y₂').hom =
+      (tensorTripleInterchange X₁ W₁ Y₁ X₂ W₂ Y₂).hom ≫
+        ((a₁ ⊗ₘ a₂) ⊗ₘ ((b₁ ⊗ₘ b₂) ⊗ₘ (c₁ ⊗ₘ c₂))) :=
+  tensorTripleInterchange_hom_natural a₁ b₁ c₁ a₂ b₂ c₂
 
 end Braided
 

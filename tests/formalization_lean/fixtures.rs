@@ -1,12 +1,14 @@
 //! The running example as exact literals built with `Kernel::new`: the objects
-//! `W`, `T`, `S`, `P`, `B`, the kernels `psi_t`, `c`, `s`, `h`, `k`, `hot`,
+//! `W`, `T`, `S`, `P`, `B`, `L`, the kernels `psi_t`, `c`, `s`, `h`, `k`, `hot`,
 //! `f`, `j`, `d`, `e`, `coin`, `p_ind`, `p_brk`, `s2`, `dd`, `g2`, `g0`, `c2`,
 //! `m`, `e_inv`, `c3`, `on_b`, `const_b`, `not_b`, `q`, `hot_c`, `c_dagger`,
-//! the constructors `r`, `labels`, `lit`, `points`, `point`, `w_to_t`, the
-//! composites `conditional_composite` and `copy_whisker`, the printer `show`,
+//! the constructors `r`, `labels`, `lit`, `points`, `point`, `w_to_t`,
+//! `replace_column`, the composites `conditional_composite` and
+//! `copy_whisker`, the printer `show`, `cond_independent_at_each_input`,
 //! and the comparisons that report observed and expected values:
 //! `assert_kernel`, `assert_differs`, `assert_as_equal`, `assert_independent`,
-//! `assert_cond_independent_state`, `assert_bayesian_inverse`, `assert_state_preserving`,
+//! `assert_cond_independent_state`, `assert_cond_independent_at_each_input`,
+//! `assert_bayesian_inverse`, `assert_state_preserving`,
 //! `assert_as_deterministic`, `assert_copy_comp_natural`,
 //! `assert_copy_comp_natural_as`, `deterministic`, `assert_deterministic` and
 //! `inverse`.
@@ -16,7 +18,7 @@
 use peluang::almost_sure::as_equal;
 use peluang::bayes::{bayesian_inverse, is_bayesian_inverse};
 use peluang::deterministic::{is_as_deterministic, is_deterministic};
-use peluang::error::Result;
+use peluang::error::{Error, Result};
 use peluang::finset::FinObj;
 use peluang::independence::{is_cond_independent_state, is_independent};
 use peluang::information_flow::{copy_comp_natural, copy_comp_natural_as};
@@ -52,6 +54,11 @@ pub fn obj_s() -> Result<FinObj> {
 /// `P`: `{high, low}`.
 pub fn obj_p() -> Result<FinObj> {
     labels(&["high", "low"])
+}
+
+/// `L`: `{low, mid, high}`.
+pub fn obj_l() -> Result<FinObj> {
+    labels(&["low", "mid", "high"])
 }
 
 /// The kernel `dom → cod` with `columns` in input order, through `Kernel::new`.
@@ -502,6 +509,80 @@ pub fn assert_cond_independent_state(
          observed {observed}",
         show(psi)
     );
+}
+
+/// `is_cond_independent_state(f(· | a), xs, ws, ys)` at each input `a` of `f`,
+/// in input order, where `f(· | a)` is the state on the codomain of `f` with
+/// the weights `f.column(a)`, through `Kernel::state`. Returns the first error
+/// in input order, with its input.
+pub fn cond_independent_at_each_input(
+    f: &Kernel<Exact>,
+    xs: &[usize],
+    ws: &[usize],
+    ys: &[usize],
+) -> std::result::Result<Vec<bool>, (usize, Error)> {
+    (0..f.domain().card())
+        .map(|a| {
+            let column = f.column(a).expect("invariant: a < dom.card() has a column");
+            Kernel::state(f.codomain().clone(), column.to_vec())
+                .and_then(|state| is_cond_independent_state(&state, xs, ws, ys))
+                .map_err(|e| (a, e))
+        })
+        .collect()
+}
+
+/// Asserts `cond_independent_at_each_input(f, xs, ws, ys) == Ok(expected)`,
+/// naming `name`; panics with `name`, the input and the error when the engine
+/// returns an error.
+#[track_caller]
+pub fn assert_cond_independent_at_each_input(
+    name: &str,
+    f: &Kernel<Exact>,
+    xs: &[usize],
+    ws: &[usize],
+    ys: &[usize],
+    expected: &[bool],
+) {
+    let observed = match cond_independent_at_each_input(f, xs, ws, ys) {
+        Ok(observed) => observed,
+        Err((a, e)) => panic!(
+            "cond_independent_at_each_input({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected \
+             Ok({expected:?}), observed Err({e:?}) at input {a}",
+            show(f)
+        ),
+    };
+    assert_eq!(
+        observed,
+        expected,
+        "cond_independent_at_each_input({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected \
+         {expected:?}, observed {observed:?}",
+        show(f)
+    );
+}
+
+/// The kernel with the columns of `base`, and `column` in place of its column
+/// at input `a`, through `Kernel::new`, for `a` below the number of inputs of
+/// `base`; panics with `a` and the domain of `base` otherwise.
+#[track_caller]
+pub fn replace_column(base: &Kernel<Exact>, a: usize, column: &[Exact]) -> Result<Kernel<Exact>> {
+    assert!(
+        a < base.domain().card(),
+        "replace_column: expected an input below {}, observed a = {a}, on the domain {:?}",
+        base.domain().card(),
+        base.domain()
+    );
+    let data = (0..base.domain().card())
+        .flat_map(|x| {
+            if x == a {
+                column.to_vec()
+            } else {
+                base.column(x)
+                    .expect("invariant: x < dom.card() has a column")
+                    .to_vec()
+            }
+        })
+        .collect();
+    Kernel::new(base.domain().clone(), base.codomain().clone(), data)
 }
 
 /// Asserts `is_bayesian_inverse(p, f, g) == Ok(expected)`, naming the call

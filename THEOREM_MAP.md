@@ -127,6 +127,7 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.ProbStoch.homEquivCoupling_map | tests/formalization_lean/prob_space_tests.rs::witness_prob_stoch_hom_equiv_coupling_map | Fritz 2020 Prop. 13.9 (b) |
 | CategoryTheory.MonoidalCategory.tensorRev₃_eq_tensorLeftComm | tests/formalization_lean/reorder_tests.rs::witness_tensor_rev3_eq_tensor_left_comm | Fritz 2020 Lemma 12.5 (a), Prop. 12.17 (a) |
 | CategoryTheory.MonoidalCategory.tensorRev₃_hom_naturality | tests/formalization_lean/reorder_tests.rs::witness_tensor_rev3_hom_naturality | Fritz 2020 Lemma 12.5 (a), Prop. 12.17 (a) |
+| CategoryTheory.MonoidalCategory.tensorTripleInterchange_hom_natural | tests/formalization_lean/composition_tests.rs::witness_tensor_triple_interchange_hom_natural | Fritz 2020 Prop. 12.18 (a) |
 | CategoryTheory.CopyDiscardCategory.isConditionalSnd_iff | tests/formalization_lean/reorder_tests.rs::witness_is_conditional_snd_iff | Fritz 2020 Def. 11.5 |
 | CategoryTheory.CopyDiscardCategory.exists_isConditionalSnd | tests/formalization_lean/reorder_tests.rs::witness_exists_is_conditional_snd | Fritz 2020 Def. 11.5 |
 | CategoryTheory.CopyDiscardCategory.marginalFst_comp_braiding_hom | tests/formalization_lean/reorder_tests.rs::witness_marginal_fst_comp_braiding_hom | Fritz 2020 Notation 2.8 |
@@ -141,3 +142,8 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.decomposition | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_decomposition | Fritz 2020 Prop. 12.17 (b) |
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.contraction | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_contraction | Fritz 2020 Prop. 12.17 (c) |
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.weak_union | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_weak_union | Fritz 2020 Prop. 12.17 (d) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.tensor | tests/formalization_lean/composition_tests.rs::witness_displays_cond_indep_tensor | Fritz 2020 Prop. 12.18 (a) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.comp | tests/formalization_lean/composition_tests.rs::witness_displays_cond_indep_comp | Fritz 2020 Prop. 12.18 (b) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.comp_tensorHom | tests/formalization_lean/composition_tests.rs::witness_displays_cond_indep_comp_tensor_hom | Fritz 2020 Prop. 12.18 (c) |
+| CategoryTheory.CopyDiscardCategory.IsConditional.condIndepForm | tests/formalization_lean/composition_tests.rs::witness_is_conditional_cond_indep_form | Fritz 2020 Prop. 12.18 (d), Def. 11.5 |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.exists_isConditional | tests/formalization_lean/composition_tests.rs::witness_displays_cond_indep_exists_is_conditional | Fritz 2020 Prop. 12.18 (d) |
