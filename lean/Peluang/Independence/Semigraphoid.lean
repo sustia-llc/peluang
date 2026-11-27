@@ -13,7 +13,7 @@ public import Peluang.Monoidal.Reorder
 
 The semigraphoid properties of independence given an input, and of conditional independence
 for a state, in a copy-discard category. The semigraphoid properties of conditional
-independence given an input (Fritz 2020, Def. 12.16), in a copy-discard category.
+independence given an input (Fritz 2020, Prop. 12.17).
 
 ## Main results
 
@@ -335,7 +335,8 @@ theorem copy_tensor_comp_whiskerLeft_braiding (A W : C) :
 /-- For `g : A ⟶ W`, `h : A ⊗ W ⟶ X` and `k : W ⊗ A ⟶ Y` in a copy-discard category `C`,
 `condIndepForm g h k` equals copying `A`, applying `g` to the right copy, copying `A ⊗ W`,
 copying its right copy, and applying `h` to the first copy of `A ⊗ W`, discarding `A` from the
-second copy, and braiding the third copy to `W ⊗ A` and applying `k` to it. -/
+second copy, and braiding the third copy to `W ⊗ A` and applying `k` to it (Fritz 2020,
+Def. 12.16). -/
 theorem condIndepForm_eq_copy_tensor {A X W Y : C} (g : A ⟶ W) (h : A ⊗ W ⟶ X)
     (k : W ⊗ A ⟶ Y) :
     condIndepForm g h k =
