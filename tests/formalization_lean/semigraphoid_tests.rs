@@ -29,8 +29,9 @@ use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
 
 use crate::fixtures::{
-    assert_cond_independent_state, assert_differs, assert_independent, assert_kernel, c, f, h, j,
-    k, labels, lit, obj_b, obj_p, obj_s, obj_t, obj_w, p_brk, p_ind, psi_t, r, show,
+    assert_cond_independent_at_each_input, assert_cond_independent_state, assert_differs,
+    assert_independent, assert_kernel, c, f, h, j, k, lit, obj_b, obj_l, obj_p, obj_s, obj_t,
+    obj_w, p_brk, p_ind, psi_t, r, replace_column,
 };
 
 /// The state on `cod` whose weights in output order are the concatenation of
@@ -378,89 +379,6 @@ fn psi_wtsb_dep() -> Result<Kernel<Exact>> {
             &[r(0, 1), r(0, 1), r(0, 1), r(3, 5)],
         ],
     )
-}
-
-/// `is_cond_independent_state(f(· | a), xs, ws, ys)` at each input `a` of `f`,
-/// in input order, where `f(· | a)` is the state on the codomain of `f` with
-/// the weights `f.column(a)`, through `Kernel::state`. Returns the first error
-/// in input order, with its input.
-pub(crate) fn cond_independent_at_each_input(
-    f: &Kernel<Exact>,
-    xs: &[usize],
-    ws: &[usize],
-    ys: &[usize],
-) -> std::result::Result<Vec<bool>, (usize, Error)> {
-    (0..f.domain().card())
-        .map(|a| {
-            let column = f.column(a).expect("invariant: a < dom.card() has a column");
-            Kernel::state(f.codomain().clone(), column.to_vec())
-                .and_then(|state| is_cond_independent_state(&state, xs, ws, ys))
-                .map_err(|e| (a, e))
-        })
-        .collect()
-}
-
-/// Asserts `cond_independent_at_each_input(f, xs, ws, ys) == Ok(expected)`,
-/// naming `name`; panics with `name`, the input and the error when the engine
-/// returns an error.
-#[track_caller]
-pub(crate) fn assert_cond_independent_at_each_input(
-    name: &str,
-    f: &Kernel<Exact>,
-    xs: &[usize],
-    ws: &[usize],
-    ys: &[usize],
-    expected: &[bool],
-) {
-    let observed = match cond_independent_at_each_input(f, xs, ws, ys) {
-        Ok(observed) => observed,
-        Err((a, e)) => panic!(
-            "cond_independent_at_each_input({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected \
-             Ok({expected:?}), observed Err({e:?}) at input {a}",
-            show(f)
-        ),
-    };
-    assert_eq!(
-        observed,
-        expected,
-        "cond_independent_at_each_input({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected \
-         {expected:?}, observed {observed:?}",
-        show(f)
-    );
-}
-
-/// The kernel with the columns of `base`, and `column` in place of its column
-/// at input `a`, through `Kernel::new`, for `a` below the number of inputs of
-/// `base`; panics with `a` and the domain of `base` otherwise.
-#[track_caller]
-pub(crate) fn replace_column(
-    base: &Kernel<Exact>,
-    a: usize,
-    column: &[Exact],
-) -> Result<Kernel<Exact>> {
-    assert!(
-        a < base.domain().card(),
-        "replace_column: expected an input below {}, observed a = {a}, on the domain {:?}",
-        base.domain().card(),
-        base.domain()
-    );
-    let data = (0..base.domain().card())
-        .flat_map(|x| {
-            if x == a {
-                column.to_vec()
-            } else {
-                base.column(x)
-                    .expect("invariant: x < dom.card() has a column")
-                    .to_vec()
-            }
-        })
-        .collect();
-    Kernel::new(base.domain().clone(), base.codomain().clone(), data)
-}
-
-/// `L`: `{low, mid, high}`.
-fn obj_l() -> Result<FinObj> {
-    labels(&["low", "mid", "high"])
 }
 
 /// `T ⊗ W → S`: `(hot, sunny)` to `(1/2, 1/2)`, `(hot, cloudy)` to `(1, 0)`,

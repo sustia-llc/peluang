@@ -141,17 +141,18 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   copy-discard category, it holds for the tensor product of two morphisms
   that display it, after `tensorTripleInterchange` (a). It holds for
   `f ≫ X₁ ◁ ((Δ[V] ≫ V ◁ g) ▷ Y₁)` after `tensorCompReorder`, for
-  `f : A ⟶ X₁ ⊗ (V ⊗ Y₁)` and `g : V ⟶ X₂ ⊗ (W ⊗ Y₂)` that display it (b). It
-  holds for the composite of `f : A ⟶ X₁ ⊗ (W ⊗ Y₁)` with `u : A ⊗ X₁ ⟶ X₂`
-  and `v : Y₁ ⊗ A ⟶ Y₂` (c). In a Markov category with conditionals, for
-  `f : A ⟶ X ⊗ ((V ⊗ W) ⊗ Y)` that displays it,
+  `f : A ⟶ X₁ ⊗ (V ⊗ Y₁)` and `g : V ⟶ X₂ ⊗ (W ⊗ Y₂)` that display it (b). For
+  `f : A ⟶ X₁ ⊗ (W ⊗ Y₁)` that displays it, it holds for the composite of `f`
+  with each `u : A ⊗ X₁ ⟶ X₂` and `v : Y₁ ⊗ A ⟶ Y₂` (c). In a Markov category
+  with conditionals, for `f : A ⟶ X ⊗ ((V ⊗ W) ⊗ Y)` that displays it,
   `f ≫ (tensorCondReorder X V W Y).hom` has a conditional on `V` that displays
-  it (d). In a Markov category, each conditional of `g : A ⟶ V ⊗ W` on `V`
-  gives such a conditional of
-  `condIndepForm g h k ≫ (tensorCondReorder X V W Y).hom` as a `condIndepForm`.
+  it (d). In a Markov category, each conditional `g'` of `g : A ⟶ V ⊗ W` on
+  `V` gives a conditional of
+  `condIndepForm g h k ≫ (tensorCondReorder X V W Y).hom` on `V`: a
+  `condIndepForm` with first factor `g'`.
 
 At `v0.5.8`, `THEOREM_MAP.md` has 109 rows that pair a Lean id with a Rust test.
-The crate has 282 tests with all features on.
+The crate has 284 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 

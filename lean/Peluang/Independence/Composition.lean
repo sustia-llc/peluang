@@ -139,7 +139,7 @@ theorem copy_comp_condIndepForm_comp_tensorHom {A X₁ W Y₁ X₂ Y₂ : C} (g 
 independence of `X₁` and `Y₁` given `W` and `A`, then for arbitrary `u : A ⊗ X₁ ⟶ X₂` and
 `v : Y₁ ⊗ A ⟶ Y₂` the composite
 `Δ[A] ≫ A ◁ Δ[A] ≫ A ◁ (f ▷ A) ≫ (tensorCompAssoc A X₁ W Y₁ A).hom ≫ (u ⊗ₘ W ◁ v) :
-A ⟶ X₂ ⊗ (W ⊗ Y₂)`, which copies `A` three times, applies `f` to the middle copy, `u` to the
+A ⟶ X₂ ⊗ (W ⊗ Y₂)`, which makes three copies of `A`, applies `f` to the middle copy, `u` to the
 first copy and `X₁`, and `v` to `Y₁` and the third copy, displays the conditional independence
 of `X₂` and `Y₂` given `W` and `A` (Fritz 2020, Prop. 12.18 (c)). -/
 theorem DisplaysCondIndep.comp_tensorHom {A X₁ W Y₁ X₂ Y₂ : C}

@@ -1,17 +1,22 @@
 //! Witnesses of `DisplaysCondIndep.tensor`, `DisplaysCondIndep.comp`,
 //! `DisplaysCondIndep.comp_tensorHom`, `IsConditional.condIndepForm`,
 //! `DisplaysCondIndep.exists_isConditional` and
-//! `tensorTripleInterchange_hom_natural` on kernels with literal factors: the
-//! composites of Fritz 2020, Prop. 12.18, built from `Kernel::tensor`,
+//! `tensorTripleInterchange_hom_natural` on kernels with literal factors. The
+//! composites of Fritz 2020, Prop. 12.18, are built from `Kernel::tensor`,
 //! `Kernel::copy`, `Kernel::del`, `Kernel::swap`, `Kernel::associator`, the
-//! unitors and the two whiskers, compared with `==` to `cond_indep_form` of
-//! the factors of each conclusion and to literals, `conditional` with the
-//! Def. 11.5 composite `conditional_composite`, and
-//! `cond_independent_at_each_input`, which runs `is_cond_independent_state`
-//! on the state at each input of a kernel. A literal of a kernel with more
-//! than 64 weights gives the columns of two inputs. Also, untagged: the
-//! helpers `mu` and `delta` against point literals and against each other,
-//! and `copy_pair` against a literal. The engine is strict:
+//! unitors and the two whiskers. For `tensor`, `comp` and `comp_tensorHom`,
+//! `==` compares the composite with `cond_indep_form` of the factors of the
+//! conclusion. For `condIndepForm` and `exists_isConditional`, `==` compares
+//! the Def. 11.5 composite `conditional_composite` of the conditional with
+//! the reordered kernel. For `tensorTripleInterchange_hom_natural`, `==`
+//! compares the two sides of the square. Each of these `==` comparisons
+//! covers the whole kernel. For `tensor`, `comp` and
+//! `tensorTripleInterchange_hom_natural`, the literal of the composite covers
+//! the columns of two inputs. A literal of a kernel with more than 64 weights
+//! gives the columns of two inputs. `cond_independent_at_each_input` runs
+//! `is_cond_independent_state` on the state at each input of a kernel. Also,
+//! untagged: the helpers `mu` and `delta` against point literals and against
+//! each other, and `copy_pair` against a literal. The engine is strict:
 //! `Kernel::associator` stands for both `α` and `α⁻¹`, `Kernel::swap` for both
 //! `β` and `β⁻¹`, `Kernel::left_unitor` for `λ` and `Kernel::right_unitor` for
 //! `ρ`.
@@ -25,17 +30,10 @@ use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
 
 use crate::fixtures::{
-    assert_differs, assert_kernel, c, conditional_composite, h, j, k, labels, lit, m, obj_b, obj_p,
-    obj_s, obj_t, obj_w, points, r, show,
+    assert_cond_independent_at_each_input, assert_differs, assert_kernel, c,
+    cond_independent_at_each_input, conditional_composite, h, j, k, labels, lit, m, obj_b, obj_l,
+    obj_p, obj_s, obj_t, obj_w, points, r, replace_column, show,
 };
-use crate::semigraphoid_tests::{
-    assert_cond_independent_at_each_input, cond_independent_at_each_input, replace_column,
-};
-
-/// `L`: `{low, mid, high}`.
-fn obj_l() -> Result<FinObj> {
-    labels(&["low", "mid", "high"])
-}
 
 /// `C`: `{red, blue}`.
 fn obj_c() -> Result<FinObj> {
@@ -236,10 +234,33 @@ fn cond_form(
 }
 
 /// The column of `width` weights with `weight` at each `(output, weight)` of
-/// `atoms` and 0 at every other output.
+/// `atoms` and 0 at every other output; panics with `width`, the output and
+/// the atoms on an output that is not below `width` and on an output that
+/// holds a weight other than 0 from an earlier atom.
+#[track_caller]
 fn sparse_column(width: usize, atoms: &[(usize, Exact)]) -> Vec<Exact> {
+    let shown = || {
+        let atoms: Vec<String> = atoms
+            .iter()
+            .map(|(output, weight)| format!("{output}: {weight}"))
+            .collect();
+        format!("{{{}}}", atoms.join(", "))
+    };
     let mut column = vec![r(0, 1); width];
     for (output, weight) in atoms {
+        assert!(
+            *output < width,
+            "sparse_column: expected an output below {width}, observed output {output}, in the \
+             atoms {}",
+            shown()
+        );
+        assert!(
+            column[*output] == r(0, 1),
+            "sparse_column: expected the weight 0 at output {output} before its atom, observed \
+             {}, with width {width}, in the atoms {}",
+            column[*output],
+            shown()
+        );
         column[*output] = weight.clone();
     }
     column
@@ -273,6 +294,7 @@ fn assert_column(name: &str, f: &Kernel<Exact>, a: usize, expected: &[Exact]) {
 /// `at`, and the weights 1/2 at output 0 and 1/2 at output `other` on input
 /// `at`, through `Kernel::new`, for `at` below the number of inputs and
 /// `other` an output that is not 0; panics otherwise.
+#[track_caller]
 fn two_point(dom: FinObj, cod: FinObj, at: usize, other: usize) -> Result<Kernel<Exact>> {
     let width = cod.card();
     assert!(
@@ -355,10 +377,10 @@ fn h_tb_s() -> Result<Kernel<Exact>> {
     )
 }
 
-/// `k_bt_p : B ⊗ T → P`: `(false, hot)` to `(1, 0)`, `(false, cold)` to
+/// `k_bt_p2 : B ⊗ T → P`: `(false, hot)` to `(1, 0)`, `(false, cold)` to
 /// `(1/2, 1/2)`, `(true, hot)` to `(1/2, 1/2)`, `(true, cold)` to
 /// `(1/4, 3/4)`.
-fn k_bt_p() -> Result<Kernel<Exact>> {
+fn k_bt_p2() -> Result<Kernel<Exact>> {
     lit(
         obj_b()?.tensor(&obj_t()?)?,
         obj_p()?,
@@ -372,8 +394,8 @@ fn k_bt_p() -> Result<Kernel<Exact>> {
 }
 
 /// `f_t : T → S ⊗ (B ⊗ P)`, the literal of
-/// `cond_indep_form(g_tb, h_tb_s, k_bt_p)`: weight
-/// `g_tb(b | t) · h_tb_s(s | (t, b)) · k_bt_p(p | (b, t))` at output
+/// `cond_indep_form(g_tb, h_tb_s, k_bt_p2)`: weight
+/// `g_tb(b | t) · h_tb_s(s | (t, b)) · k_bt_p2(p | (b, t))` at output
 /// `(s, b, p)`.
 fn f_t() -> Result<Kernel<Exact>> {
     lit(
@@ -603,9 +625,9 @@ fn v_pt_c() -> Result<Kernel<Exact>> {
     )
 }
 
-/// `g_t_bs : T → B ⊗ S`: hot to `(1/3, 2/3, 0, 0)`, with no mass at first
+/// `g_t_bs2 : T → B ⊗ S`: hot to `(1/3, 2/3, 0, 0)`, with no mass at first
 /// factor true, cold to `(1/8, 1/8, 1/4, 1/2)`.
-fn g_t_bs() -> Result<Kernel<Exact>> {
+fn g_t_bs2() -> Result<Kernel<Exact>> {
     lit(
         obj_t()?,
         obj_b()?.tensor(&obj_s()?)?,
@@ -655,12 +677,12 @@ fn h_tbs_l() -> Result<Kernel<Exact>> {
     )
 }
 
-/// `k_bst_p : (B ⊗ S) ⊗ T → P`: `(false, on, hot)` to `(1, 0)`,
+/// `k_bst_p2 : (B ⊗ S) ⊗ T → P`: `(false, on, hot)` to `(1, 0)`,
 /// `(false, on, cold)` to `(1/2, 1/2)`, `(false, off, hot)` to `(1/4, 3/4)`,
 /// `(false, off, cold)` to `(0, 1)`, `(true, on, hot)` to `(1/2, 1/2)`,
 /// `(true, on, cold)` to `(1, 0)`, `(true, off, hot)` to `(0, 1)`,
 /// `(true, off, cold)` to `(1/3, 2/3)`.
-fn k_bst_p() -> Result<Kernel<Exact>> {
+fn k_bst_p2() -> Result<Kernel<Exact>> {
     lit(
         obj_b()?.tensor(&obj_s()?)?.tensor(&obj_t()?)?,
         obj_p()?,
@@ -678,8 +700,8 @@ fn k_bst_p() -> Result<Kernel<Exact>> {
 }
 
 /// `f_l_bsp : T → L ⊗ ((B ⊗ S) ⊗ P)`, the literal of
-/// `cond_indep_form(g_t_bs, h_tbs_l, k_bst_p)`: weight
-/// `g_t_bs((b, s) | t) · h_tbs_l(l | (t, b, s)) · k_bst_p(p | (b, s, t))` at
+/// `cond_indep_form(g_t_bs2, h_tbs_l, k_bst_p2)`: weight
+/// `g_t_bs2((b, s) | t) · h_tbs_l(l | (t, b, s)) · k_bst_p2(p | (b, s, t))` at
 /// output `(l, b, s, p)`.
 fn f_l_bsp() -> Result<Kernel<Exact>> {
     lit(
@@ -763,7 +785,7 @@ fn f_b_lsp() -> Result<Kernel<Exact>> {
 }
 
 /// `c_bt_lsp : B ⊗ T → L ⊗ (S ⊗ P)`: weight
-/// `g'(s | (b, t)) · h_tbs_l(l | (t, b, s)) · k_bst_p(p | (b, s, t))` at
+/// `g'(s | (b, t)) · h_tbs_l(l | (t, b, s)) · k_bst_p2(p | (b, s, t))` at
 /// output `(l, s, p)`, with `g'` the kernel
 /// `bt_to_s((1/2, 1/2), (1/3, 2/3))`.
 fn c_bt_lsp() -> Result<Kernel<Exact>> {
@@ -854,7 +876,7 @@ fn c_z_c() -> Result<Kernel<Exact>> {
 
 /// At `A₁ = T`, `X₁ = S`, `W₁ = B`, `Y₁ = P`, `A₂ = L`, `X₂ = C`, `W₂ = W`,
 /// `Y₂ = D`, with `f₁ = cond_indep_form(g₁, h₁, k₁)` for `g₁ = g_tb`,
-/// `h₁ = h_tb_s` and `k₁ = k_bt_p`, and `f₂ = cond_indep_form(g₂, h₂, k₂)` for
+/// `h₁ = h_tb_s` and `k₁ = k_bt_p2`, and `f₂ = cond_indep_form(g₂, h₂, k₂)` for
 /// `g₂ = g_lw`, `h₂ = h_lw_c` and `k₂ = k_wl_d`. The `==` half compares
 /// `(f₁ ⊗ₘ f₂) ≫ tensorTripleInterchange S B P C W D` with two literal columns
 /// and with `cond_indep_form` of `g₁ ⊗ₘ g₂`, `tensorδ T B L W ≫ (h₁ ⊗ₘ h₂)` and
@@ -869,11 +891,11 @@ fn witness_displays_cond_indep_tensor() -> Result<()> {
     let (t, l) = (obj_t()?, obj_l()?);
     let (sp, b, p) = (obj_s()?, obj_b()?, obj_p()?);
     let (cc, w, d) = (obj_c()?, obj_w()?, obj_d()?);
-    let (g1, h1, k1) = (g_tb()?, h_tb_s()?, k_bt_p()?);
+    let (g1, h1, k1) = (g_tb()?, h_tb_s()?, k_bt_p2()?);
     let (g2, h2, k2) = (g_lw()?, h_lw_c()?, k_wl_d()?);
     let f1 = cond_indep_form(&g1, &h1, &k1)?;
     let f2 = cond_indep_form(&g2, &h2, &k2)?;
-    assert_kernel("f₁ = cond_indep_form(g_tb, h_tb_s, k_bt_p)", &f1, &f_t()?);
+    assert_kernel("f₁ = cond_indep_form(g_tb, h_tb_s, k_bt_p2)", &f1, &f_t()?);
     assert_kernel("f₂ = cond_indep_form(g_lw, h_lw_c, k_wl_d)", &f2, &f_l()?);
 
     let reorder = interchange(&sp, &b, &p, &cc, &w, &d)?;
@@ -1253,7 +1275,7 @@ fn witness_displays_cond_indep_comp() -> Result<()> {
 }
 
 /// At `A = T`, `X₁ = S`, `W = B`, `Y₁ = P`, `X₂ = L`, `Y₂ = C`, with
-/// `f = cond_indep_form(g_tb, h, k)` for `h = h_tb_s` and `k = k_bt_p`,
+/// `f = cond_indep_form(g_tb, h, k)` for `h = h_tb_s` and `k = k_bt_p2`,
 /// `u = u_ts_l` and `v = v_pt_c`. The `==` half compares `Δ[T] ≫ (T ◁ Δ[T]) ≫ (T ◁ (f ▷ T)) ≫
 /// tensorCompAssoc T S B P T ≫ (u ⊗ₘ (B ◁ v))` with a literal and with
 /// `cond_indep_form(g_tb, (Δ[T] ▷ B) ≫ α ≫ (T ◁ h) ≫ u,
@@ -1261,17 +1283,17 @@ fn witness_displays_cond_indep_comp() -> Result<()> {
 /// `is_cond_independent_state` on the state at each input is a claim of this
 /// test. The control takes `f_t_bad`, which fails at cold, with
 /// `u = (ε[T] ▷ S) ≫ λ` and `v = (P ◁ ε[T]) ≫ ρ`. Each list control is a
-/// `two_point` kernel on `L ⊗ (B ⊗ C)`, with one list in place of the empty
+/// `two_point` kernel on `L ⊗ (B ⊗ C)`, with the empty list in place of one
 /// list.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.comp_tensorHom
 #[test]
 fn witness_displays_cond_indep_comp_tensor_hom() -> Result<()> {
     let (t, sp, b, p) = (obj_t()?, obj_s()?, obj_b()?, obj_p()?);
     let (l, cc) = (obj_l()?, obj_c()?);
-    let (g1, h1, k1) = (g_tb()?, h_tb_s()?, k_bt_p()?);
+    let (g1, h1, k1) = (g_tb()?, h_tb_s()?, k_bt_p2()?);
     let (u, v) = (u_ts_l()?, v_pt_c()?);
     let f = cond_indep_form(&g1, &h1, &k1)?;
-    assert_kernel("f = cond_indep_form(g_tb, h_tb_s, k_bt_p)", &f, &f_t()?);
+    assert_kernel("f = cond_indep_form(g_tb, h_tb_s, k_bt_p2)", &f, &f_t()?);
 
     let cod = l.tensor(&b)?.tensor(&cc)?;
     let composite = comp_tensor_hom(&f, &sp, &b, &p, &u, &v)?;
@@ -1410,23 +1432,26 @@ fn witness_displays_cond_indep_comp_tensor_hom() -> Result<()> {
 }
 
 /// At `A = T`, `X = L`, `V = B`, `W = S`, `Y = P`, with
-/// `f = cond_indep_form(g, h, k)` for `g = g_t_bs`, `h = h_tbs_l` and
-/// `k = k_bst_p`, and with `g' = conditional(g, B, S)`. The input hot gives
+/// `f = cond_indep_form(g, h, k)` for `g = g_t_bs2`, `h = h_tbs_l` and
+/// `k = k_bst_p2`, and with `g' = conditional(g, B, S)`. The input hot gives
 /// no mass to `V` true. The `==` half compares the Def. 11.5 composite of
 /// `c = cond_indep_form(g', (σ[B, T] ▷ S) ≫ α ≫ h, α⁻¹ ≫ (σ[S, B] ▷ T) ≫ k)`
 /// on `f ≫ tensorCondReorder L B S P` with `f ≫ tensorCondReorder L B S P`,
 /// and each of `f`, `f ≫ tensorCondReorder L B S P`, `g'` and `c` with a
 /// literal. The control replaces the column of `g'` at `(true, cold)`, an
-/// input with mass.
+/// input with mass. The hypothesis `IsConditional g g'` is pinned for `g'`
+/// and for the kernel with `(true, hot)` at `(1, 0)`: the Def. 11.5 composite
+/// of each on `g` equals `g`. For the control, that composite differs from
+/// `g`.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.IsConditional.condIndepForm
 #[test]
 fn witness_is_conditional_cond_indep_form() -> Result<()> {
     let (t, l, b, sp, p) = (obj_t()?, obj_l()?, obj_b()?, obj_s()?, obj_p()?);
     let rest = l.tensor(&sp)?.tensor(&p)?;
-    let (g, h1, k1) = (g_t_bs()?, h_tbs_l()?, k_bst_p()?);
+    let (g, h1, k1) = (g_t_bs2()?, h_tbs_l()?, k_bst_p2()?);
     let f = cond_indep_form(&g, &h1, &k1)?;
     assert_kernel(
-        "f = cond_indep_form(g_t_bs, h_tbs_l, k_bst_p)",
+        "f = cond_indep_form(g_t_bs2, h_tbs_l, k_bst_p2)",
         &f,
         &f_l_bsp()?,
     );
@@ -1435,7 +1460,12 @@ fn witness_is_conditional_cond_indep_form() -> Result<()> {
 
     let cond_literal = bt_to_s([r(1, 2), r(1, 2)], [r(1, 3), r(2, 3)])?;
     let cond = conditional(&g, &b, &sp)?;
-    assert_kernel("conditional(g_t_bs, B, S)", &cond, &cond_literal);
+    assert_kernel(
+        "IsConditional g g': the Def. 11.5 composite of g' = conditional(g_t_bs2, B, S) on g",
+        &conditional_composite(&g, &b, &sp, &cond)?,
+        &g,
+    );
+    assert_kernel("conditional(g_t_bs2, B, S)", &cond, &cond_literal);
     let composed = cond_form(&cond, &h1, &k1, &t, &b, &sp)?;
     assert_kernel(
         "c = cond_indep_form(g', (σ[B, T] ▷ S) ≫ α ≫ h, α⁻¹ ≫ (σ[S, B] ▷ T) ≫ k)",
@@ -1451,6 +1481,12 @@ fn witness_is_conditional_cond_indep_form() -> Result<()> {
     let free = bt_to_s([r(1, 1), r(0, 1)], [r(1, 3), r(2, 3)])?;
     assert_differs("(true, hot) at (1, 0) against (1/2, 1/2)", &free, &cond);
     assert_kernel(
+        "IsConditional g g': the Def. 11.5 composite on g of the kernel with (true, hot) at (1, \
+         0), a zero-mass input",
+        &conditional_composite(&g, &b, &sp, &free)?,
+        &g,
+    );
+    assert_kernel(
         "the Def. 11.5 composite of c from the kernel with (true, hot) at (1, 0), a zero-mass \
          input",
         &conditional_composite(
@@ -1462,6 +1498,12 @@ fn witness_is_conditional_cond_indep_form() -> Result<()> {
         &reordered,
     );
     let changed = bt_to_s([r(1, 2), r(1, 2)], [r(2, 3), r(1, 3)])?;
+    assert_differs(
+        "control: IsConditional g g' fails: the Def. 11.5 composite on g of the kernel with \
+         (true, cold) at (2/3, 1/3), an input with mass",
+        &conditional_composite(&g, &b, &sp, &changed)?,
+        &g,
+    );
     assert_differs(
         "control: the Def. 11.5 composite of c from the kernel with (true, cold) at (2/3, 1/3), \
          an input with mass",
@@ -1485,13 +1527,13 @@ fn witness_is_conditional_cond_indep_form() -> Result<()> {
 /// order `(false, hot)`, `(false, cold)`, `(true, hot)`, `(true, cold)` of
 /// `B ⊗ T`, is a claim of this test. The control replaces the column of the
 /// literal of `c` at `(false, cold)`. Each list control is a `two_point`
-/// kernel `B ⊗ T → L ⊗ (S ⊗ P)`, with one list in place of the empty list.
+/// kernel `B ⊗ T → L ⊗ (S ⊗ P)`, with the empty list in place of one list.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.exists_isConditional
 #[test]
 fn witness_displays_cond_indep_exists_is_conditional() -> Result<()> {
     let (t, l, b, sp, p) = (obj_t()?, obj_l()?, obj_b()?, obj_s()?, obj_p()?);
     let rest = l.tensor(&sp)?.tensor(&p)?;
-    let (g, h1, k1) = (g_t_bs()?, h_tbs_l()?, k_bst_p()?);
+    let (g, h1, k1) = (g_t_bs2()?, h_tbs_l()?, k_bst_p2()?);
     let f = cond_indep_form(&g, &h1, &k1)?;
     let reordered = then(&f, &cond_reorder(&l, &b, &sp, &p)?)?;
     assert_kernel("f ≫ tensorCondReorder L B S P", &reordered, &f_b_lsp()?);
@@ -1708,4 +1750,18 @@ fn copy_pair_matches_the_literal_j() -> Result<()> {
         &pair,
     );
     Ok(())
+}
+
+#[test]
+#[should_panic(expected = "sparse_column: expected an output below")]
+fn sparse_column_panics_on_an_output_out_of_range() {
+    let got = sparse_column(2, &[(2, r(1, 1))]);
+    drop(got);
+}
+
+#[test]
+#[should_panic(expected = "sparse_column: expected the weight 0 at output")]
+fn sparse_column_panics_on_a_second_atom_at_an_output() {
+    let got = sparse_column(2, &[(1, r(1, 2)), (1, r(1, 3))]);
+    drop(got);
 }
