@@ -2110,11 +2110,3 @@ fn is_cond_independent_state_sums_out_a_factor_in_no_list() -> Result<()> {
     }
     Ok(())
 }
-
-#[test]
-#[should_panic(expected = "replace_column: expected an input below")]
-fn replace_column_panics_on_an_input_out_of_range() {
-    let base = k_tb().expect("invariant: k_tb is a literal kernel with two inputs");
-    let got = replace_column(&base, 2, &[r(1, 2), r(1, 2)]);
-    drop(got);
-}

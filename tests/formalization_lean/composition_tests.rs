@@ -12,11 +12,13 @@
 //! compares the two sides of the square. Each of these `==` comparisons
 //! covers the whole kernel. For `tensor`, `comp` and
 //! `tensorTripleInterchange_hom_natural`, the literal of the composite covers
-//! the columns of two inputs. A literal of a kernel with more than 64 weights
-//! gives the columns of two inputs. `cond_independent_at_each_input` runs
+//! the columns of two inputs. `cond_independent_at_each_input` runs
 //! `is_cond_independent_state` on the state at each input of a kernel. Also,
 //! untagged: the helpers `mu` and `delta` against point literals and against
-//! each other, and `copy_pair` against a literal. The engine is strict:
+//! each other, `copy_pair` against a literal, the panics of `sparse_column`
+//! on an output out of range and on a second atom at an output, after a first
+//! atom of weight 1/2 and after a first atom of weight 0, and the panic of
+//! `replace_column` on an input out of range. The engine is strict:
 //! `Kernel::associator` stands for both `α` and `α⁻¹`, `Kernel::swap` for both
 //! `β` and `β⁻¹`, `Kernel::left_unitor` for `λ` and `Kernel::right_unitor` for
 //! `ρ`.
@@ -235,8 +237,8 @@ fn cond_form(
 
 /// The column of `width` weights with `weight` at each `(output, weight)` of
 /// `atoms` and 0 at every other output; panics with `width`, the output and
-/// the atoms on an output that is not below `width` and on an output that
-/// holds a weight other than 0 from an earlier atom.
+/// the atoms on an output that is not below `width` and on a second atom at an
+/// output, whatever the weight of the first.
 #[track_caller]
 fn sparse_column(width: usize, atoms: &[(usize, Exact)]) -> Vec<Exact> {
     let shown = || {
@@ -247,6 +249,7 @@ fn sparse_column(width: usize, atoms: &[(usize, Exact)]) -> Vec<Exact> {
         format!("{{{}}}", atoms.join(", "))
     };
     let mut column = vec![r(0, 1); width];
+    let mut written = vec![false; width];
     for (output, weight) in atoms {
         assert!(
             *output < width,
@@ -255,12 +258,13 @@ fn sparse_column(width: usize, atoms: &[(usize, Exact)]) -> Vec<Exact> {
             shown()
         );
         assert!(
-            column[*output] == r(0, 1),
-            "sparse_column: expected the weight 0 at output {output} before its atom, observed \
-             {}, with width {width}, in the atoms {}",
+            !written[*output],
+            "sparse_column: expected one atom at output {output}, observed a second atom after \
+             the weight {}, with width {width}, in the atoms {}",
             column[*output],
             shown()
         );
+        written[*output] = true;
         column[*output] = weight.clone();
     }
     column
@@ -303,12 +307,14 @@ fn two_point(dom: FinObj, cod: FinObj, at: usize, other: usize) -> Result<Kernel
          {other}",
         dom.card()
     );
+    let at_column = sparse_column(width, &[(0, r(1, 2)), (other, r(1, 2))]);
+    let other_column = sparse_column(width, &[(0, r(1, 1))]);
     let data = (0..dom.card())
         .flat_map(|a| {
             if a == at {
-                sparse_column(width, &[(0, r(1, 2)), (other, r(1, 2))])
+                at_column.clone()
             } else {
-                sparse_column(width, &[(0, r(1, 1))])
+                other_column.clone()
             }
         })
         .collect();
@@ -1760,8 +1766,23 @@ fn sparse_column_panics_on_an_output_out_of_range() {
 }
 
 #[test]
-#[should_panic(expected = "sparse_column: expected the weight 0 at output")]
+#[should_panic(expected = "sparse_column: expected one atom at output")]
 fn sparse_column_panics_on_a_second_atom_at_an_output() {
     let got = sparse_column(2, &[(1, r(1, 2)), (1, r(1, 3))]);
+    drop(got);
+}
+
+#[test]
+#[should_panic(expected = "sparse_column: expected one atom at output")]
+fn sparse_column_panics_on_a_second_atom_after_the_weight_zero() {
+    let got = sparse_column(2, &[(1, r(0, 1)), (1, r(1, 2))]);
+    drop(got);
+}
+
+#[test]
+#[should_panic(expected = "replace_column: expected an input below")]
+fn replace_column_panics_on_an_input_out_of_range() {
+    let base = k().expect("invariant: k is a literal kernel with two inputs");
+    let got = replace_column(&base, 2, &[r(1, 2), r(1, 2)]);
     drop(got);
 }

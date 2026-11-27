@@ -22,7 +22,7 @@ git tag is the authoritative pin.
   category, with 14 theorems.
 - `lean/Peluang/Monoidal/Reorder.lean`: `tensorTripleInterchange_hom_natural`,
   for a braided monoidal category.
-- `tests/formalization_lean/composition_tests.rs`: 10 tests, 6 of them with a
+- `tests/formalization_lean/composition_tests.rs`: 12 tests, 6 of them with a
   `THEOREM_MAP` tag. `THEOREM_MAP.md` goes from 103 to 109 rows.
 
 ## [0.5.7] - 2026-11-27

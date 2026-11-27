@@ -142,8 +142,10 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   that display it, after `tensorTripleInterchange` (a). It holds for
   `f ≫ X₁ ◁ ((Δ[V] ≫ V ◁ g) ▷ Y₁)` after `tensorCompReorder`, for
   `f : A ⟶ X₁ ⊗ (V ⊗ Y₁)` and `g : V ⟶ X₂ ⊗ (W ⊗ Y₂)` that display it (b). For
-  `f : A ⟶ X₁ ⊗ (W ⊗ Y₁)` that displays it, it holds for the composite of `f`
-  with each `u : A ⊗ X₁ ⟶ X₂` and `v : Y₁ ⊗ A ⟶ Y₂` (c). In a Markov category
+  `f : A ⟶ X₁ ⊗ (W ⊗ Y₁)` that displays it, and for each `u : A ⊗ X₁ ⟶ X₂` and
+  `v : Y₁ ⊗ A ⟶ Y₂`, it holds for
+  `Δ[A] ≫ A ◁ Δ[A] ≫ A ◁ (f ▷ A) ≫ (tensorCompAssoc A X₁ W Y₁ A).hom ≫ (u ⊗ₘ W ◁ v)`
+  (c). In a Markov category
   with conditionals, for `f : A ⟶ X ⊗ ((V ⊗ W) ⊗ Y)` that displays it,
   `f ≫ (tensorCondReorder X V W Y).hom` has a conditional on `V` that displays
   it (d). In a Markov category, each conditional `g'` of `g : A ⟶ V ⊗ W` on
@@ -152,7 +154,7 @@ no `sorry`, and they use only the axioms `propext`, `Classical.choice` and
   `condIndepForm` with first factor `g'`.
 
 At `v0.5.8`, `THEOREM_MAP.md` has 109 rows that pair a Lean id with a Rust test.
-The crate has 284 tests with all features on.
+The crate has 285 tests with all features on.
 
 [![Mathlib classes and the main peluang declarations](docs/diagrams/lean-1-classes.svg)](docs/diagrams/lean-1-classes.svg)
 
