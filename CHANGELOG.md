@@ -17,10 +17,10 @@ git tag is the authoritative pin.
   conditionals. The others are for a copy-discard category. The file has
   eleven more helper theorems. Five of them are equations for
   `condIndepForm`.
-- `tests/formalization_lean/semigraphoid_tests.rs`: 4 tests, each with a
-  `THEOREM_MAP` tag. Each test compares two `cond_indep_form` composites with
-  `==`. It also runs `is_cond_independent_state` on the state at each input.
-  `THEOREM_MAP.md` goes from 99 to 103 rows.
+- `tests/formalization_lean/semigraphoid_tests.rs`: 5 tests, 4 of them with
+  a `THEOREM_MAP` tag. Each tagged test compares two `cond_indep_form`
+  composites with `==`. It also runs `is_cond_independent_state` on the
+  state at each input. `THEOREM_MAP.md` goes from 99 to 103 rows.
 
 ## [0.5.6] - 2026-11-26
 

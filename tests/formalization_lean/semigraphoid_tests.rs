@@ -1658,7 +1658,9 @@ fn witness_displays_cond_indep_contraction() -> Result<()> {
 /// `cond_indep_form` of `marginal_snd(m', W, B ⊗ S)`,
 /// `σ[T, B ⊗ S] ≫ conditional_snd(m', W, B ⊗ S)` and
 /// `((B ◁ ε[S] ≫ ρ) ▷ T) ≫ k`. The result of `is_cond_independent_state` on
-/// the state at each input is a claim of this test.
+/// the state at each input is a claim of this test. The control `f_s` is a
+/// literal on `W ⊗ ((B ⊗ S) ⊗ P)`, not a composite of the theorem, and its
+/// two assertions separate the list `[1, 2]` from the list `[1]` as `ws`.
 /// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.weak_union
 #[test]
 fn witness_displays_cond_indep_weak_union() -> Result<()> {
@@ -2185,4 +2187,12 @@ fn is_cond_independent_state_sums_out_a_factor_in_no_list() -> Result<()> {
         );
     }
     Ok(())
+}
+
+#[test]
+#[should_panic(expected = "replace_column: expected an input below")]
+fn replace_column_panics_on_an_input_out_of_range() {
+    let base = k_tb().expect("invariant: k_tb is a literal kernel with two inputs");
+    let got = replace_column(&base, 2, &[r(1, 2), r(1, 2)]);
+    drop(got);
 }

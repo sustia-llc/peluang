@@ -11,9 +11,9 @@ public import Peluang.Monoidal.Reorder
 /-!
 # The semigraphoid properties
 
-The semigraphoid properties of independence given an input, and of conditional independence
-for a state. The semigraphoid properties of conditional independence given an input
-(Fritz 2020, Prop. 12.17).
+Symmetry and decomposition of independence given an input (Fritz 2020, Lemma 12.13). The
+semigraphoid properties of conditional independence for a state (Fritz 2020, Lemma 12.5) and
+of conditional independence given an input (Fritz 2020, Prop. 12.17).
 
 ## Main results
 
