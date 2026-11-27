@@ -382,25 +382,27 @@ fn psi_wtsb_dep() -> Result<Kernel<Exact>> {
 
 /// `is_cond_independent_state(f(· | a), xs, ws, ys)` at each input `a` of `f`,
 /// in input order, where `f(· | a)` is the state on the codomain of `f` with
-/// the weights `f.column(a)`, through `Kernel::state`.
+/// the weights `f.column(a)`, through `Kernel::state`. Returns the first error
+/// in input order, with its input.
 fn cond_independent_at_each_input(
     f: &Kernel<Exact>,
     xs: &[usize],
     ws: &[usize],
     ys: &[usize],
-) -> Result<Vec<bool>> {
+) -> std::result::Result<Vec<bool>, (usize, Error)> {
     (0..f.domain().card())
         .map(|a| {
             let column = f.column(a).expect("invariant: a < dom.card() has a column");
-            let state = Kernel::state(f.codomain().clone(), column.to_vec())?;
-            is_cond_independent_state(&state, xs, ws, ys)
+            Kernel::state(f.codomain().clone(), column.to_vec())
+                .and_then(|state| is_cond_independent_state(&state, xs, ws, ys))
+                .map_err(|e| (a, e))
         })
         .collect()
 }
 
 /// Asserts `cond_independent_at_each_input(f, xs, ws, ys) == Ok(expected)`,
-/// naming `name`; panics with `name` and the error when the engine returns an
-/// error.
+/// naming `name`; panics with `name`, the input and the error when the engine
+/// returns an error.
 #[track_caller]
 fn assert_cond_independent_at_each_input(
     name: &str,
@@ -412,9 +414,9 @@ fn assert_cond_independent_at_each_input(
 ) {
     let observed = match cond_independent_at_each_input(f, xs, ws, ys) {
         Ok(observed) => observed,
-        Err(e) => panic!(
+        Err((a, e)) => panic!(
             "cond_independent_at_each_input({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected \
-             Ok({expected:?}), observed Err({e:?})",
+             Ok({expected:?}), observed Err({e:?}) at input {a}",
             show(f)
         ),
     };
@@ -428,8 +430,16 @@ fn assert_cond_independent_at_each_input(
 }
 
 /// The kernel with the columns of `base`, and `column` in place of its column
-/// at input `a`, through `Kernel::new`.
+/// at input `a`, through `Kernel::new`, for `a` below the number of inputs of
+/// `base`; panics with `a` and the domain of `base` otherwise.
+#[track_caller]
 fn replace_column(base: &Kernel<Exact>, a: usize, column: &[Exact]) -> Result<Kernel<Exact>> {
+    assert!(
+        a < base.domain().card(),
+        "replace_column: expected an input below {}, observed a = {a}, on the domain {:?}",
+        base.domain().card(),
+        base.domain()
+    );
     let data = (0..base.domain().card())
         .flat_map(|x| {
             if x == a {
@@ -1790,7 +1800,7 @@ fn witness_displays_cond_indep_weak_union() -> Result<()> {
             zero.clone(),
             zero.clone(),
             [r(0, 1), r(0, 1), r(0, 1), r(1, 2)],
-            zero,
+            zero.clone(),
         ]
         .concat(),
     )?;
@@ -1809,6 +1819,41 @@ fn witness_displays_cond_indep_weak_union() -> Result<()> {
         &[1, 2],
         &[3],
         &[true, false],
+    );
+
+    let split = lit(
+        t,
+        w.tensor(&bs)?.tensor(&obj_p()?)?,
+        &[
+            &[r(1, 4), r(1, 4), r(0, 1), r(0, 1)],
+            &zero,
+            &[r(0, 1), r(0, 1), r(0, 1), r(1, 2)],
+            &zero,
+            &zero,
+            &zero,
+            &zero,
+            &[r(1, 4), r(0, 1), r(1, 4), r(0, 1)],
+            &zero,
+            &zero,
+            &zero,
+            &[r(1, 4), r(0, 1), r(1, 4), r(0, 1)],
+        ],
+    )?;
+    assert_cond_independent_at_each_input(
+        "control: f_s given B ⊗ S",
+        &split,
+        &[0],
+        &[1, 2],
+        &[3],
+        &[true, true],
+    );
+    assert_cond_independent_at_each_input(
+        "control: f_s given B alone",
+        &split,
+        &[0],
+        &[1],
+        &[3],
+        &[false, true],
     );
     Ok(())
 }

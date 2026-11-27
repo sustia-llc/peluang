@@ -12,8 +12,8 @@ public import Peluang.Monoidal.Reorder
 # The semigraphoid properties
 
 The semigraphoid properties of independence given an input, and of conditional independence
-for a state, in a copy-discard category. The semigraphoid properties of conditional
-independence given an input (Fritz 2020, Prop. 12.17).
+for a state. The semigraphoid properties of conditional independence given an input
+(Fritz 2020, Prop. 12.17).
 
 ## Main results
 
