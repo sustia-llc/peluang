@@ -38,7 +38,9 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
      `python3 -I scripts/check_lake_log.py <log>` must exit 0. It fails on
      a line with `warning:`, and when the log does not hold exactly one
      audit line. An audit line starts with `info: PeluangTest/Audit.lean:`,
-     a position, and `peluangTest audit: <n> files, <n> imported`.
+     a position, and `peluangTest audit: <n> files, <n> imported`. The
+     script takes the name `Peluang` from the `package` line of
+     `lean/lakefile.lean`.
      The build runs Mathlib's style linters (`weak.linter.mathlibStandardSet`
      in `lean/lakefile.lean`, header linter off) and, through
      `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are

@@ -12,7 +12,8 @@ git tag is the authoritative pin.
   that contains `warning:`, or with a count of audit lines other than 1.
   An audit line starts with
   `info: PeluangTest/Audit.lean:<n>:<n>: peluangTest audit: <n> files, <n> imported`.
-  `scripts/test_check_lake_log.py` has 17 tests.
+  The script takes the name `Peluang` from the `package` line of
+  `lean/lakefile.lean`. `scripts/test_check_lake_log.py` has 26 tests.
 
 ### Changed
 
