@@ -8,15 +8,18 @@ git tag is the authoritative pin.
 
 ### Added
 
-- `scripts/check_lake_log.py`: exits 1 on a `lake build` log with a
-  `warning:` line, or with a count of `peluangTest audit: <n> files` lines
-  other than 1. `scripts/test_check_lake_log.py` has 15 tests.
+- `scripts/check_lake_log.py`: exits 1 on a `lake build` log with a line
+  that contains `warning:`, or with a count of audit lines other than 1.
+  An audit line starts with
+  `info: PeluangTest/Audit.lean:<n>:<n>: peluangTest audit: <n> files, <n> imported`.
+  `scripts/test_check_lake_log.py` has 17 tests.
 
 ### Changed
 
 - The `lean` workflow runs `scripts/check_lake_log.py` on the build log in
-  place of two `grep` commands. The `theorem-map` workflow runs
-  `scripts/test_check_lake_log.py`.
+  place of two `grep` commands. The `grep` for the audit line matched the
+  text `peluangTest audit: <n> files` at each position of a line. The
+  `theorem-map` workflow runs `scripts/test_check_lake_log.py`.
 
 ## [0.5.8] - 2026-11-27
 
