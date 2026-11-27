@@ -11,21 +11,26 @@
 //! its results on an empty domain, and `is_cond_independent_state` on states
 //! with a factor in no list and on states with a factor of `ws` between two
 //! factors of `xs`, with its `Error::NotAState`, `Error::NotAFactorList` and
-//! `Error::SharedFactorIndex`. The engine is strict:
-//! `Kernel::associator` stands for both `α` and `α⁻¹`, and
+//! `Error::SharedFactorIndex`. Witnesses of `DisplaysCondIndep.symm`,
+//! `DisplaysCondIndep.decomposition`, `DisplaysCondIndep.contraction` and
+//! `DisplaysCondIndep.weak_union` on kernels with the two-element domain `T`:
+//! composites of `cond_indep_form` from literal factors, compared with `==`,
+//! and `cond_independent_at_each_input`, which runs
+//! `is_cond_independent_state` on the state at each input of a kernel. The
+//! engine is strict: `Kernel::associator` stands for both `α` and `α⁻¹`, and
 //! `Kernel::right_unitor` for `ρ`.
 
 use peluang::conditional::conditional_snd;
 use peluang::error::{Error, Result};
 use peluang::finset::FinObj;
-use peluang::independence::is_cond_independent_state;
+use peluang::independence::{cond_indep_form, is_cond_independent_state};
 use peluang::kernel::Kernel;
 use peluang::markov::{Compose, Tensor};
 use peluang::prob::Exact;
 
 use crate::fixtures::{
     assert_cond_independent_state, assert_differs, assert_independent, assert_kernel, c, f, h, j,
-    k, lit, obj_b, obj_s, obj_t, obj_w, p_brk, p_ind, psi_t, r,
+    k, labels, lit, obj_b, obj_p, obj_s, obj_t, obj_w, p_brk, p_ind, psi_t, r, show,
 };
 
 /// The state on `cod` whose weights in output order are the concatenation of
@@ -371,6 +376,392 @@ fn psi_wtsb_dep() -> Result<Kernel<Exact>> {
             &[r(1, 5), r(0, 1), r(0, 1), r(0, 1)],
             &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
             &[r(0, 1), r(0, 1), r(0, 1), r(3, 5)],
+        ],
+    )
+}
+
+/// `is_cond_independent_state(f(· | a), xs, ws, ys)` at each input `a` of `f`,
+/// in input order, where `f(· | a)` is the state on the codomain of `f` with
+/// the weights `f.column(a)`, through `Kernel::state`. Returns the first error
+/// in input order, with its input.
+fn cond_independent_at_each_input(
+    f: &Kernel<Exact>,
+    xs: &[usize],
+    ws: &[usize],
+    ys: &[usize],
+) -> std::result::Result<Vec<bool>, (usize, Error)> {
+    (0..f.domain().card())
+        .map(|a| {
+            let column = f.column(a).expect("invariant: a < dom.card() has a column");
+            Kernel::state(f.codomain().clone(), column.to_vec())
+                .and_then(|state| is_cond_independent_state(&state, xs, ws, ys))
+                .map_err(|e| (a, e))
+        })
+        .collect()
+}
+
+/// Asserts `cond_independent_at_each_input(f, xs, ws, ys) == Ok(expected)`,
+/// naming `name`; panics with `name`, the input and the error when the engine
+/// returns an error.
+#[track_caller]
+fn assert_cond_independent_at_each_input(
+    name: &str,
+    f: &Kernel<Exact>,
+    xs: &[usize],
+    ws: &[usize],
+    ys: &[usize],
+    expected: &[bool],
+) {
+    let observed = match cond_independent_at_each_input(f, xs, ws, ys) {
+        Ok(observed) => observed,
+        Err((a, e)) => panic!(
+            "cond_independent_at_each_input({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected \
+             Ok({expected:?}), observed Err({e:?}) at input {a}",
+            show(f)
+        ),
+    };
+    assert_eq!(
+        observed,
+        expected,
+        "cond_independent_at_each_input({name}, {xs:?}, {ws:?}, {ys:?}) on {}: expected \
+         {expected:?}, observed {observed:?}",
+        show(f)
+    );
+}
+
+/// The kernel with the columns of `base`, and `column` in place of its column
+/// at input `a`, through `Kernel::new`, for `a` below the number of inputs of
+/// `base`; panics with `a` and the domain of `base` otherwise.
+#[track_caller]
+fn replace_column(base: &Kernel<Exact>, a: usize, column: &[Exact]) -> Result<Kernel<Exact>> {
+    assert!(
+        a < base.domain().card(),
+        "replace_column: expected an input below {}, observed a = {a}, on the domain {:?}",
+        base.domain().card(),
+        base.domain()
+    );
+    let data = (0..base.domain().card())
+        .flat_map(|x| {
+            if x == a {
+                column.to_vec()
+            } else {
+                base.column(x)
+                    .expect("invariant: x < dom.card() has a column")
+                    .to_vec()
+            }
+        })
+        .collect();
+    Kernel::new(base.domain().clone(), base.codomain().clone(), data)
+}
+
+/// `L`: `{low, mid, high}`.
+fn obj_l() -> Result<FinObj> {
+    labels(&["low", "mid", "high"])
+}
+
+/// `T ⊗ W → S`: `(hot, sunny)` to `(1/2, 1/2)`, `(hot, cloudy)` to `(1, 0)`,
+/// `(hot, rainy)` to `(1/3, 2/3)`, `(cold, sunny)` to `(1/4, 3/4)`,
+/// `(cold, cloudy)` to `(0, 1)`, `(cold, rainy)` to `(2/3, 1/3)`.
+fn h_tw_s() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?.tensor(&obj_w()?)?,
+        obj_s()?,
+        &[
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 1), r(0, 1)],
+            &[r(1, 3), r(2, 3)],
+            &[r(1, 4), r(3, 4)],
+            &[r(0, 1), r(1, 1)],
+            &[r(2, 3), r(1, 3)],
+        ],
+    )
+}
+
+/// `W ⊗ T → L`: `(sunny, hot)` to `(1/2, 1/3, 1/6)`, `(sunny, cold)` to
+/// `(1, 0, 0)`, `(cloudy, hot)` to `(0, 1/2, 1/2)`, `(cloudy, cold)` to
+/// `(1/3, 1/3, 1/3)`, `(rainy, hot)` to `(0, 0, 1)`, `(rainy, cold)` to
+/// `(1/5, 1/5, 3/5)`.
+fn k_wt_l() -> Result<Kernel<Exact>> {
+    lit(
+        obj_w()?.tensor(&obj_t()?)?,
+        obj_l()?,
+        &[
+            &[r(1, 2), r(1, 3), r(1, 6)],
+            &[r(1, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(1, 2), r(1, 2)],
+            &[r(1, 3), r(1, 3), r(1, 3)],
+            &[r(0, 1), r(0, 1), r(1, 1)],
+            &[r(1, 5), r(1, 5), r(3, 5)],
+        ],
+    )
+}
+
+/// `T → S ⊗ (W ⊗ L)`, the literal of `cond_indep_form(c, h_tw_s, k_wt_l)`:
+/// weight `c(w | t) · h_tw_s(s | (t, w)) · k_wt_l(l | (w, t))` at output
+/// `(s, w, l)`.
+fn f_s_wl() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_s()?.tensor(&obj_w()?)?.tensor(&obj_l()?)?,
+        &[
+            &[r(1, 8), r(1, 12), r(1, 24)],
+            &[r(0, 1), r(1, 4), r(1, 4)],
+            &[r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 8), r(1, 12), r(1, 24)],
+            &[r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 10), r(1, 10), r(3, 10)],
+            &[r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 12), r(1, 12), r(1, 12)],
+            &[r(1, 20), r(1, 20), r(3, 20)],
+        ],
+    )
+}
+
+/// `T → L ⊗ (W ⊗ S)`, the literal of `f_s_wl ≫ tensorRev₃ S W L`: weight
+/// `f_s_wl((s, w, l) | t)` at output `(l, w, s)`.
+fn f_l_ws() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_l()?.tensor(&obj_w()?)?.tensor(&obj_s()?)?,
+        &[
+            &[r(1, 8), r(1, 8), r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 12), r(1, 12), r(1, 4), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 24), r(1, 24), r(1, 4), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(1, 12), r(1, 10), r(1, 20)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(1, 12), r(1, 10), r(1, 20)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(1, 12), r(3, 10), r(3, 20)],
+        ],
+    )
+}
+
+/// `T ⊗ B → W ⊗ S`: `(hot, false)` to `(1/2, 0, 1/2, 0, 0, 0)`, with no mass
+/// at second factor off, `(hot, true)` to `(1/4, 1/4, 0, 1/4, 1/4, 0)`,
+/// `(cold, false)` to `(0, 0, 1/2, 1/2, 0, 0)`, `(cold, true)` to
+/// `(1/3, 1/3, 0, 0, 0, 1/3)`.
+fn h_tb_ws() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?.tensor(&obj_b()?)?,
+        obj_w()?.tensor(&obj_s()?)?,
+        &[
+            &[r(1, 2), r(0, 1), r(1, 2), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 4), r(1, 4), r(0, 1), r(1, 4), r(1, 4), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 2), r(1, 2), r(0, 1), r(0, 1)],
+            &[r(1, 3), r(1, 3), r(0, 1), r(0, 1), r(0, 1), r(1, 3)],
+        ],
+    )
+}
+
+/// `B ⊗ T → P`: `(false, hot)` to `(1/2, 1/2)`, `(false, cold)` to `(1, 0)`,
+/// `(true, hot)` to `(1/4, 3/4)`, `(true, cold)` to `(1/3, 2/3)`.
+fn k_bt_p() -> Result<Kernel<Exact>> {
+    lit(
+        obj_b()?.tensor(&obj_t()?)?,
+        obj_p()?,
+        &[
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 1), r(0, 1)],
+            &[r(1, 4), r(3, 4)],
+            &[r(1, 3), r(2, 3)],
+        ],
+    )
+}
+
+/// `T → (W ⊗ S) ⊗ (B ⊗ P)`, the literal of
+/// `cond_indep_form(k_tb, h_tb_ws, k_bt_p)`: weight
+/// `k_tb(b | t) · h_tb_ws((w, s) | (t, b)) · k_bt_p(p | (b, t))` at output
+/// `(w, s, b, p)`.
+fn f_ws_bp() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_w()?
+            .tensor(&obj_s()?)?
+            .tensor(&obj_b()?)?
+            .tensor(&obj_p()?)?,
+        &[
+            &[r(1, 8), r(1, 8), r(1, 32), r(3, 32)],
+            &[r(0, 1), r(0, 1), r(1, 32), r(3, 32)],
+            &[r(1, 8), r(1, 8), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 32), r(3, 32)],
+            &[r(0, 1), r(0, 1), r(1, 32), r(3, 32)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 12), r(1, 6)],
+            &[r(0, 1), r(0, 1), r(1, 12), r(1, 6)],
+            &[r(1, 8), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 8), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 12), r(1, 6)],
+        ],
+    )
+}
+
+/// `T → W ⊗ (B ⊗ P)`, the literal of `f_ws_bp.marginal([0, 2, 3])`: weight
+/// `Σ_s f_ws_bp((w, s, b, p) | t)` at output `(w, b, p)`.
+fn f_w_bp() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_w()?.tensor(&obj_b()?)?.tensor(&obj_p()?)?,
+        &[
+            &[r(1, 8), r(1, 8), r(1, 16), r(3, 16)],
+            &[r(1, 8), r(1, 8), r(1, 32), r(3, 32)],
+            &[r(0, 1), r(0, 1), r(1, 32), r(3, 32)],
+            &[r(0, 1), r(0, 1), r(1, 6), r(1, 3)],
+            &[r(1, 4), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 12), r(1, 6)],
+        ],
+    )
+}
+
+/// The kernel `(B ⊗ S) ⊗ T → W` with the columns `on_hot` at
+/// `((false, on), hot)`, `(0, 1, 0)` at `((false, on), cold)`, `off_hot` at
+/// `((false, off), hot)`, `(0, 1, 0)` at `((false, off), cold)`,
+/// `(1/2, 0, 1/2)` at `((true, on), hot)`, `(1, 0, 0)` at
+/// `((true, on), cold)`, `(1/2, 1/2, 0)` at `((true, off), hot)` and
+/// `(1/2, 0, 1/2)` at `((true, off), cold)`.
+fn bst_to_w(on_hot: [Exact; 3], off_hot: [Exact; 3]) -> Result<Kernel<Exact>> {
+    lit(
+        obj_b()?.tensor(&obj_s()?)?.tensor(&obj_t()?)?,
+        obj_w()?,
+        &[
+            &on_hot,
+            &[r(0, 1), r(1, 1), r(0, 1)],
+            &off_hot,
+            &[r(0, 1), r(1, 1), r(0, 1)],
+            &[r(1, 2), r(0, 1), r(1, 2)],
+            &[r(1, 1), r(0, 1), r(0, 1)],
+            &[r(1, 2), r(1, 2), r(0, 1)],
+            &[r(1, 2), r(0, 1), r(1, 2)],
+        ],
+    )
+}
+
+/// `T ⊗ B → W`: `(hot, false)` to `(1/2, 1/2, 0)`, `(hot, true)` to
+/// `(0, 0, 1)`, `(cold, false)` to `(1, 0, 0)`, `(cold, true)` to
+/// `(1/3, 1/3, 1/3)`.
+fn h_tb_w() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?.tensor(&obj_b()?)?,
+        obj_w()?,
+        &[
+            &[r(1, 2), r(1, 2), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 1)],
+            &[r(1, 1), r(0, 1), r(0, 1)],
+            &[r(1, 3), r(1, 3), r(1, 3)],
+        ],
+    )
+}
+
+/// `B ⊗ T → S`: `(false, hot)` to `(1/2, 1/2)`, `(false, cold)` to
+/// `(1/3, 2/3)`, `(true, hot)` to `(1, 0)`, `(true, cold)` to `(1/4, 3/4)`.
+fn k_bt_s() -> Result<Kernel<Exact>> {
+    lit(
+        obj_b()?.tensor(&obj_t()?)?,
+        obj_s()?,
+        &[
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 3), r(2, 3)],
+            &[r(1, 1), r(0, 1)],
+            &[r(1, 4), r(3, 4)],
+        ],
+    )
+}
+
+/// `T → B ⊗ S`, weight `k_tb(b | t) · k_bt_s(s | (b, t))` at output `(b, s)`:
+/// hot to `(1/4, 1/4, 1/2, 0)`, cold to `(1/12, 1/6, 3/16, 9/16)`.
+fn g_t_bs() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_b()?.tensor(&obj_s()?)?,
+        &[
+            &[r(1, 4), r(1, 4), r(1, 2), r(0, 1)],
+            &[r(1, 12), r(1, 6), r(3, 16), r(9, 16)],
+        ],
+    )
+}
+
+/// `T ⊗ (B ⊗ S) → W`, the column `h_tb_w(· | (t, b))` at input `(t, b, s)`.
+fn h_tbs_w() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?.tensor(&obj_b()?)?.tensor(&obj_s()?)?,
+        obj_w()?,
+        &[
+            &[r(1, 2), r(1, 2), r(0, 1)],
+            &[r(1, 2), r(1, 2), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 1)],
+            &[r(0, 1), r(0, 1), r(1, 1)],
+            &[r(1, 1), r(0, 1), r(0, 1)],
+            &[r(1, 1), r(0, 1), r(0, 1)],
+            &[r(1, 3), r(1, 3), r(1, 3)],
+            &[r(1, 3), r(1, 3), r(1, 3)],
+        ],
+    )
+}
+
+/// `(B ⊗ S) ⊗ T → P`: `((false, on), hot)` to `(1/2, 1/2)`,
+/// `((false, on), cold)` to `(1, 0)`, `((false, off), hot)` to `(0, 1)`,
+/// `((false, off), cold)` to `(1/2, 1/2)`, `((true, on), hot)` to
+/// `(1/4, 3/4)`, `((true, on), cold)` to `(1/3, 2/3)`, `((true, off), hot)`
+/// to `(1, 0)`, `((true, off), cold)` to `(2/3, 1/3)`.
+fn k_bst_p() -> Result<Kernel<Exact>> {
+    lit(
+        obj_b()?.tensor(&obj_s()?)?.tensor(&obj_t()?)?,
+        obj_p()?,
+        &[
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 1), r(0, 1)],
+            &[r(0, 1), r(1, 1)],
+            &[r(1, 2), r(1, 2)],
+            &[r(1, 4), r(3, 4)],
+            &[r(1, 3), r(2, 3)],
+            &[r(1, 1), r(0, 1)],
+            &[r(2, 3), r(1, 3)],
+        ],
+    )
+}
+
+/// `T → W ⊗ ((B ⊗ S) ⊗ P)`, the literal of
+/// `cond_indep_form(g_t_bs, h_tbs_w, k_bst_p)`: weight
+/// `g_t_bs((b, s) | t) · h_tb_w(w | (t, b)) · k_bst_p(p | ((b, s), t))` at
+/// output `(w, b, s, p)`.
+fn f_w_bsp() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_w()?
+            .tensor(&obj_b()?)?
+            .tensor(&obj_s()?)?
+            .tensor(&obj_p()?)?,
+        &[
+            &[r(1, 16), r(1, 16), r(0, 1), r(1, 8)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 16), r(1, 16), r(0, 1), r(1, 8)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 8), r(3, 8), r(0, 1), r(0, 1)],
+            &[r(1, 12), r(0, 1), r(1, 12), r(1, 12)],
+            &[r(1, 48), r(1, 24), r(1, 8), r(1, 16)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 48), r(1, 24), r(1, 8), r(1, 16)],
+            &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            &[r(1, 48), r(1, 24), r(1, 8), r(1, 16)],
+        ],
+    )
+}
+
+/// `T → W ⊗ (B ⊗ S)`, the literal of `f_w_bsp.marginal([0, 1, 2])`: weight
+/// `Σ_p f_w_bsp((w, b, s, p) | t)` at output `(w, b, s)`.
+fn f_w_bs() -> Result<Kernel<Exact>> {
+    lit(
+        obj_t()?,
+        obj_w()?.tensor(&obj_b()?)?.tensor(&obj_s()?)?,
+        &[
+            &[r(1, 8), r(1, 8), r(0, 1), r(0, 1)],
+            &[r(1, 8), r(1, 8), r(0, 1), r(0, 1)],
+            &[r(0, 1), r(0, 1), r(1, 2), r(0, 1)],
+            &[r(1, 12), r(1, 6), r(1, 16), r(3, 16)],
+            &[r(0, 1), r(0, 1), r(1, 16), r(3, 16)],
+            &[r(0, 1), r(0, 1), r(1, 16), r(3, 16)],
         ],
     )
 }
@@ -914,6 +1305,561 @@ fn witness_displays_cond_indep_state_weak_union() -> Result<()> {
     Ok(())
 }
 
+/// At `A = T`, `X = S`, `W = W`, `Y = L`, with `f = cond_indep_form(c, h, k)`
+/// for `h = h_tw_s` and `k = k_wt_l`. The `==` half compares
+/// `f ≫ tensorRev₃ S W L` with `cond_indep_form(c, σ[T, W] ≫ k, σ[W, T] ≫ h)`.
+/// The result of `is_cond_independent_state` on the state at each input is a
+/// claim of this test.
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.symm
+#[test]
+fn witness_displays_cond_indep_symm() -> Result<()> {
+    let (t, w, sp, l) = (obj_t()?, obj_w()?, obj_s()?, obj_l()?);
+    let (g, h, k) = (c()?, h_tw_s()?, k_wt_l()?);
+    let form = cond_indep_form(&g, &h, &k)?;
+    let literal = f_s_wl()?;
+    assert_kernel("cond_indep_form(c, h, k)", &form, &literal);
+    let rev = rev3(&sp, &w, &l)?;
+    let reversed_literal = f_l_ws()?;
+    let reversed = form.compose(&rev)?;
+    assert_kernel("f ≫ tensorRev₃ S W L", &reversed, &reversed_literal);
+    assert_kernel(
+        "cond_indep_form(c, σ[T, W] ≫ k, σ[W, T] ≫ h)",
+        &cond_indep_form(
+            &g,
+            &Kernel::swap(&t, &w)?.compose(&k)?,
+            &Kernel::swap(&w, &t)?.compose(&h)?,
+        )?,
+        &reversed,
+    );
+    assert_cond_independent_at_each_input("f", &form, &[0], &[1], &[2], &[true, true]);
+    assert_cond_independent_at_each_input(
+        "f ≫ tensorRev₃ S W L",
+        &reversed,
+        &[0],
+        &[1],
+        &[2],
+        &[true, true],
+    );
+
+    let zero = [r(0, 1), r(0, 1), r(0, 1)];
+    let bad = replace_column(
+        &literal,
+        0,
+        &[
+            zero.clone(),
+            zero.clone(),
+            [r(1, 2), r(0, 1), r(0, 1)],
+            zero.clone(),
+            zero.clone(),
+            [r(0, 1), r(0, 1), r(1, 2)],
+        ]
+        .concat(),
+    )?;
+    let bad_rev = bad.compose(&rev)?;
+    assert_kernel(
+        "control: f_bad ≫ tensorRev₃ S W L",
+        &bad_rev,
+        &replace_column(
+            &reversed_literal,
+            0,
+            &[
+                [r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(1, 2), r(0, 1)],
+                [r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+                [r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(0, 1), r(1, 2)],
+            ]
+            .concat(),
+        )?,
+    );
+    assert_cond_independent_at_each_input("control: f_bad", &bad, &[0], &[1], &[2], &[false, true]);
+    assert_cond_independent_at_each_input(
+        "control: f_bad ≫ tensorRev₃ S W L",
+        &bad_rev,
+        &[0],
+        &[1],
+        &[2],
+        &[false, true],
+    );
+    Ok(())
+}
+
+/// At `A = T`, `X₁ = W`, `X₂ = S`, `W = B`, `Y = P`, with
+/// `f = cond_indep_form(k_tb, h, k)` for `h = h_tb_ws` and `k = k_bt_p`. The
+/// theorem drops the second factor of the first place: here `S` of
+/// `(W ⊗ S) ⊗ (B ⊗ P)`. The `==` half compares the marginal with
+/// `cond_indep_form(k_tb, h ≫ (W ◁ ε[S] ≫ ρ), k)`. The result of
+/// `is_cond_independent_state` on the state at each input is a claim of this
+/// test.
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.decomposition
+#[test]
+fn witness_displays_cond_indep_decomposition() -> Result<()> {
+    let (w, sp, b, p) = (obj_w()?, obj_s()?, obj_b()?, obj_p()?);
+    let (g, h, k) = (k_tb()?, h_tb_ws()?, k_bt_p()?);
+    let form = cond_indep_form(&g, &h, &k)?;
+    let literal = f_ws_bp()?;
+    assert_kernel("cond_indep_form(k_tb, h, k)", &form, &literal);
+    let m1 = discard_snd(&w, &sp)?;
+    let drop_snd = Kernel::whisker_right(&m1, &b.tensor(&p)?)?;
+    let expected = f_w_bp()?;
+    let marginal = form.marginal(&[0, 2, 3])?;
+    assert_kernel("f.marginal([0, 2, 3])", &marginal, &expected);
+    assert_kernel(
+        "f ≫ ((W ◁ ε[S] ≫ ρ) ▷ (B ⊗ P))",
+        &form.compose(&drop_snd)?,
+        &marginal,
+    );
+    assert_kernel(
+        "cond_indep_form(k_tb, h ≫ (W ◁ ε[S] ≫ ρ), k)",
+        &cond_indep_form(&g, &h.compose(&m1)?, &k)?,
+        &marginal,
+    );
+    assert_cond_independent_at_each_input("f", &form, &[0, 1], &[2], &[3], &[true, true]);
+    assert_cond_independent_at_each_input(
+        "f.marginal([0, 2, 3])",
+        &marginal,
+        &[0],
+        &[1],
+        &[2],
+        &[true, true],
+    );
+
+    let dep = replace_column(
+        &literal,
+        1,
+        &[
+            [r(0, 1), r(0, 1), r(1, 6), r(0, 1)],
+            [r(0, 1), r(0, 1), r(0, 1), r(1, 3)],
+            [r(1, 4), r(0, 1), r(0, 1), r(0, 1)],
+            [r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            [r(0, 1), r(0, 1), r(1, 12), r(0, 1)],
+            [r(0, 1), r(0, 1), r(0, 1), r(1, 6)],
+        ]
+        .concat(),
+    )?;
+    assert_cond_independent_at_each_input(
+        "control: f_dep",
+        &dep,
+        &[0, 1],
+        &[2],
+        &[3],
+        &[true, false],
+    );
+    let marginal_dep = dep.marginal(&[0, 2, 3])?;
+    assert_kernel(
+        "control: f_dep.marginal([0, 2, 3])",
+        &marginal_dep,
+        &expected,
+    );
+    assert_kernel(
+        "control: f_dep ≫ ((W ◁ ε[S] ≫ ρ) ▷ (B ⊗ P))",
+        &dep.compose(&drop_snd)?,
+        &marginal_dep,
+    );
+    assert_cond_independent_at_each_input(
+        "control: f_dep.marginal([0, 2, 3])",
+        &marginal_dep,
+        &[0],
+        &[1],
+        &[2],
+        &[true, true],
+    );
+    Ok(())
+}
+
+/// At `A = T`, `X = W`, `W = B`, `Z = S`, `Y = P`, with
+/// `f = cond_indep_form(g, h, k)` for `g = g_t_bs`, `h = h_tbs_w` and
+/// `k = k_bst_p`, and with `g' = k_tb`, `h' = h_tb_w` and `k' = k_bt_s`. The
+/// `==` half compares the marginal with `cond_indep_form(g', h', k')`, and
+/// `f ≫ (W ◁ α[B, S, P])` with `cond_indep_form(g', h', k'')` for
+/// `k'' = (Δ[B] ▷ T) ≫ α ≫ (B ◁ ((B ◁ Δ[T]) ≫ α⁻¹ ≫ (k' ▷ T))) ≫ α⁻¹ ≫
+/// (((B ◁ Δ[S]) ≫ α⁻¹ ≫ (σ[B, S] ▷ S) ≫ α) ▷ T) ≫ α ≫ (S ◁ k)`. The result
+/// of `is_cond_independent_state` on the state at each input is a claim of
+/// this test.
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.contraction
+#[test]
+fn witness_displays_cond_indep_contraction() -> Result<()> {
+    let (t, w, sp, b, p) = (obj_t()?, obj_w()?, obj_s()?, obj_b()?, obj_p()?);
+    let bs = b.tensor(&sp)?;
+    let (g1, h1, k1) = (k_tb()?, h_tb_w()?, k_bt_s()?);
+    let (g, h, k) = (g_t_bs()?, h_tbs_w()?, k_bst_p()?);
+    assert_kernel(
+        "Δ[T] ≫ (g' ▷ T) ≫ (Δ[B] ▷ T) ≫ α ≫ (B ◁ k')",
+        &Kernel::copy(&t)?
+            .compose(&Kernel::whisker_right(&g1, &t)?)?
+            .compose(&Kernel::whisker_right(&Kernel::copy(&b)?, &t)?)?
+            .compose(&Kernel::associator(&b, &b, &t)?)?
+            .compose(&Kernel::whisker_left(&b, &k1)?)?,
+        &g,
+    );
+    assert_kernel(
+        "(T ◁ (B ◁ ε[S] ≫ ρ)) ≫ h'",
+        &Kernel::whisker_left(&t, &discard_snd(&b, &sp)?)?.compose(&h1)?,
+        &h,
+    );
+    let form = cond_indep_form(&g, &h, &k)?;
+    let literal = f_w_bsp()?;
+    assert_kernel("cond_indep_form(g, h, k)", &form, &literal);
+    let drop_y = Kernel::whisker_left(&w, &discard_snd(&bs, &p)?)?;
+    let marginal_literal = f_w_bs()?;
+    let marginal = form.marginal(&[0, 1, 2])?;
+    assert_kernel("f.marginal([0, 1, 2])", &marginal, &marginal_literal);
+    assert_kernel(
+        "f ≫ (W ◁ ((B ⊗ S) ◁ ε[P] ≫ ρ))",
+        &form.compose(&drop_y)?,
+        &marginal,
+    );
+    assert_kernel(
+        "cond_indep_form(g', h', k')",
+        &cond_indep_form(&g1, &h1, &k1)?,
+        &marginal,
+    );
+    let inner = Kernel::whisker_left(&b, &Kernel::copy(&t)?)?
+        .compose(&Kernel::associator(&b, &t, &t)?)?
+        .compose(&Kernel::whisker_right(&k1, &t)?)?;
+    let duplicate = Kernel::whisker_left(&b, &Kernel::copy(&sp)?)?
+        .compose(&Kernel::associator(&b, &sp, &sp)?)?
+        .compose(&Kernel::whisker_right(&Kernel::swap(&b, &sp)?, &sp)?)?
+        .compose(&Kernel::associator(&sp, &b, &sp)?)?;
+    let third = Kernel::whisker_right(&Kernel::copy(&b)?, &t)?
+        .compose(&Kernel::associator(&b, &b, &t)?)?
+        .compose(&Kernel::whisker_left(&b, &inner)?)?
+        .compose(&Kernel::associator(&b, &sp, &t)?)?
+        .compose(&Kernel::whisker_right(&duplicate, &t)?)?
+        .compose(&Kernel::associator(&sp, &bs, &t)?)?
+        .compose(&Kernel::whisker_left(&sp, &k)?)?;
+    assert_kernel(
+        "k''",
+        &third,
+        &lit(
+            b.tensor(&t)?,
+            sp.tensor(&p)?,
+            &[
+                &[r(1, 4), r(1, 4), r(0, 1), r(1, 2)],
+                &[r(1, 3), r(0, 1), r(1, 3), r(1, 3)],
+                &[r(1, 4), r(3, 4), r(0, 1), r(0, 1)],
+                &[r(1, 12), r(1, 6), r(1, 2), r(1, 4)],
+            ],
+        )?,
+    );
+    let assoc = Kernel::whisker_left(&w, &Kernel::associator(&b, &sp, &p)?)?;
+    let conclusion = form.compose(&assoc)?;
+    assert_kernel("f ≫ (W ◁ α[B, S, P])", &conclusion, &literal);
+    assert_kernel(
+        "cond_indep_form(g', h', k'')",
+        &cond_indep_form(&g1, &h1, &third)?,
+        &conclusion,
+    );
+    assert_cond_independent_at_each_input("f", &form, &[0], &[1, 2], &[3], &[true, true]);
+    assert_cond_independent_at_each_input(
+        "f.marginal([0, 1, 2])",
+        &marginal,
+        &[0],
+        &[1],
+        &[2],
+        &[true, true],
+    );
+    assert_cond_independent_at_each_input(
+        "f ≫ (W ◁ α[B, S, P])",
+        &conclusion,
+        &[0],
+        &[1],
+        &[2, 3],
+        &[true, true],
+    );
+
+    let h_a = replace_column(
+        &replace_column(&h, 0, &[r(1, 1), r(0, 1), r(0, 1)])?,
+        1,
+        &[r(0, 1), r(1, 1), r(0, 1)],
+    )?;
+    let form_a = cond_indep_form(&g, &h_a, &k)?;
+    assert_cond_independent_at_each_input(
+        "control A: f_A",
+        &form_a,
+        &[0],
+        &[1, 2],
+        &[3],
+        &[true, true],
+    );
+    assert_cond_independent_at_each_input(
+        "control A: f_A ≫ (W ◁ ((B ⊗ S) ◁ ε[P] ≫ ρ))",
+        &form_a.compose(&drop_y)?,
+        &[0],
+        &[1],
+        &[2],
+        &[false, true],
+    );
+    assert_cond_independent_at_each_input(
+        "control A: f_A ≫ (W ◁ α[B, S, P])",
+        &form_a.compose(&assoc)?,
+        &[0],
+        &[1],
+        &[2, 3],
+        &[false, true],
+    );
+    assert_cond_independent_at_each_input(
+        "control A: f_A given B alone",
+        &form_a,
+        &[0],
+        &[1],
+        &[3],
+        &[false, true],
+    );
+
+    let form_b = replace_column(
+        &literal,
+        1,
+        &[
+            [r(1, 12), r(0, 1), r(1, 6), r(0, 1)],
+            [r(1, 16), r(0, 1), r(3, 16), r(0, 1)],
+            [r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            [r(0, 1), r(1, 16), r(0, 1), r(3, 16)],
+            [r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+            [r(0, 1), r(1, 16), r(0, 1), r(3, 16)],
+        ]
+        .concat(),
+    )?;
+    assert_cond_independent_at_each_input(
+        "control B: f_B",
+        &form_b,
+        &[0],
+        &[1, 2],
+        &[3],
+        &[true, false],
+    );
+    let marginal_b = form_b.compose(&drop_y)?;
+    assert_kernel(
+        "control B: f_B ≫ (W ◁ ((B ⊗ S) ◁ ε[P] ≫ ρ))",
+        &marginal_b,
+        &marginal_literal,
+    );
+    assert_cond_independent_at_each_input(
+        "control B: f_B ≫ (W ◁ ((B ⊗ S) ◁ ε[P] ≫ ρ))",
+        &marginal_b,
+        &[0],
+        &[1],
+        &[2],
+        &[true, true],
+    );
+    assert_cond_independent_at_each_input(
+        "control B: f_B ≫ (W ◁ α[B, S, P])",
+        &form_b.compose(&assoc)?,
+        &[0],
+        &[1],
+        &[2, 3],
+        &[true, false],
+    );
+    Ok(())
+}
+
+/// At `A = T`, `X₁ = W`, `X₂ = S`, `W = B`, `Y = P`, with
+/// `f = cond_indep_form(k_tb, h, k)` for `h = h_tb_ws` and `k = k_bt_p`, and
+/// with `m' = Δ[T] ≫ (T ◁ (k_tb ≫ Δ[B])) ≫ α⁻¹ ≫ (h ▷ B) ≫ α ≫
+/// (W ◁ σ[S, B])`. The `==` half compares `f ≫ tensorWeakUnionIso` with
+/// `cond_indep_form` of `marginal_snd(m', W, B ⊗ S)`,
+/// `σ[T, B ⊗ S] ≫ conditional_snd(m', W, B ⊗ S)` and
+/// `((B ◁ ε[S] ≫ ρ) ▷ T) ≫ k`. The result of `is_cond_independent_state` on
+/// the state at each input is a claim of this test. The control `f_s` is a
+/// literal on `W ⊗ ((B ⊗ S) ⊗ P)`, not a composite of the theorem, and its
+/// two assertions separate the list `[1, 2]` from the list `[1]` as `ws`.
+/// THEOREM_MAP: CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.weak_union
+#[test]
+fn witness_displays_cond_indep_weak_union() -> Result<()> {
+    let (t, w, sp, b, p) = (obj_t()?, obj_w()?, obj_s()?, obj_b()?, obj_p()?);
+    let bs = b.tensor(&sp)?;
+    let (g, h, k) = (k_tb()?, h_tb_ws()?, k_bt_p()?);
+    let form = cond_indep_form(&g, &h, &k)?;
+    let literal = f_ws_bp()?;
+    assert_kernel("cond_indep_form(k_tb, h, k)", &form, &literal);
+    let wu = weak_union(&w, &sp, &b, &p)?;
+    let after = form.compose(&wu)?;
+    assert_kernel(
+        "f ≫ tensorWeakUnionIso W S B P",
+        &after,
+        &lit(
+            t.clone(),
+            w.tensor(&bs)?.tensor(&p)?,
+            &[
+                &[r(1, 8), r(1, 8), r(0, 1), r(0, 1)],
+                &[r(1, 32), r(3, 32), r(1, 32), r(3, 32)],
+                &[r(1, 8), r(1, 8), r(0, 1), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(1, 32), r(3, 32)],
+                &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+                &[r(1, 32), r(3, 32), r(0, 1), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+                &[r(1, 12), r(1, 6), r(1, 12), r(1, 6)],
+                &[r(1, 8), r(0, 1), r(1, 8), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(0, 1), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(1, 12), r(1, 6)],
+            ],
+        )?,
+    );
+
+    let reordered = Kernel::copy(&t)?
+        .compose(&Kernel::whisker_left(&t, &g.compose(&Kernel::copy(&b)?)?)?)?
+        .compose(&Kernel::associator(&t, &b, &b)?)?
+        .compose(&Kernel::whisker_right(&h, &b)?)?
+        .compose(&Kernel::associator(&w, &sp, &b)?)?
+        .compose(&Kernel::whisker_left(&w, &Kernel::swap(&sp, &b)?)?)?;
+    assert_kernel(
+        "m' = Δ[T] ≫ (T ◁ (k_tb ≫ Δ[B])) ≫ α⁻¹ ≫ (h ▷ B) ≫ α ≫ (W ◁ σ[S, B])",
+        &reordered,
+        &lit(
+            t.clone(),
+            w.tensor(&bs)?,
+            &[
+                &[r(1, 4), r(0, 1), r(1, 8), r(1, 8)],
+                &[r(1, 4), r(0, 1), r(0, 1), r(1, 8)],
+                &[r(0, 1), r(0, 1), r(1, 8), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(1, 4), r(1, 4)],
+                &[r(1, 8), r(1, 8), r(0, 1), r(0, 1)],
+                &[r(0, 1), r(0, 1), r(0, 1), r(1, 4)],
+            ],
+        )?,
+    );
+    let first = reordered.marginal_snd(&w, &bs)?;
+    assert_kernel(
+        "marginal_snd(m', W, B ⊗ S)",
+        &first,
+        &lit(
+            t.clone(),
+            bs.clone(),
+            &[
+                &[r(1, 2), r(0, 1), r(1, 4), r(1, 4)],
+                &[r(1, 8), r(1, 8), r(1, 4), r(1, 2)],
+            ],
+        )?,
+    );
+    let got = conditional_snd(&reordered, &w, &bs);
+    let Ok(cond) = got else {
+        panic!("conditional_snd(m', W, B ⊗ S): expected Ok, observed {got:?}");
+    };
+    assert_kernel(
+        "conditional_snd(m', W, B ⊗ S)",
+        &cond,
+        &bst_to_w([r(1, 2), r(1, 2), r(0, 1)], [r(1, 3), r(1, 3), r(1, 3)])?,
+    );
+    let sigma = Kernel::swap(&t, &bs)?;
+    let third = Kernel::whisker_right(&discard_snd(&b, &sp)?, &t)?.compose(&k)?;
+    assert_kernel(
+        "((B ◁ ε[S] ≫ ρ) ▷ T) ≫ k",
+        &third,
+        &lit(
+            bs.tensor(&t)?,
+            p,
+            &[
+                &[r(1, 2), r(1, 2)],
+                &[r(1, 1), r(0, 1)],
+                &[r(1, 2), r(1, 2)],
+                &[r(1, 1), r(0, 1)],
+                &[r(1, 4), r(3, 4)],
+                &[r(1, 3), r(2, 3)],
+                &[r(1, 4), r(3, 4)],
+                &[r(1, 3), r(2, 3)],
+            ],
+        )?,
+    );
+    assert_kernel(
+        "cond_indep_form(marginal_snd(m', W, B ⊗ S), σ[T, B ⊗ S] ≫ conditional_snd(m', W, B ⊗ S), \
+         ((B ◁ ε[S] ≫ ρ) ▷ T) ≫ k)",
+        &cond_indep_form(&first, &sigma.compose(&cond)?, &third)?,
+        &after,
+    );
+    let free = bst_to_w([r(1, 2), r(1, 2), r(0, 1)], [r(1, 1), r(0, 1), r(0, 1)])?;
+    assert_differs(
+        "((false, off), hot) at (1, 0, 0) against (1/3, 1/3, 1/3)",
+        &free,
+        &cond,
+    );
+    assert_kernel(
+        "the composite with ((false, off), hot) at (1, 0, 0), a zero-mass input",
+        &cond_indep_form(&first, &sigma.compose(&free)?, &third)?,
+        &after,
+    );
+    let changed = bst_to_w([r(0, 1), r(1, 1), r(0, 1)], [r(1, 3), r(1, 3), r(1, 3)])?;
+    assert_differs(
+        "control: the composite with ((false, on), hot) at (0, 1, 0), an input with mass",
+        &cond_indep_form(&first, &sigma.compose(&changed)?, &third)?,
+        &after,
+    );
+    assert_cond_independent_at_each_input("f", &form, &[0, 1], &[2], &[3], &[true, true]);
+    assert_cond_independent_at_each_input(
+        "f ≫ tensorWeakUnionIso W S B P",
+        &after,
+        &[0],
+        &[1, 2],
+        &[3],
+        &[true, true],
+    );
+
+    let zero = [r(0, 1), r(0, 1), r(0, 1), r(0, 1)];
+    let dep = replace_column(
+        &literal,
+        1,
+        &[
+            [r(0, 1), r(0, 1), r(1, 2), r(0, 1)],
+            zero.clone(),
+            zero.clone(),
+            zero.clone(),
+            [r(0, 1), r(0, 1), r(0, 1), r(1, 2)],
+            zero.clone(),
+        ]
+        .concat(),
+    )?;
+    assert_cond_independent_at_each_input(
+        "control: f_d",
+        &dep,
+        &[0, 1],
+        &[2],
+        &[3],
+        &[true, false],
+    );
+    assert_cond_independent_at_each_input(
+        "control: f_d ≫ tensorWeakUnionIso W S B P",
+        &dep.compose(&wu)?,
+        &[0],
+        &[1, 2],
+        &[3],
+        &[true, false],
+    );
+
+    let split = lit(
+        t,
+        w.tensor(&bs)?.tensor(&obj_p()?)?,
+        &[
+            &[r(1, 4), r(1, 4), r(0, 1), r(0, 1)],
+            &zero,
+            &[r(0, 1), r(0, 1), r(0, 1), r(1, 2)],
+            &zero,
+            &zero,
+            &zero,
+            &zero,
+            &[r(1, 4), r(0, 1), r(1, 4), r(0, 1)],
+            &zero,
+            &zero,
+            &zero,
+            &[r(1, 4), r(0, 1), r(1, 4), r(0, 1)],
+        ],
+    )?;
+    assert_cond_independent_at_each_input(
+        "control: f_s given B ⊗ S",
+        &split,
+        &[0],
+        &[1, 2],
+        &[3],
+        &[true, true],
+    );
+    assert_cond_independent_at_each_input(
+        "control: f_s given B alone",
+        &split,
+        &[0],
+        &[1],
+        &[3],
+        &[false, true],
+    );
+    Ok(())
+}
+
 #[test]
 fn marginal_keeps_the_listed_factors() -> Result<()> {
     let (t, w, sp) = (obj_t()?, obj_w()?, obj_s()?);
@@ -1241,4 +2187,12 @@ fn is_cond_independent_state_sums_out_a_factor_in_no_list() -> Result<()> {
         );
     }
     Ok(())
+}
+
+#[test]
+#[should_panic(expected = "replace_column: expected an input below")]
+fn replace_column_panics_on_an_input_out_of_range() {
+    let base = k_tb().expect("invariant: k_tb is a literal kernel with two inputs");
+    let got = replace_column(&base, 2, &[r(1, 2), r(1, 2)]);
+    drop(got);
 }

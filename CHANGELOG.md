@@ -6,6 +6,22 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-11-27
+
+### Added
+
+- `lean/Peluang/Independence/Semigraphoid.lean`: `DisplaysCondIndep.symm`,
+  `DisplaysCondIndep.decomposition`, `DisplaysCondIndep.contraction` and
+  `DisplaysCondIndep.weak_union` (Fritz 2020 Prop. 12.17). Contraction is for
+  a Markov category. Weak union is for a copy-discard category with
+  conditionals. The others are for a copy-discard category. The file has
+  eleven more helper theorems. Five of them are equations for
+  `condIndepForm`.
+- `tests/formalization_lean/semigraphoid_tests.rs`: 5 tests, 4 of them with
+  a `THEOREM_MAP` tag. Each tagged test compares two `cond_indep_form`
+  composites with `==`. It also runs `is_cond_independent_state` on the
+  state at each input. `THEOREM_MAP.md` goes from 99 to 103 rows.
+
 ## [0.5.6] - 2026-11-26
 
 ### Added
@@ -537,7 +553,8 @@ git tag is the authoritative pin.
 - `CLAUDE.md` (build and gate commands, gotchas), `README.md`, `LICENSE`
   (MIT), `THIRD-PARTY.md`, `rust-toolchain.toml`.
 
-[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.6...HEAD
+[Unreleased]: https://github.com/sustia-llc/peluang/compare/v0.5.7...HEAD
+[0.5.7]: https://github.com/sustia-llc/peluang/compare/v0.5.6...v0.5.7
 [0.5.6]: https://github.com/sustia-llc/peluang/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/sustia-llc/peluang/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/sustia-llc/peluang/compare/v0.5.3...v0.5.4
