@@ -137,3 +137,7 @@ not prefixed `mathlib:` is not a constant of a `Peluang` / `Peluang.*` module.
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.decomposition | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_decomposition | Fritz 2020 Lemma 12.5 (b) |
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.contraction | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_contraction | Fritz 2020 Lemma 12.5 (c) |
 | CategoryTheory.CopyDiscardCategory.DisplaysCondIndepState.weak_union | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_state_weak_union | Fritz 2020 Lemma 12.5 (d) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.symm | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_symm | Fritz 2020 Prop. 12.17 (a) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.decomposition | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_decomposition | Fritz 2020 Prop. 12.17 (b) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.contraction | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_contraction | Fritz 2020 Prop. 12.17 (c) |
+| CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.weak_union | tests/formalization_lean/semigraphoid_tests.rs::witness_displays_cond_indep_weak_union | Fritz 2020 Prop. 12.17 (d) |
