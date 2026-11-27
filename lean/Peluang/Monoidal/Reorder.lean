@@ -44,6 +44,9 @@ from associators, braidings and whiskerings.
 * `MonoidalCategory.tensorRev₃_hom_naturality` - for a braided monoidal category `C`,
   `(tensorRev₃ X W Y).hom` is natural in `X`, `W` and `Y` (the reordering of Fritz 2020,
   Lemma 12.5 (a) and Prop. 12.17 (a)).
+* `MonoidalCategory.tensorTripleInterchange_hom_natural` - for a braided monoidal category
+  `C`, `(tensorTripleInterchange X₁ W₁ Y₁ X₂ W₂ Y₂).hom` is natural in `X₁`, `W₁`, `Y₁`, `X₂`,
+  `W₂` and `Y₂` (the reordering of Fritz 2020, Prop. 12.18 (a)).
 
 ## References
 
@@ -222,6 +225,29 @@ theorem tensorRev₃_hom_naturality {X W Y X' W' Y' : C} (f : X ⟶ X') (g : W �
   simp only [Category.assoc, ← associator_naturality, ← tensorHom_id,
     tensorHom_comp_tensorHom_assoc, Category.comp_id, Category.id_comp,
     BraidedCategory.braiding_naturality]
+
+/-- For morphisms `a₁ : X₁ ⟶ X₁'`, `b₁ : W₁ ⟶ W₁'`, `c₁ : Y₁ ⟶ Y₁'`, `a₂ : X₂ ⟶ X₂'`,
+`b₂ : W₂ ⟶ W₂'`, `c₂ : Y₂ ⟶ Y₂'` of a braided monoidal category `C`, the morphism
+`(tensorTripleInterchange X₁ W₁ Y₁ X₂ W₂ Y₂).hom` is natural:
+`(a₁ ⊗ₘ (b₁ ⊗ₘ c₁)) ⊗ₘ (a₂ ⊗ₘ (b₂ ⊗ₘ c₂))` followed by
+`(tensorTripleInterchange X₁' W₁' Y₁' X₂' W₂' Y₂').hom` equals
+`(tensorTripleInterchange X₁ W₁ Y₁ X₂ W₂ Y₂).hom` followed by
+`(a₁ ⊗ₘ a₂) ⊗ₘ ((b₁ ⊗ₘ b₂) ⊗ₘ (c₁ ⊗ₘ c₂))` (the reordering of Fritz 2020, Prop. 12.18 (a)). -/
+theorem tensorTripleInterchange_hom_natural {X₁ W₁ Y₁ X₂ W₂ Y₂ X₁' W₁' Y₁' X₂' W₂' Y₂' : C}
+    (a₁ : X₁ ⟶ X₁') (b₁ : W₁ ⟶ W₁') (c₁ : Y₁ ⟶ Y₁') (a₂ : X₂ ⟶ X₂') (b₂ : W₂ ⟶ W₂')
+    (c₂ : Y₂ ⟶ Y₂') :
+    ((a₁ ⊗ₘ (b₁ ⊗ₘ c₁)) ⊗ₘ (a₂ ⊗ₘ (b₂ ⊗ₘ c₂))) ≫
+        (tensorTripleInterchange X₁' W₁' Y₁' X₂' W₂' Y₂').hom =
+      (tensorTripleInterchange X₁ W₁ Y₁ X₂ W₂ Y₂).hom ≫
+        ((a₁ ⊗ₘ a₂) ⊗ₘ ((b₁ ⊗ₘ b₂) ⊗ₘ (c₁ ⊗ₘ c₂))) := by
+  have T : ∀ (X₁ W₁ Y₁ X₂ W₂ Y₂ : C), (tensorTripleInterchange X₁ W₁ Y₁ X₂ W₂ Y₂).hom =
+      tensorμ X₁ (W₁ ⊗ Y₁) X₂ (W₂ ⊗ Y₂) ≫ (X₁ ⊗ X₂) ◁ tensorμ W₁ Y₁ W₂ Y₂ :=
+    fun _ _ _ _ _ _ => rfl
+  have n : ((a₁ ⊗ₘ a₂) ⊗ₘ ((b₁ ⊗ₘ c₁) ⊗ₘ (b₂ ⊗ₘ c₂))) ≫ (X₁' ⊗ X₂') ◁ tensorμ W₁' Y₁' W₂' Y₂' =
+      (X₁ ⊗ X₂) ◁ tensorμ W₁ Y₁ W₂ Y₂ ≫ ((a₁ ⊗ₘ a₂) ⊗ₘ ((b₁ ⊗ₘ b₂) ⊗ₘ (c₁ ⊗ₘ c₂))) := by
+    rw [← id_tensorHom, ← id_tensorHom, tensorHom_comp_tensorHom, tensorHom_comp_tensorHom,
+      tensorμ_natural, Category.id_comp, Category.comp_id]
+  rw [T, T, tensorμ_natural_assoc, Category.assoc, n]
 
 end MonoidalCategory
 
