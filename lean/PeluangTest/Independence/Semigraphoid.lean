@@ -15,11 +15,22 @@ Each of `DisplaysIndep.symm`, `fst_comp_discard`, `DisplaysIndep.decomposition`,
 `DisplaysCondIndepState.decomposition`, `copy_comp_whiskerLeft_comp_copy_tensor`,
 `copy_tensor_comp_whiskerLeft_fst`, `braiding_comp_copy_whiskerRight`,
 `braiding_comp_copy_tensor_comp_whiskerLeft_fst`, `copy_comp_whiskerLeft_comp_copy_tensor_eq`,
-`DisplaysCondIndepState.weak_union`, `MarkovCategory.whiskerLeft_copy_comp_tensorHom_comp_fst`
-and `CopyDiscardCategory.DisplaysCondIndepState.contraction` applied at variables.
+`DisplaysCondIndepState.weak_union`, `copy_tensor_comp_snd_whiskerRight`,
+`copy_tensor_comp_snd_tensorHom_braiding`, `copy_tensor_comp_whiskerLeft_braiding`,
+`condIndepForm_eq_copy_tensor`, `condIndepForm_comp_tensorRev₃`, `DisplaysCondIndep.symm`,
+`condIndepForm_comp_tensorHom_whiskerLeft`, `DisplaysCondIndep.decomposition`,
+`condIndepForm_eq_copy_comp_whiskerRight`, `copy_comp_copy_comp_whiskerRight_whiskerRight`,
+`whiskerLeft_copy_comp_whiskerRight_comp_copy_tensor`,
+`braiding_whiskerRight_comp_copy_tensor_whiskerRight`, `DisplaysCondIndep.weak_union`,
+`MarkovCategory.whiskerLeft_copy_comp_tensorHom_comp_fst`,
+`CopyDiscardCategory.DisplaysCondIndepState.contraction`,
+`MarkovCategory.condIndepForm_comp_whiskerLeft_fst` and
+`CopyDiscardCategory.DisplaysCondIndep.contraction` applied at variables.
 `DisplaysIndep.symm`, `DisplaysIndep.decomposition`, `DisplaysCondIndepState.symm`,
-`DisplaysCondIndepState.decomposition`, `DisplaysCondIndepState.weak_union` and
-`DisplaysCondIndepState.contraction` through dot notation on the hypothesis.
+`DisplaysCondIndepState.decomposition`, `DisplaysCondIndepState.weak_union`,
+`DisplaysCondIndepState.contraction`, `DisplaysCondIndep.symm`,
+`DisplaysCondIndep.decomposition`, `DisplaysCondIndep.weak_union` and
+`DisplaysCondIndep.contraction` through dot notation on the hypothesis.
 -/
 
 public section
@@ -116,6 +127,96 @@ example [HasConditionals C] {X₁ X₂ W Y : C} {ψ : 𝟙_ C ⟶ (X₁ ⊗ X₂
     DisplaysCondIndepState (ψ ≫ (tensorWeakUnionIso X₁ X₂ W Y).hom) :=
   hψ.weak_union
 
+example (A W : C) :
+    @ComonObj.comul C _ _ (A ⊗ W) (CopyDiscardCategory.comonObj (A ⊗ W)) ≫
+        ((ε[A] ▷ W ≫ (λ_ W).hom) ▷ (A ⊗ W)) =
+      A ◁ Δ[W] ≫ (α_ A W W).inv ≫ (β_ A W).hom ▷ W ≫ (α_ W A W).hom :=
+  copy_tensor_comp_snd_whiskerRight A W
+
+example (A W : C) :
+    @ComonObj.comul C _ _ (A ⊗ W) (CopyDiscardCategory.comonObj (A ⊗ W)) ≫
+        ((ε[A] ▷ W ≫ (λ_ W).hom) ⊗ₘ (β_ A W).hom) =
+      (β_ A W).hom ≫ Δ[W] ▷ A ≫ (α_ W W A).hom :=
+  copy_tensor_comp_snd_tensorHom_braiding A W
+
+example (A W : C) :
+    @ComonObj.comul C _ _ (A ⊗ W) (CopyDiscardCategory.comonObj (A ⊗ W)) ≫
+        (A ⊗ W) ◁ (β_ A W).hom =
+      (Δ[A] ⊗ₘ Δ[W]) ≫ (α_ A A (W ⊗ W)).hom ≫ A ◁ (β_ A (W ⊗ W)).hom ≫
+        A ◁ (α_ W W A).hom ≫ (α_ A W (W ⊗ A)).inv :=
+  copy_tensor_comp_whiskerLeft_braiding A W
+
+example {A X W Y : C} (g : A ⟶ W) (h : A ⊗ W ⟶ X) (k : W ⊗ A ⟶ Y) :
+    condIndepForm g h k =
+      Δ[A] ≫ A ◁ g ≫ @ComonObj.comul C _ _ (A ⊗ W) (CopyDiscardCategory.comonObj (A ⊗ W)) ≫
+        (A ⊗ W) ◁ @ComonObj.comul C _ _ (A ⊗ W) (CopyDiscardCategory.comonObj (A ⊗ W)) ≫
+        (h ⊗ₘ ((ε[A] ▷ W ≫ (λ_ W).hom) ⊗ₘ ((β_ A W).hom ≫ k))) :=
+  condIndepForm_eq_copy_tensor g h k
+
+example {A X W Y : C} (g : A ⟶ W) (h : A ⊗ W ⟶ X) (k : W ⊗ A ⟶ Y) :
+    condIndepForm g h k ≫ (tensorRev₃ X W Y).hom =
+      condIndepForm g ((β_ A W).hom ≫ k) ((β_ W A).hom ≫ h) :=
+  condIndepForm_comp_tensorRev₃ g h k
+
+example {A X W Y : C} {f : A ⟶ X ⊗ (W ⊗ Y)} (hf : DisplaysCondIndep f) :
+    DisplaysCondIndep (f ≫ (tensorRev₃ X W Y).hom) :=
+  DisplaysCondIndep.symm hf
+
+example {A X W Y : C} {f : A ⟶ X ⊗ (W ⊗ Y)} (hf : DisplaysCondIndep f) :
+    DisplaysCondIndep (f ≫ (tensorRev₃ X W Y).hom) :=
+  hf.symm
+
+example {A X X' W Y Y' : C} (g : A ⟶ W) (h : A ⊗ W ⟶ X) (k : W ⊗ A ⟶ Y) (u : X ⟶ X')
+    (v : Y ⟶ Y') :
+    condIndepForm g h k ≫ (u ⊗ₘ W ◁ v) = condIndepForm g (h ≫ u) (k ≫ v) :=
+  condIndepForm_comp_tensorHom_whiskerLeft g h k u v
+
+example {A X₁ X₂ W Y : C} {f : A ⟶ (X₁ ⊗ X₂) ⊗ (W ⊗ Y)} (hf : DisplaysCondIndep f) :
+    DisplaysCondIndep (f ≫ ((X₁ ◁ ε[X₂] ≫ (ρ_ X₁).hom) ▷ (W ⊗ Y))) :=
+  DisplaysCondIndep.decomposition hf
+
+example {A X₁ X₂ W Y : C} {f : A ⟶ (X₁ ⊗ X₂) ⊗ (W ⊗ Y)} (hf : DisplaysCondIndep f) :
+    DisplaysCondIndep (f ≫ ((X₁ ◁ ε[X₂] ≫ (ρ_ X₁).hom) ▷ (W ⊗ Y))) :=
+  hf.decomposition
+
+example {A X W Y : C} (g : A ⟶ W) (h : A ⊗ W ⟶ X) (k : W ⊗ A ⟶ Y) :
+    condIndepForm g h k =
+      Δ[A] ≫ (Δ[A] ≫ A ◁ (g ≫ Δ[W]) ≫ (α_ A W W).inv ≫ h ▷ W) ▷ A ≫ (α_ X W A).hom ≫
+        X ◁ (Δ[W] ▷ A ≫ (α_ W W A).hom ≫ W ◁ k) :=
+  condIndepForm_eq_copy_comp_whiskerRight g h k
+
+example {A B : C} (m : A ⟶ B) :
+    Δ[A] ≫ (Δ[A] ≫ m ▷ A) ▷ A = Δ[A] ≫ m ▷ A ≫ B ◁ Δ[A] ≫ (α_ B A A).inv :=
+  copy_comp_copy_comp_whiskerRight_whiskerRight m
+
+example {A W Z Y : C} (k' : W ⊗ A ⟶ Z) (k : (W ⊗ Z) ⊗ A ⟶ Y) :
+    W ◁ Δ[A] ≫ (α_ W A A).inv ≫ (Δ[W] ▷ A ≫ (α_ W W A).hom ≫ W ◁ k') ▷ A ≫
+        @ComonObj.comul C _ _ (W ⊗ Z) (CopyDiscardCategory.comonObj (W ⊗ Z)) ▷ A ≫
+        (α_ (W ⊗ Z) (W ⊗ Z) A).hom ≫ (W ⊗ Z) ◁ k ≫ (α_ W Z Y).hom =
+      Δ[W] ▷ A ≫ (α_ W W A).hom ≫ W ◁ (Δ[W] ▷ A ≫ (α_ W W A).hom ≫
+        W ◁ (W ◁ Δ[A] ≫ (α_ W A A).inv ≫ k' ▷ A) ≫ (α_ W Z A).inv ≫
+        (W ◁ Δ[Z] ≫ (α_ W Z Z).inv ≫ (β_ W Z).hom ▷ Z ≫ (α_ Z W Z).hom) ▷ A ≫
+        (α_ Z (W ⊗ Z) A).hom ≫ Z ◁ k) :=
+  whiskerLeft_copy_comp_whiskerRight_comp_copy_tensor k' k
+
+example {A W X Y : C} (k : W ⊗ A ⟶ Y) :
+    (β_ X W).hom ▷ A ≫
+        @ComonObj.comul C _ _ (W ⊗ X) (CopyDiscardCategory.comonObj (W ⊗ X)) ▷ A ≫
+        (α_ (W ⊗ X) (W ⊗ X) A).hom ≫ (W ⊗ X) ◁ ((W ◁ ε[X] ≫ (ρ_ W).hom) ▷ A ≫ k) =
+      (X ◁ Δ[W] ≫ (α_ X W W).inv ≫ (β_ X W).hom ▷ W) ▷ A ≫ (α_ (W ⊗ X) W A).hom ≫
+        (W ⊗ X) ◁ k :=
+  braiding_whiskerRight_comp_copy_tensor_whiskerRight k
+
+example [HasConditionals C] {A X₁ X₂ W Y : C} {f : A ⟶ (X₁ ⊗ X₂) ⊗ (W ⊗ Y)}
+    (hf : DisplaysCondIndep f) :
+    DisplaysCondIndep (f ≫ (tensorWeakUnionIso X₁ X₂ W Y).hom) :=
+  DisplaysCondIndep.weak_union hf
+
+example [HasConditionals C] {A X₁ X₂ W Y : C} {f : A ⟶ (X₁ ⊗ X₂) ⊗ (W ⊗ Y)}
+    (hf : DisplaysCondIndep f) :
+    DisplaysCondIndep (f ≫ (tensorWeakUnionIso X₁ X₂ W Y).hom) :=
+  hf.weak_union
+
 end CopyDiscard
 
 section Markov
@@ -135,6 +236,21 @@ example {X W Z Y : C} {ψ : 𝟙_ C ⟶ X ⊗ ((W ⊗ Z) ⊗ Y)} (hψ : Displays
     (hm : DisplaysCondIndepState (ψ ≫ X ◁ ((W ⊗ Z) ◁ ε[Y] ≫ (ρ_ (W ⊗ Z)).hom))) :
     DisplaysCondIndepState (ψ ≫ X ◁ (α_ W Z Y).hom) :=
   hψ.contraction hm
+
+example {A X W Y : C} (g : A ⟶ W) (h : A ⊗ W ⟶ X) (k : W ⊗ A ⟶ Y) :
+    condIndepForm g h k ≫ X ◁ (W ◁ ε[Y] ≫ (ρ_ W).hom) =
+      Δ[A] ≫ A ◁ (g ≫ Δ[W]) ≫ (α_ A W W).inv ≫ h ▷ W :=
+  MarkovCategory.condIndepForm_comp_whiskerLeft_fst g h k
+
+example {A X W Z Y : C} {f : A ⟶ X ⊗ ((W ⊗ Z) ⊗ Y)} (hf : DisplaysCondIndep f)
+    (hm : DisplaysCondIndep (f ≫ X ◁ ((W ⊗ Z) ◁ ε[Y] ≫ (ρ_ (W ⊗ Z)).hom))) :
+    DisplaysCondIndep (f ≫ X ◁ (α_ W Z Y).hom) :=
+  CategoryTheory.CopyDiscardCategory.DisplaysCondIndep.contraction hf hm
+
+example {A X W Z Y : C} {f : A ⟶ X ⊗ ((W ⊗ Z) ⊗ Y)} (hf : DisplaysCondIndep f)
+    (hm : DisplaysCondIndep (f ≫ X ◁ ((W ⊗ Z) ◁ ε[Y] ≫ (ρ_ (W ⊗ Z)).hom))) :
+    DisplaysCondIndep (f ≫ X ◁ (α_ W Z Y).hom) :=
+  hf.contraction hm
 
 end Markov
 
