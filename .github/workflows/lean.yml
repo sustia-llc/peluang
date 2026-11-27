@@ -8,6 +8,7 @@ on:
       - "scripts/probe_selftest.py"
       - "scripts/check_theorem_map.py"
       - "scripts/check_lean_source.py"
+      - "scripts/check_lake_log.py"
       - ".github/workflows/lean.yml"
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - "scripts/probe_selftest.py"
       - "scripts/check_theorem_map.py"
       - "scripts/check_lean_source.py"
+      - "scripts/check_lake_log.py"
       - ".github/workflows/lean.yml"
 concurrency:
   group: lean-${{ github.ref }}
@@ -63,15 +65,7 @@ jobs:
         run: |
           set -o pipefail
           lake build 2>&1 | tee ../lake-build.log
-          if grep -n 'warning:' ../lake-build.log; then
-            echo "::error::lake build emitted warnings"
-            exit 1
-          fi
-          audits="$(grep -cE 'peluangTest audit: [0-9]+ files' ../lake-build.log || true)"
-          if [ "$audits" != 1 ]; then
-            echo "::error::expected one peluangTest audit line, found $audits"
-            exit 1
-          fi
+          python3 -I ../scripts/check_lake_log.py ../lake-build.log
         shell: bash
       - name: Axioms probe
         run: python3 -I scripts/print_axioms.py

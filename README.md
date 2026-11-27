@@ -196,6 +196,8 @@ The crate has 285 tests with all features on.
   of `sorry` and `native_decide` constants.
 - `scripts/check_lean_source.py`: `sorry`/`admit` terms and `axiom`
   declarations in `lean/` sources, outside comments and literals.
+- `scripts/check_lake_log.py`: `warning:` lines and the count of audit lines
+  in a `lake build` log.
 - `lean/PeluangLint.lean`: build-time linter for `lean/PeluangTest`. In a
   `PeluangTest` module that imports it, an example with an axiom outside
   the allowlist is a build error. A command that adds a constant is also
@@ -253,6 +255,7 @@ python3 -I scripts/test_check_theorem_map.py
 python3 -I scripts/test_print_axioms.py
 python3 -I scripts/test_check_lean_source.py
 python3 -I scripts/test_probe_selftest.py
+python3 -I scripts/test_check_lake_log.py
 python3 -I scripts/check_lean_source.py
 python3 -I scripts/check_theorem_map.py
 # Lean (every lake command runs with lean/ as the working directory)
@@ -260,7 +263,7 @@ env -C lean lake exe cache get
 env -C lean lake build --no-build Mathlib
 rm -f lean/.lake/build/lib/lean/PeluangTest/Audit.trace
 env -C lean lake build > /tmp/lake-build.log 2>&1
-rg -c 'peluangTest audit: [0-9]+ files' /tmp/lake-build.log   # must print 1
+python3 -I scripts/check_lake_log.py /tmp/lake-build.log   # must exit 0
 python3 -I scripts/print_axioms.py
 python3 -I scripts/probe_selftest.py
 ```
