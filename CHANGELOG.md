@@ -6,6 +6,22 @@ git tag is the authoritative pin.
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/check_lake_log.py`: exits 1 on a `lake build` log with a line
+  that contains `warning:`, or with a count of audit lines other than 1.
+  An audit line starts with
+  `info: PeluangTest/Audit.lean:<n>:<n>: peluangTest audit: <n> files, <n> imported`.
+  The script takes the name `PeluangTest` from the `lean_lib` line of
+  `lean/lakefile.lean` whose name ends in `Test`.
+  `scripts/test_check_lake_log.py` has 33 tests.
+
+### Changed
+
+- The `lean` workflow runs `scripts/check_lake_log.py` on the build log in
+  place of two `grep` commands. The `theorem-map` workflow runs
+  `scripts/test_check_lake_log.py`.
+
 ## [0.5.8] - 2026-11-27
 
 ### Added

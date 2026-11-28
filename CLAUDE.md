@@ -26,16 +26,21 @@ the crate's witness tests pin. `THEOREM_MAP.md` is the bridge.
 - Bridge gate: `python3 -I scripts/test_check_theorem_map.py`,
   `python3 -I scripts/test_print_axioms.py`,
   `python3 -I scripts/test_check_lean_source.py`,
-  `python3 -I scripts/test_probe_selftest.py`, then
+  `python3 -I scripts/test_probe_selftest.py`,
+  `python3 -I scripts/test_check_lake_log.py`, then
   `python3 -I scripts/check_theorem_map.py`.
 - Lean gates, in order, each to a log file:
   1. `env -C lean lake exe cache get`, then `env -C lean lake build
      --no-build Mathlib` (fail closed: a non-zero exit from either stops the
      gate; never fall through to a cold build).
   2. `rm -f lean/.lake/build/lib/lean/PeluangTest/Audit.trace`, then
-     `env -C lean lake build`. `rg -c 'warning:' <log>` must print
-     nothing. `rg -c 'peluangTest audit: [0-9]+ files' <log>` must print
-     `1`.
+     `env -C lean lake build`.
+     `python3 -I scripts/check_lake_log.py <log>` must exit 0. It fails on
+     a line with `warning:`, and when the log does not hold exactly one
+     audit line. An audit line starts with `info: PeluangTest/Audit.lean:`,
+     a position, and `peluangTest audit: <n> files, <n> imported`. The
+     script takes the name `PeluangTest` from the `lean_lib` line of
+     `lean/lakefile.lean` whose name ends in `Test`.
      The build runs Mathlib's style linters (`weak.linter.mathlibStandardSet`
      in `lean/lakefile.lean`, header linter off) and, through
      `lean/PeluangTest/Lint.lean`, `#lint in Peluang`, whose findings are
