@@ -14,7 +14,7 @@ git tag is the authoritative pin.
   `info: PeluangTest/Audit.lean:<n>:<n>: peluangTest audit: <n> files, <n> imported`.
   The script takes the name `PeluangTest` from the `lean_lib` line of
   `lean/lakefile.lean` whose name ends in `Test`.
-  `scripts/test_check_lake_log.py` has 30 tests.
+  `scripts/test_check_lake_log.py` has 33 tests.
 
 ### Changed
 

@@ -3,22 +3,27 @@
 
 Reads `REPO_ROOT/lean/lakefile.lean` and takes the test library name `<T>`
 from it. REPO_ROOT defaults to the parent of the folder of this script. A
-library line is a line outside comments that starts with `lean_lib`, white
-space, and a name written `«<name>»` or as a run of characters with no white
-space. `<T>` is the name of the one library line whose name ends in `Test`,
-and it is a letter followed by letters, digits or `_`; `<t>` is `<T>` with its
-first letter in lower case. A comment is a `--` line comment or a `/- … -/`
-block comment, which nests; a string literal holds no comment.
+library line is a line that, with its comments replaced by spaces, holds
+optional white space, zero or more attributes `@[…]`, `lean_lib`, white space,
+and a name written `«<name>»` or as a run of characters with no white space.
+`<T>` is the name of the one library line whose name ends in `Test`, and it is
+a letter followed by letters, digits or `_`; `<t>` is `<T>` with its first
+letter in lower case. A comment is a `--` line comment or a `/- … -/` block
+comment, which nests; a `"…"` string literal with `\\` as its escape character
+holds no comment. A char literal and a raw string literal are read as code,
+so a `"` in one of them starts a string literal.
 
 Reads the file at LOG as UTF-8, undecodable bytes replaced, and splits it into
-lines at `\\n`. It removes each ANSI control sequence `ESC [ … <letter>` from
-a line and splits the line into pieces at `\\r`. A warning piece contains
-`warning:`. An audit piece starts with
+lines at `\\n`. It removes each control sequence from a line: `ESC [`, then
+bytes from `0` to `?`, then bytes from space to `/`, then one byte from `@`
+to `~`. It then splits the line into pieces at `\\r`. A warning is a piece
+that contains `warning:`, or the line itself when it contains `warning:` and
+no piece does. An audit piece starts with
 `info: <T>/Audit.lean:<n>:<n>: <t> audit: <n> files, <n> imported`.
 
-Exit 0 when the log has no warning piece and exactly one audit piece, printing
+Exit 0 when the log has no warning and exactly one audit piece, printing
 `check_lake_log: ok (1 audit line, 0 warning lines)`; exit 1 otherwise,
-printing `LOG:line: <the piece>` per warning piece, then
+printing `LOG:line: <the text>` per warning, then
 `LOG: <n> audit line(s), expected exactly 1` when the count is not 1, then
 `check_lake_log: failed (<n> warning line(s), <n> audit line(s))`; or, when
 the log cannot be read, `LOG: missing` / `LOG: not readable: <error>`, then
@@ -42,9 +47,9 @@ from pathlib import Path
 USAGE = "Usage: check_lake_log.py LOG [REPO_ROOT]"
 WARNING = "warning:"
 SUFFIX = "Test"
-LIB_RE = re.compile(r"lean_lib\s+(?:«(?P<quoted>[^»]*)»|(?P<bare>\S+))")
+LIB_RE = re.compile(r"\s*(?:@\[[^\]]*\]\s*)*lean_lib\s+(?:«(?P<quoted>[^»]*)»|(?P<bare>\S+))")
 NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
-ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def read(path: str) -> tuple[str | None, str | None]:
@@ -62,7 +67,8 @@ def read(path: str) -> tuple[str | None, str | None]:
 def strip_comments(src: str) -> str:
     """`src` with each character of a `--` line comment and of a `/- … -/` block comment replaced by a space,
     newlines kept. Block comments nest. A `"…"` string literal, with `\\` as its escape character, is kept
-    and holds no comment. A block comment with no end runs to the end of `src`."""
+    and holds no comment. A `"` outside a comment and a string literal starts a string literal, also inside
+    a char literal or a raw string literal. A block comment with no end runs to the end of `src`."""
     out: list[str] = []
     i, depth, in_string = 0, 0, False
     while i < len(src):
@@ -104,8 +110,9 @@ def strip_comments(src: str) -> str:
 
 def test_library(lakefile: str) -> tuple[str | None, str | None]:
     """The test library name of the Lake configuration file at `lakefile` and `None`; or `None` and the
-    failure line. A library line is a line of `strip_comments` of the file that starts with `lean_lib`, white
-    space, and a name: the text between `«` and `»`, or else the text up to the next white space. The test
+    failure line. A library line is a line of `strip_comments` of the file that holds optional white space,
+    zero or more attributes `@[…]`, `lean_lib`, white space, and a name: the text between `«` and `»`, or else
+    the text up to the next white space. The test
     library name is the name of the one library line whose name ends in `Test`. It is a failure when the file
     cannot be read, when the number of such lines is not 1, and when the name is not a letter followed by
     letters, digits or `_`."""
@@ -140,17 +147,20 @@ def audit_re(name: str) -> re.Pattern[str]:
 
 
 def scan(text: str, audit: re.Pattern[str]) -> tuple[list[tuple[int, str]], int]:
-    """The (line number, piece) pairs of the pieces of `text` that contain `warning:`, in order, and the
-    number of pieces that `audit` matches at their start. Lines are the parts of `text` between `\\n`. The
-    pieces of a line are its parts between `\\r`, after each match of `ANSI_RE` is removed from the line."""
+    """The (line number, text) pairs of the warnings of `text`, in order, and the number of pieces that
+    `audit` matches at their start. Lines are the parts of `text` between `\\n`. The pieces of a line are its
+    parts between `\\r`, after each match of `CSI_RE` is removed from the line. The warnings of a line are
+    its pieces that contain `warning:`; when no piece does and the line itself contains `warning:`, the
+    one warning is the line with one trailing `\\r` removed."""
     warnings: list[tuple[int, str]] = []
     audits = 0
     for lineno, line in enumerate(text.split("\n"), start=1):
-        for piece in ANSI_RE.sub("", line).split("\r"):
-            if WARNING in piece:
-                warnings.append((lineno, piece))
-            if audit.match(piece):
-                audits += 1
+        pieces = CSI_RE.sub("", line).split("\r")
+        hits = [piece for piece in pieces if WARNING in piece]
+        if not hits and WARNING in line:
+            hits = [line.removesuffix("\r")]
+        warnings.extend((lineno, hit) for hit in hits)
+        audits += sum(1 for piece in pieces if audit.match(piece))
     return warnings, audits
 
 

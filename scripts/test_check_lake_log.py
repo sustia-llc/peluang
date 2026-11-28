@@ -4,9 +4,7 @@
 from __future__ import annotations
 
 import contextlib
-import errno
 import io
-import os
 import sys
 import tempfile
 import unittest
@@ -195,10 +193,23 @@ class Main(unittest.TestCase):
             "\x1b[2K\r" + AUDIT,
             "\x1b[2K" + AUDIT,
             "\x1b[36;1m" + AUDIT.rstrip("\n") + "\x1b[0m\n",
+            "\x1b[38:5:6m" + AUDIT,
+            "\x1b[1~" + AUDIT,
+            "\x1b[0 q" + AUDIT,
+            "\x1b[<=>m" + AUDIT,
             "[4353/4355] Running DemoTest.Audit\r" + AUDIT,
         ):
             with self.subTest(content=content):
                 self.assert_run(content, (0, OK))
+
+    def test_audit_line_after_an_escape_that_is_not_a_control_sequence_is_not_counted(self) -> None:
+        for content in ("\x1b(B" + AUDIT, "\x1b]8;;https://example.org\x1b\\" + AUDIT, "\x1b" + AUDIT):
+            with self.subTest(content=content):
+                self.assert_run(content, (1, no_audit() + failed(0, 0)))
+
+    def test_warning_that_a_control_sequence_match_hides_is_reported_as_the_line(self) -> None:
+        self.assert_run("\x1b[warning: x\r\n" + AUDIT, (1, "LOG:1: \x1b[warning: x\n" + failed(1, 1)))
+        self.assert_run("a\rb \x1b[warning: x\n" + AUDIT, (1, "LOG:1: a\rb \x1b[warning: x\n" + failed(1, 1)))
 
     def test_warning_piece_is_reported_without_its_control_sequences(self) -> None:
         content = "[1/2] Running\r\x1b[33mwarning: x\x1b[0m\n" + AUDIT
@@ -210,8 +221,15 @@ class Main(unittest.TestCase):
         self.assertEqual(got, expected, f"expected {expected!r}, observed {got!r}")
 
     def test_directory_as_the_log_is_not_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                open(tmp, "rb").close()
+                reason = None
+            except OSError as exc:
+                reason = exc.strerror
+        self.assertIsNotNone(reason, "expected an OSError from open() on a directory, observed none")
         got = run(None, directory=True)
-        expected = (1, f"LOG: not readable: {os.strerror(errno.EISDIR)}\n" + NO_LOG)
+        expected = (1, f"LOG: not readable: {reason}\n" + NO_LOG)
         self.assertEqual(got, expected, f"expected {expected!r}, observed {got!r}")
 
     def test_character_that_stdout_cannot_encode_is_printed_as_an_escape(self) -> None:
@@ -280,7 +298,8 @@ class TestLibrary(unittest.TestCase):
             "",
             "import Lake\nlean_lib «Demo»\nlean_lib «DemoLint»\n",
             "-- lean_lib «DemoTest»\n",
-            "  lean_lib «DemoTest»\n",
+            "x lean_lib «DemoTest»\n",
+            "@[default_target lean_lib «DemoTest»\n",
             "lean_libs «DemoTest»\n",
             "lean_lib\n  «DemoTest» where\n",
             "lean_lib «DemoTests»\n",
@@ -300,9 +319,18 @@ class TestLibrary(unittest.TestCase):
             "-- lean_lib «OldTest»\nlean_lib «DemoTest» -- the tests\n",
             'require x from git "https://example.org/-/x"\nlean_lib «DemoTest»\n',
             'def s := "a \\" /- b"\nlean_lib «DemoTest»\n',
+            "  lean_lib «DemoTest»\n",
+            "@[default_target] lean_lib «DemoTest» where\n",
+            "@[default_target]lean_lib «DemoTest» where\n",
+            "  @[default_target] @[other] lean_lib «DemoTest» where\n",
+            "/- tests -/ lean_lib «DemoTest»\n",
         ):
             with self.subTest(lakefile=lakefile):
                 self.assert_run(AUDIT, lakefile, (0, OK))
+
+    def test_quote_in_a_char_literal_starts_a_string_literal(self) -> None:
+        lakefile = "def q := '\"'\n/-\nlean_lib «OldTest»\n-/\nlean_lib «DemoTest»\n"
+        self.assert_run(AUDIT, lakefile, (1, no_library(2)))
 
     def test_lakefile_with_two_test_library_lines_fails(self) -> None:
         self.assert_run(AUDIT, "lean_lib «DemoTest» where\nlean_lib «OtherTest» where\n", (1, no_library(2)))
